@@ -1,0 +1,76 @@
+@import "tailwindcss";
+
+:root {
+  --bms-green: #1a8a5c;
+  --bms-green-dark: #146b47;
+  --bms-green-light: #e6f5ee;
+  --bms-dark: #1a1a2e;
+  --bms-navy: #16213e;
+  --bms-blue: #0f3460;
+  --bms-yellow: #f5c518;
+  --bms-gray-100: #f7f7f7;
+  --bms-gray-200: #e8e8e8;
+  --bms-gray-600: #666;
+  --bms-gray-800: #333;
+  --bms-white: #ffffff;
+  --bms-black: #000000;
+}
+
+* { box-sizing: border-box; }
+html { scroll-behavior: smooth; }
+
+body {
+  font-family: "DM Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
+  color: var(--bms-gray-800);
+  background: var(--bms-white);
+}
+
+::-webkit-scrollbar { width: 6px; }
+::-webkit-scrollbar-track { background: var(--bms-gray-100); }
+::-webkit-scrollbar-thumb { background: var(--bms-green); border-radius: 3px; }
+
+.programme-carousel {
+  display: flex;
+  gap: 24px;
+  overflow-x: auto;
+  scroll-snap-type: x mandatory;
+  -webkit-overflow-scrolling: touch;
+  padding-bottom: 16px;
+  scrollbar-width: none;
+}
+.programme-carousel::-webkit-scrollbar { display: none; }
+.programme-card {
+  flex: 0 0 340px;
+  scroll-snap-align: start;
+}
+
+.auth-input {
+  width: 100%;
+  padding: 12px 16px;
+  border: 1.5px solid var(--bms-gray-200);
+  border-radius: 8px;
+  font-size: 15px;
+  transition: border-color 0.2s, box-shadow 0.2s;
+  outline: none;
+  background: var(--bms-white);
+}
+.auth-input:focus {
+  border-color: var(--bms-green);
+  box-shadow: 0 0 0 3px rgba(26, 138, 92, 0.12);
+}
+.auth-input.error { border-color: #e53e3e; }
+
+.auth-btn {
+  width: 100%;
+  padding: 13px;
+  background: var(--bms-green);
+  color: white;
+  border: none;
+  border-radius: 8px;
+  font-size: 16px;
+  font-weight: 600;
+  cursor: pointer;
+  transition: background 0.2s;
+}
+.auth-btn:hover { background: var(--bms-green-dark); }
+.auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
