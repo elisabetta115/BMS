@@ -4,7 +4,7 @@ import Link from "next/link";
 
 export default function Footer() {
   return (
-    <footer style={{ background: "#ffff" }}>
+    <footer className="bg-white border-t border-gray-200">
       <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-14">
         <div className="grid grid-cols-1 md:grid-cols-4 gap-10">
           {/* Logo */}
@@ -19,7 +19,7 @@ export default function Footer() {
                   target.style.display = "none";
                   if (target.parentElement) {
                     target.parentElement.innerHTML =
-                      '<span style="color:white;font-weight:700;font-size:1.25rem;">BoostMySkills</span>';
+                      '<span style="color:#1a8a5c;font-weight:700;font-size:1.25rem;">BoostMySkills</span>';
                   }
                 }}
               />
@@ -34,23 +34,23 @@ export default function Footer() {
                   href="https://www.res4city.eu/self-assessment/"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="text-gray-400 hover:text-white transition-colors"
+                  className="text-gray-600 hover:text-gray-900 transition-colors"
                 >
                   Self-Assessment
                 </a>
               </li>
               <li>
-                <Link href="/privacy" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/privacy" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Privacy Policy
                 </Link>
               </li>
               <li>
-                <Link href="/cookie_policy" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/cookie_policy" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Cookie Policy
                 </Link>
               </li>
               <li>
-                <Link href="/tos" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/tos" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Terms and Conditions
                 </Link>
               </li>
@@ -59,20 +59,20 @@ export default function Footer() {
 
           {/* Column 2 — Projects */}
           <div>
-            <p className="text-white font-semibold text-sm mb-4">Our projects</p>
+            <p className="text-gray-900 font-bold text-base mb-4">Our projects</p>
             <ul className="space-y-3 text-sm">
               <li>
-                <a href="https://www.res4city.eu/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
+                <a href="https://www.res4city.eu/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
                   RES4CITY
                 </a>
               </li>
               <li>
-                <a href="https://www.sherlockproject.eu/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
+                <a href="https://www.sherlockproject.eu/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
                   SHERLOCK
                 </a>
               </li>
               <li>
-                <a href="https://www.coss.ac.kr/" target="_blank" rel="noopener noreferrer" className="text-gray-400 hover:text-white transition-colors">
+                <a href="https://www.coss.ac.kr/" target="_blank" rel="noopener noreferrer" className="text-gray-600 hover:text-gray-900 transition-colors">
                   COSS
                 </a>
               </li>
@@ -81,15 +81,15 @@ export default function Footer() {
 
           {/* Column 3 — Contact */}
           <div>
-            <p className="text-white font-semibold text-sm mb-4">Get in touch</p>
+            <p className="text-gray-900 font-bold text-base mb-4">Get in touch</p>
             <ul className="space-y-3 text-sm">
               <li>
-                <Link href="/contact" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/contact" className="text-gray-600 hover:text-gray-900 transition-colors">
                   Contact Us
                 </Link>
               </li>
               <li>
-                <Link href="/about" className="text-gray-400 hover:text-white transition-colors">
+                <Link href="/about" className="text-gray-600 hover:text-gray-900 transition-colors">
                   About us
                 </Link>
               </li>
@@ -98,7 +98,7 @@ export default function Footer() {
                   href="https://www.linkedin.com/company/res4city/posts/?feedView=all"
                   target="_blank"
                   rel="noopener noreferrer"
-                  className="inline-flex items-center gap-2 text-gray-400 hover:text-white transition-colors"
+                  className="inline-flex items-center text-gray-700 hover:text-gray-900 transition-colors"
                   aria-label="LinkedIn"
                 >
                   <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">

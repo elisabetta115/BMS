@@ -190,45 +190,64 @@ export default function Home() {
         {/* Benefits */}
         <section className="py-16 md:py-20">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <p className="text-sm font-semibold italic mb-3" style={{ color: "var(--bms-green)" }}>
-              Certifications to boost your skills and career prospects
-            </p>
-            <h3 className="text-3xl font-bold mb-12" style={{ color: "var(--bms-dark)" }}>Benefits of BoostMySkills</h3>
-            <div className="grid sm:grid-cols-2 gap-x-16 gap-y-12 max-w-4xl">
-              {[
-                { icon: "/images/star.png", alt: "star icon", text: "Up skill for a Greener Future: Gain in-demand sustainability expertise and become a leader in the green economy" },
-                { icon: "/images/labelicon.png", alt: "label icon", text: "Flexible Learning: Learn at your own pace, anytime, anywhere with our online courses and resources." },
-                { icon: "/images/lightningicon.png", alt: "lightning icon", text: "Practical Skills: Apply your knowledge through real-world projects and case studies." },
-                { icon: "/images/heart_black.png", alt: "heart icon", text: "Positive Impact: Contribute to a sustainable future by developing solutions to environmental challenges." },
-              ].map((b, i) => (
-                <div key={i}>
-                  <img src={b.icon} alt={b.alt} className="w-8 h-8 mb-4" />
-                  <p className="text-gray-500 text-sm leading-relaxed">{b.text}</p>
+            <div className="grid md:grid-cols-2 gap-12 items-start">
+              {/* Left: device image */}
+              <div className="hidden md:block">
+                <img src="/images/home-page.png" alt="ipad image" className="w-full max-w-md" />
+              </div>
+
+              {/* Right: benefits content */}
+              <div>
+                <p className="text-sm font-semibold italic mb-3" style={{ color: "var(--bms-green)" }}>
+                  Certifications to boost your skills and career prospects
+                </p>
+                <h3 className="text-3xl font-bold mb-12" style={{ color: "var(--bms-dark)" }}>Benefits of BoostMySkills</h3>
+                <div className="grid grid-cols-2 gap-x-12 gap-y-10">
+                  <div>
+                    <svg width="40" height="40" viewBox="0 0 24 24" className="mb-5"><path d="M12 17.27L18.18 21l-1.64-7.03L22 9.24l-7.19-.61L12 2 9.19 8.63 2 9.24l5.46 4.73L5.82 21z" fill="#1a1a2e"/></svg>
+                    <p className="text-gray-500 leading-relaxed">Up skill for a Greener Future: Gain in-demand sustainability expertise and become a leader in the green economy</p>
+                  </div>
+                  <div>
+                    <svg width="40" height="40" viewBox="0 0 24 24" className="mb-5"><circle cx="12" cy="12" r="10" fill="#1a1a2e"/></svg>
+                    <p className="text-gray-500 leading-relaxed">Flexible Learning: Learn at your own pace, anytime, anywhere with our online courses and resources.</p>
+                  </div>
+                  <div>
+                    <svg width="40" height="40" viewBox="0 0 24 24" className="mb-5"><path d="M7 2v11h3v9l7-12h-4l4-8z" fill="#1a1a2e"/></svg>
+                    <p className="text-gray-500 leading-relaxed">Practical Skills: Apply your knowledge through real-world projects and case studies.</p>
+                  </div>
+                  <div>
+                    <svg width="40" height="40" viewBox="0 0 24 24" className="mb-5"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" fill="#1a1a2e"/></svg>
+                    <p className="text-gray-500 leading-relaxed">Positive Impact: Contribute to a sustainable future by developing solutions to environmental challenges.</p>
+                  </div>
                 </div>
-              ))}
+              </div>
             </div>
           </div>
         </section>
 
         {/* Testimonials */}
-        <section className="py-16" style={{ background: "var(--bms-dark)" }}>
+        <section className="py-16">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <h2 className="text-3xl font-bold text-white text-center mb-12">What People Are Saying</h2>
+            <h2 className="text-3xl font-bold text-center mb-12" style={{ color: "var(--bms-dark)" }}>What People Are Saying</h2>
             <div className="grid md:grid-cols-3 gap-8">
               {[
                 { quote: "I was amazed by the breadth of renewable energy courses offered. I highly recommend BoostMySkills to anyone passionate about creating a sustainable future", name: "Anya Petrova", role: "Sustainability Consultant" },
                 { quote: "The practical skills I gained have already helped me implement sustainable practices in my workplace", name: "Maria Gonzalez", role: "Renewable Energy Engineer" },
                 { quote: "BoostMySkills helped me discover my passion for renewable energy and sustainability and explore potential career paths", name: "David Kim", role: "Student" },
               ].map((t, i) => (
-                <div key={i} className="bg-white/5 backdrop-blur rounded-2xl p-6 border border-white/10">
-                  <p className="text-white/80 text-sm italic leading-relaxed mb-6">&ldquo;{t.quote}&rdquo;</p>
+                <div key={i} className="rounded-2xl p-6 border border-gray-200 bg-white">
+                  <p className="text-gray-600 text-sm leading-relaxed mb-8">
+                    &ldquo;{t.quote}&rdquo;
+                  </p>
                   <div className="flex items-center gap-3">
-                    <div className="w-10 h-10 rounded-full bg-[#1a8a5c] flex items-center justify-center text-white font-bold text-sm">
-                      {t.name[0]}
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#c8e6c9" }}>
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="#2e7d32">
+                        <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
+                      </svg>
                     </div>
                     <div>
-                      <p className="text-white text-sm font-semibold">{t.name}</p>
-                      <p className="text-white/50 text-xs">{t.role}</p>
+                      <p className="text-sm font-semibold" style={{ color: "var(--bms-dark)" }}>{t.name}</p>
+                      <p className="text-gray-400 text-xs">{t.role}</p>
                     </div>
                   </div>
                 </div>
@@ -239,11 +258,15 @@ export default function Home() {
 
         {/* Partners */}
         <section className="py-16">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
-            <h3 className="text-2xl font-bold mb-8" style={{ color: "var(--bms-dark)" }}>Our Partners</h3>
-            <div className="space-y-4">
-              <img src="/images/partners.jpeg" alt="partners" className="w-full rounded-xl" />
-              <img src="/images/extra_partners.png" alt="extra partners" className="w-full rounded-xl" />
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h3 className="text-2xl font-bold mb-8 text-center" style={{ color: "var(--bms-dark)" }}>Our Partners</h3>
+            <div className="space-y-6">
+              <div>
+                <img src="/images/partners.jpeg" alt="partners" className="w-full" />
+              </div>
+              <div className="rounded-2xl p-8" style={{ background: "#e8f5e9" }}>
+                <img src="/images/extra_partners.png" alt="extra partners" className="w-full" />
+              </div>
             </div>
           </div>
         </section>
