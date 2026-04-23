@@ -10,7 +10,7 @@ export default function Home() {
       <Header />
       <main id="main">
         {/* Hero */}
-        <section className="relative overflow-hidden" style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 50%, #dff0e8 100%)" }}>
+        <section className="relative overflow-hidden" style={{ background: "#ffff" }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
             <div className="grid md:grid-cols-2 gap-12 items-center">
               <div>
@@ -72,7 +72,7 @@ export default function Home() {
         </section>
 
         {/* Certificates */}
-        <section className="py-16" style={{ background: "var(--bms-gray-100)" }}>
+        <section className="py-16" style={{ background: "#ffff" }}>
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
             <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--bms-green)" }}>Earn BoostMySkills</p>
             <h2 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>Micro-credential and Micro-programme Certificates</h2>
