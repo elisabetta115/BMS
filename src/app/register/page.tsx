@@ -85,153 +85,140 @@ export default function RegisterPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 100%)" }}>
-      {/* Left panel */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12" style={{ background: "var(--bms-dark)" }}>
-        <div className="max-w-md text-center">
-          <Link href="/" className="inline-flex items-center gap-3 mb-8">
-            <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="6" fill="#1a8a5c" />
-              <text x="5" y="23" fill="white" fontSize="18" fontWeight="bold" fontFamily="DM Sans, sans-serif">B</text>
-            </svg>
-            <span className="text-white text-2xl font-bold">BoostMySkills</span>
-          </Link>
-          <h2 className="text-white text-3xl font-bold mb-4">Create your free account</h2>
-          <p className="text-white/60 leading-relaxed">
-            Join thousands of learners building expertise in sustainability. Access free courses co-funded by the EU.
-          </p>
-          <div className="mt-10 space-y-4 text-left">
-            {["10 Micro-programmes available", "70+ Micro-credentials", "Earn recognised certificates"].map((item, i) => (
-              <div key={i} className="flex items-center gap-3">
-                <div className="w-6 h-6 rounded-full bg-[#1a8a5c] flex items-center justify-center flex-shrink-0">
-                  <svg width="12" height="12" viewBox="0 0 24 24" fill="white"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41z" /></svg>
-                </div>
-                <span className="text-white/80 text-sm">{item}</span>
-              </div>
-            ))}
-          </div>
-        </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 50%, #dff0e8 100%)" }}
+    >
+      {/* Logo */}
+      <div className="mb-8">
+        <Link href="/" className="inline-flex items-center gap-2">
+          <img
+            src="/images/logo.png"
+            alt="BoostMySkills"
+            className="h-10"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+              if (target.parentElement) {
+                target.parentElement.innerHTML =
+                  '<span style="color:#1a8a5c;font-weight:700;font-size:1.5rem;">BoostMySkills</span>';
+              }
+            }}
+          />
+        </Link>
       </div>
 
-      {/* Right panel */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          <div className="lg:hidden mb-8 text-center">
-            <Link href="/" className="inline-flex items-center gap-2 font-bold text-xl" style={{ color: "var(--bms-green)" }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="6" fill="#1a8a5c" />
-                <text x="5" y="23" fill="white" fontSize="18" fontWeight="bold" fontFamily="DM Sans, sans-serif">B</text>
-              </svg>
-              BoostMySkills
-            </Link>
+      {/* Card */}
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 sm:p-10">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>
+          Register
+        </h1>
+        <p className="text-gray-500 text-sm mb-6">
+          Already have an account?{" "}
+          <Link href="/login" className="font-semibold" style={{ color: "var(--bms-green)" }}>
+            Sign in
+          </Link>
+        </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+            <input
+              id="name"
+              type="text"
+              className={`auth-input ${fieldErrors.name ? "error" : ""}`}
+              placeholder="Your full name"
+              value={form.name}
+              onChange={(e) => update("name", e.target.value)}
+              autoComplete="name"
+              required
+            />
+            {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
           </div>
 
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>Register</h1>
-          <p className="text-gray-500 text-sm mb-8">
-            Already have an account?{" "}
-            <Link href="/login" className="font-semibold" style={{ color: "var(--bms-green)" }}>Sign in</Link>
-          </p>
+          <div>
+            <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
+            <input
+              id="reg-email"
+              type="email"
+              className={`auth-input ${fieldErrors.email ? "error" : ""}`}
+              placeholder="you@example.com"
+              value={form.email}
+              onChange={(e) => update("email", e.target.value)}
+              autoComplete="email"
+              required
+            />
+            {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
+          </div>
 
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-            <div>
-              <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
+          <div>
+            <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
+            <div className="relative">
               <input
-                id="name"
-                type="text"
-                className={`auth-input ${fieldErrors.name ? "error" : ""}`}
-                placeholder="Your full name"
-                value={form.name}
-                onChange={(e) => update("name", e.target.value)}
-                autoComplete="name"
-                required
-              />
-              {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-              <input
-                id="reg-email"
-                type="email"
-                className={`auth-input ${fieldErrors.email ? "error" : ""}`}
-                placeholder="you@example.com"
-                value={form.email}
-                onChange={(e) => update("email", e.target.value)}
-                autoComplete="email"
-                required
-              />
-              {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-              <div className="relative">
-                <input
-                  id="reg-password"
-                  type={showPassword ? "text" : "password"}
-                  className={`auth-input pr-12 ${fieldErrors.password ? "error" : ""}`}
-                  placeholder="Min 8 chars, upper, lower, number"
-                  value={form.password}
-                  onChange={(e) => update("password", e.target.value)}
-                  autoComplete="new-password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-              {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
-              <input
-                id="confirm-password"
-                type="password"
-                className={`auth-input ${fieldErrors.confirmPassword ? "error" : ""}`}
-                placeholder="Repeat your password"
-                value={form.confirmPassword}
-                onChange={(e) => update("confirmPassword", e.target.value)}
+                id="reg-password"
+                type={showPassword ? "text" : "password"}
+                className={`auth-input pr-12 ${fieldErrors.password ? "error" : ""}`}
+                placeholder="Min 8 chars, upper, lower, number"
+                value={form.password}
+                onChange={(e) => update("password", e.target.value)}
                 autoComplete="new-password"
                 required
               />
-              {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
-            </div>
-
-            <div>
-              <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">Country / Region <span className="text-gray-400">(optional)</span></label>
-              <select
-                id="country"
-                className="auth-input"
-                value={form.country}
-                onChange={(e) => update("country", e.target.value)}
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
               >
-                <option value="">Select your country</option>
-                {COUNTRIES.filter(Boolean).map((c) => (
-                  <option key={c} value={c}>{c}</option>
-                ))}
-              </select>
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
+            {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
+          </div>
 
-            <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? "Creating account…" : "Create account"}
-            </button>
-          </form>
+          <div>
+            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
+            <input
+              id="confirm-password"
+              type="password"
+              className={`auth-input ${fieldErrors.confirmPassword ? "error" : ""}`}
+              placeholder="Repeat your password"
+              value={form.confirmPassword}
+              onChange={(e) => update("confirmPassword", e.target.value)}
+              autoComplete="new-password"
+              required
+            />
+            {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
+          </div>
 
-          <p className="text-center text-xs text-gray-400 mt-8">
-            By registering, you agree to our{" "}
-            <Link href="/tos" className="underline">Terms</Link> and{" "}
-            <Link href="/privacy" className="underline">Privacy Policy</Link>.
-          </p>
-        </div>
+          <div>
+            <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">Country / Region <span className="text-gray-400">(optional)</span></label>
+            <select
+              id="country"
+              className="auth-input"
+              value={form.country}
+              onChange={(e) => update("country", e.target.value)}
+            >
+              <option value="">Select your country</option>
+              {COUNTRIES.filter(Boolean).map((c) => (
+                <option key={c} value={c}>{c}</option>
+              ))}
+            </select>
+          </div>
+
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? "Creating account…" : "Create account"}
+          </button>
+        </form>
+
+        <p className="text-center text-xs text-gray-400 mt-6">
+          By registering, you agree to our{" "}
+          <Link href="/tos" className="underline">Terms</Link> and{" "}
+          <Link href="/privacy" className="underline">Privacy Policy</Link>.
+        </p>
       </div>
     </div>
   );

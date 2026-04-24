@@ -40,105 +40,99 @@ export default function LoginPage() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 100%)" }}>
-      {/* Left panel - branding */}
-      <div className="hidden lg:flex lg:w-1/2 items-center justify-center p-12" style={{ background: "var(--bms-dark)" }}>
-        <div className="max-w-md text-center">
-          <Link href="/" className="inline-flex items-center gap-3 mb-8">
-            <svg width="48" height="48" viewBox="0 0 32 32" fill="none">
-              <rect width="32" height="32" rx="6" fill="#1a8a5c" />
-              <text x="5" y="23" fill="white" fontSize="18" fontWeight="bold" fontFamily="DM Sans, sans-serif">B</text>
-            </svg>
-            <span className="text-white text-2xl font-bold">BoostMySkills</span>
-          </Link>
-          <h2 className="text-white text-3xl font-bold mb-4">Welcome back</h2>
-          <p className="text-white/60 leading-relaxed">
-            Sign in to continue your sustainability learning journey. Access your micro-programmes and micro-credentials.
-          </p>
-        </div>
+    <div
+      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
+      style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 50%, #dff0e8 100%)" }}
+    >
+      {/* Logo */}
+      <div className="mb-8">
+        <Link href="/" className="inline-flex items-center gap-2">
+          <img
+            src="/images/logo.png"
+            alt="BoostMySkills"
+            className="h-10"
+            onError={(e) => {
+              const target = e.target as HTMLImageElement;
+              target.style.display = "none";
+              if (target.parentElement) {
+                target.parentElement.innerHTML =
+                  '<span style="color:#1a8a5c;font-weight:700;font-size:1.5rem;">BoostMySkills</span>';
+              }
+            }}
+          />
+        </Link>
       </div>
 
-      {/* Right panel - form */}
-      <div className="flex-1 flex items-center justify-center p-6 sm:p-12">
-        <div className="w-full max-w-md">
-          {/* Mobile logo */}
-          <div className="lg:hidden mb-8 text-center">
-            <Link href="/" className="inline-flex items-center gap-2 font-bold text-xl" style={{ color: "var(--bms-green)" }}>
-              <svg width="32" height="32" viewBox="0 0 32 32" fill="none">
-                <rect width="32" height="32" rx="6" fill="#1a8a5c" />
-                <text x="5" y="23" fill="white" fontSize="18" fontWeight="bold" fontFamily="DM Sans, sans-serif">B</text>
-              </svg>
-              BoostMySkills
-            </Link>
+      {/* Card */}
+      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 sm:p-10">
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>
+          Sign in
+        </h1>
+        <p className="text-gray-500 text-sm mb-6">
+          Don&apos;t have an account?{" "}
+          <Link href="/register" className="font-semibold" style={{ color: "var(--bms-green)" }}>
+            Register for free
+          </Link>
+        </p>
+
+        {error && (
+          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
+            {error}
+          </div>
+        )}
+
+        <form onSubmit={handleSubmit} className="space-y-5" noValidate>
+          <div>
+            <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
+              Email
+            </label>
+            <input
+              id="email"
+              type="email"
+              className="auth-input"
+              placeholder="you@example.com"
+              value={email}
+              onChange={(e) => setEmail(e.target.value)}
+              autoComplete="email"
+              required
+            />
           </div>
 
-          <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>Sign in</h1>
-          <p className="text-gray-500 text-sm mb-8">
-            Don&apos;t have an account?{" "}
-            <Link href="/register" className="font-semibold" style={{ color: "var(--bms-green)" }}>
-              Register for free
-            </Link>
-          </p>
-
-          {error && (
-            <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">
-              {error}
-            </div>
-          )}
-
-          <form onSubmit={handleSubmit} className="space-y-5" noValidate>
-            <div>
-              <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Email
-              </label>
+          <div>
+            <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
+              Password
+            </label>
+            <div className="relative">
               <input
-                id="email"
-                type="email"
-                className="auth-input"
-                placeholder="you@example.com"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
-                autoComplete="email"
+                id="password"
+                type={showPassword ? "text" : "password"}
+                className="auth-input pr-12"
+                placeholder="Enter your password"
+                value={password}
+                onChange={(e) => setPassword(e.target.value)}
+                autoComplete="current-password"
                 required
               />
+              <button
+                type="button"
+                onClick={() => setShowPassword(!showPassword)}
+                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
+              >
+                {showPassword ? "Hide" : "Show"}
+              </button>
             </div>
+          </div>
 
-            <div>
-              <label htmlFor="password" className="block text-sm font-medium text-gray-700 mb-1.5">
-                Password
-              </label>
-              <div className="relative">
-                <input
-                  id="password"
-                  type={showPassword ? "text" : "password"}
-                  className="auth-input pr-12"
-                  placeholder="Enter your password"
-                  value={password}
-                  onChange={(e) => setPassword(e.target.value)}
-                  autoComplete="current-password"
-                  required
-                />
-                <button
-                  type="button"
-                  onClick={() => setShowPassword(!showPassword)}
-                  className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
-                >
-                  {showPassword ? "Hide" : "Show"}
-                </button>
-              </div>
-            </div>
+          <button type="submit" className="auth-btn" disabled={loading}>
+            {loading ? "Signing in…" : "Sign in"}
+          </button>
+        </form>
 
-            <button type="submit" className="auth-btn" disabled={loading}>
-              {loading ? "Signing in…" : "Sign in"}
-            </button>
-          </form>
-
-          <p className="text-center text-xs text-gray-400 mt-8">
-            By signing in, you agree to our{" "}
-            <Link href="/tos" className="underline">Terms</Link> and{" "}
-            <Link href="/privacy" className="underline">Privacy Policy</Link>.
-          </p>
-        </div>
+        <p className="text-center text-xs text-gray-400 mt-6">
+          By signing in, you agree to our{" "}
+          <Link href="/tos" className="underline">Terms</Link> and{" "}
+          <Link href="/privacy" className="underline">Privacy Policy</Link>.
+        </p>
       </div>
     </div>
   );
