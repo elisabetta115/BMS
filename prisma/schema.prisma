@@ -4,8 +4,11 @@ generator client {
 
 datasource db {
   provider = "postgresql"
-  url      = env("DATABASE_URL")
-  directUrl = env("DIRECT_URL")
+}
+
+enum Role {
+  USER
+  ADMIN
 }
 
 model User {
@@ -14,8 +17,103 @@ model User {
   email         String   @unique
   passwordHash  String   @map("password_hash")
   country       String?
+  role          Role     @default(USER)
   createdAt     DateTime @default(now()) @map("created_at")
   updatedAt     DateTime @updatedAt @map("updated_at")
 
+  enrolledProgrammes  ProgrammeEnrollment[]
+  enrolledCredentials CredentialEnrollment[]
+
   @@map("users")
+}
+
+model MicroCredential {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  code        String
+  project     String
+  description String?
+  image       String?
+  developedBy String?  @map("developed_by")
+  passGrade   Int      @default(50) @map("pass_grade")
+  videoUrl    String?  @map("video_url")
+  pptUrl      String?  @map("ppt_url")
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  programmes  ProgrammeCredential[]
+  enrollments CredentialEnrollment[]
+  questions   QuizQuestion[]
+
+  @@map("micro_credentials")
+}
+
+model QuizQuestion {
+  id           String   @id @default(cuid())
+  credentialId String   @map("credential_id")
+  question     String
+  options      String[]
+  correctIndex Int      @map("correct_index")
+  order        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  credential MicroCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@map("quiz_questions")
+}
+
+model MicroProgramme {
+  id          String   @id @default(cuid())
+  title       String
+  slug        String   @unique
+  code        String
+  project     String
+  description String?
+  image       String?
+  createdAt   DateTime @default(now()) @map("created_at")
+  updatedAt   DateTime @updatedAt @map("updated_at")
+
+  credentials ProgrammeCredential[]
+  enrollments ProgrammeEnrollment[]
+
+  @@map("micro_programmes")
+}
+
+model ProgrammeCredential {
+  programmeId  String @map("programme_id")
+  credentialId String @map("credential_id")
+  order        Int    @default(0)
+
+  programme  MicroProgramme  @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+  credential MicroCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@id([programmeId, credentialId])
+  @@map("programme_credentials")
+}
+
+model ProgrammeEnrollment {
+  id          String   @id @default(cuid())
+  userId      String   @map("user_id")
+  programmeId String   @map("programme_id")
+  enrolledAt  DateTime @default(now()) @map("enrolled_at")
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programme MicroProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, programmeId])
+  @@map("programme_enrollments")
+}
+
+model CredentialEnrollment {
+  id           String   @id @default(cuid())
+  userId       String   @map("user_id")
+  credentialId String   @map("credential_id")
+  enrolledAt   DateTime @default(now()) @map("enrolled_at")
+
+  user       User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  credential MicroCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+
+  @@unique([userId, credentialId])
+  @@map("credential_enrollments")
 }

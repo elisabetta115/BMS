@@ -39,6 +39,7 @@ export async function createSessionToken(payload: {
   userId: string;
   email: string;
   name: string;
+  role: string;
 }): Promise<string> {
   return new SignJWT(payload)
     .setProtectedHeader({ alg: "HS256" })
@@ -49,10 +50,10 @@ export async function createSessionToken(payload: {
 
 export async function verifySessionToken(
   token: string
-): Promise<{ userId: string; email: string; name: string } | null> {
+): Promise<{ userId: string; email: string; name: string; role: string } | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
-    return payload as { userId: string; email: string; name: string };
+    return payload as { userId: string; email: string; name: string; role: string };
   } catch {
     return null;
   }

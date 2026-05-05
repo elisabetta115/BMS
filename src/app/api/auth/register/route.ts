@@ -50,11 +50,16 @@ export async function POST(req: NextRequest) {
       country: country?.trim() || null,
     });
 
-    const token = await createSessionToken({ userId: user.id, email: user.email, name: user.name });
+    const token = await createSessionToken({
+      userId: user.id,
+      email: user.email,
+      name: user.name,
+      role: user.role,
+    });
     await setSessionCookie(token);
 
     return NextResponse.json(
-      { message: "Account created successfully.", user: { id: user.id, name: user.name, email: user.email } },
+      { message: "Account created successfully.", user: { id: user.id, name: user.name, email: user.email, role: user.role } },
       { status: 201 }
     );
   } catch (err) {

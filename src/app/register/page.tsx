@@ -72,7 +72,7 @@ export default function RegisterPage() {
         return;
       }
 
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -89,7 +89,6 @@ export default function RegisterPage() {
       className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
       style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 50%, #dff0e8 100%)" }}
     >
-      {/* Logo */}
       <div className="mb-8">
         <Link href="/" className="inline-flex items-center gap-2">
           <img
@@ -108,16 +107,11 @@ export default function RegisterPage() {
         </Link>
       </div>
 
-      {/* Card */}
       <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 sm:p-10">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>
-          Register
-        </h1>
+        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>Register</h1>
         <p className="text-gray-500 text-sm mb-6">
           Already have an account?{" "}
-          <Link href="/login" className="font-semibold" style={{ color: "var(--bms-green)" }}>
-            Sign in
-          </Link>
+          <Link href="/login" className="font-semibold" style={{ color: "var(--bms-green)" }}>Sign in</Link>
         </p>
 
         {error && (
@@ -127,91 +121,35 @@ export default function RegisterPage() {
         <form onSubmit={handleSubmit} className="space-y-4" noValidate>
           <div>
             <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-            <input
-              id="name"
-              type="text"
-              className={`auth-input ${fieldErrors.name ? "error" : ""}`}
-              placeholder="Your full name"
-              value={form.name}
-              onChange={(e) => update("name", e.target.value)}
-              autoComplete="name"
-              required
-            />
+            <input id="name" type="text" className={`auth-input ${fieldErrors.name ? "error" : ""}`} placeholder="Your full name" value={form.name} onChange={(e) => update("name", e.target.value)} autoComplete="name" required />
             {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
           </div>
-
           <div>
             <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-            <input
-              id="reg-email"
-              type="email"
-              className={`auth-input ${fieldErrors.email ? "error" : ""}`}
-              placeholder="you@example.com"
-              value={form.email}
-              onChange={(e) => update("email", e.target.value)}
-              autoComplete="email"
-              required
-            />
+            <input id="reg-email" type="email" className={`auth-input ${fieldErrors.email ? "error" : ""}`} placeholder="you@example.com" value={form.email} onChange={(e) => update("email", e.target.value)} autoComplete="email" required />
             {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
           </div>
-
           <div>
             <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
             <div className="relative">
-              <input
-                id="reg-password"
-                type={showPassword ? "text" : "password"}
-                className={`auth-input pr-12 ${fieldErrors.password ? "error" : ""}`}
-                placeholder="Min 8 chars, upper, lower, number"
-                value={form.password}
-                onChange={(e) => update("password", e.target.value)}
-                autoComplete="new-password"
-                required
-              />
-              <button
-                type="button"
-                onClick={() => setShowPassword(!showPassword)}
-                className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium"
-              >
-                {showPassword ? "Hide" : "Show"}
-              </button>
+              <input id="reg-password" type={showPassword ? "text" : "password"} className={`auth-input pr-12 ${fieldErrors.password ? "error" : ""}`} placeholder="Min 8 chars, upper, lower, number" value={form.password} onChange={(e) => update("password", e.target.value)} autoComplete="new-password" required />
+              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium">{showPassword ? "Hide" : "Show"}</button>
             </div>
             {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
           </div>
-
           <div>
             <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
-            <input
-              id="confirm-password"
-              type="password"
-              className={`auth-input ${fieldErrors.confirmPassword ? "error" : ""}`}
-              placeholder="Repeat your password"
-              value={form.confirmPassword}
-              onChange={(e) => update("confirmPassword", e.target.value)}
-              autoComplete="new-password"
-              required
-            />
+            <input id="confirm-password" type="password" className={`auth-input ${fieldErrors.confirmPassword ? "error" : ""}`} placeholder="Repeat your password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} autoComplete="new-password" required />
             {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
           </div>
-
           <div>
             <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">Country / Region <span className="text-gray-400">(optional)</span></label>
-            <select
-              id="country"
-              className="auth-input"
-              value={form.country}
-              onChange={(e) => update("country", e.target.value)}
-            >
+            <select id="country" className="auth-input" value={form.country} onChange={(e) => update("country", e.target.value)}>
               <option value="">Select your country</option>
-              {COUNTRIES.filter(Boolean).map((c) => (
-                <option key={c} value={c}>{c}</option>
-              ))}
+              {COUNTRIES.filter(Boolean).map((c) => (<option key={c} value={c}>{c}</option>))}
             </select>
           </div>
-
-          <button type="submit" className="auth-btn" disabled={loading}>
-            {loading ? "Creating account…" : "Create account"}
-          </button>
+          <button type="submit" className="auth-btn" disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
         </form>
 
         <p className="text-center text-xs text-gray-400 mt-6">

@@ -32,7 +32,7 @@ export default function LoginPage() {
         return;
       }
 
-      router.push("/");
+      router.push("/dashboard");
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -84,13 +84,13 @@ export default function LoginPage() {
         <form onSubmit={handleSubmit} className="space-y-5" noValidate>
           <div>
             <label htmlFor="email" className="block text-sm font-medium text-gray-700 mb-1.5">
-              Email
+              Email or full name
             </label>
             <input
               id="email"
-              type="email"
+              type="text"
               className="auth-input"
-              placeholder="you@example.com"
+              placeholder="you@example.com or your full name"
               value={email}
               onChange={(e) => setEmail(e.target.value)}
               autoComplete="email"
