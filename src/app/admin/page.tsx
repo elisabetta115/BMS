@@ -2,625 +2,487 @@
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 
-interface QuizQuestion {
-  id?: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-}
+/* ─── Types ────────────────────────────────────────────── */
+
+interface UnitQuestion { id?: string; question: string; options: string[]; correctIndex: number; }
+interface CredentialUnit { id?: string; title: string; type: "VIDEO" | "QUIZ"; order: number; videoUrl?: string; questions?: UnitQuestion[]; }
+interface CredentialSubsection { id?: string; title: string; order: number; units: CredentialUnit[]; }
+interface CredentialSection { id?: string; title: string; order: number; subsections: CredentialSubsection[]; }
 
 interface MicroCredential {
-  id: string;
-  title: string;
-  slug: string;
-  code: string;
-  project: string;
-  description: string | null;
-  image: string | null;
-  developedBy: string | null;
-  passGrade: number;
-  videoUrl: string | null;
-  pptUrl: string | null;
-  questions?: QuizQuestion[];
+  id: string; title: string; slug: string; code: string; project: string;
+  description: string | null; image: string | null; developedBy: string | null;
+  passGrade: number; sections?: CredentialSection[];
 }
 
 interface MicroProgramme {
-  id: string;
-  title: string;
-  slug: string;
-  code: string;
-  project: string;
-  description: string | null;
-  image: string | null;
-  credentials?: MicroCredential[];
+  id: string; title: string; slug: string; code: string; project: string;
+  description: string | null; image: string | null; credentials?: MicroCredential[];
+}
+
+function SearchableCredentialPicker({ credentials, onSelect }: { credentials: MicroCredential[]; onSelect: (id: string) => void }) {
+  const [q, setQ] = useState("");
+  const filtered = credentials.filter(c =>
+    !q.trim() || c.title.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())
+  );
+  return (
+    <div className="max-w-md">
+      <div className="relative mb-2">
+        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+        <input className="auth-input pl-9 text-sm" placeholder="Search credentials..." value={q} onChange={e => setQ(e.target.value)} />
+      </div>
+      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
+        {filtered.length === 0 ? (
+          <p className="text-xs text-gray-400 p-3 text-center">No matches</p>
+        ) : filtered.map(c => (
+          <button key={c.id} type="button" onClick={() => { onSelect(c.id); setQ(""); }}
+            className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bms-green-light)] border-b border-gray-100 last:border-0 transition-colors">
+            <span className="font-medium text-[var(--bms-green)]">{c.code}</span> <span className="text-gray-700">{c.title}</span>
+          </button>
+        ))}
+      </div>
+    </div>
+  );
 }
 
 type Tab = "programmes" | "credentials";
+type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred";
 
 export default function AdminPage() {
   const router = useRouter();
-  const [tab, setTab] = useState<Tab>("programmes");
-  const [credentials, setCredentials] = useState<MicroCredential[]>([]);
-  const [programmes, setProgrammes] = useState<MicroProgramme[]>([]);
-  const [loading, setLoading] = useState(true);
   const [user, setUser] = useState<any>(null);
-
-  // Programme form
-  const [showProgForm, setShowProgForm] = useState(false);
-  const [editingProg, setEditingProg] = useState<MicroProgramme | null>(null);
-  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" });
-
-  // Credential form
-  const [showCredForm, setShowCredForm] = useState(false);
-  const [editingCred, setEditingCred] = useState<MicroCredential | null>(null);
-  const [credForm, setCredForm] = useState({
-    title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "",
-    developedBy: "", passGrade: "50", videoUrl: "", pptUrl: "",
-  });
-  const [quizQuestions, setQuizQuestions] = useState<QuizQuestion[]>([]);
-
-  // Linking credentials to programme
-  const [linkingProgramme, setLinkingProgramme] = useState<MicroProgramme | null>(null);
-  const [selectedCredIds, setSelectedCredIds] = useState<string[]>([]);
-
+  const [tab, setTab] = useState<Tab>("programmes");
+  const [view, setView] = useState<View>("list");
+  const [programmes, setProgrammes] = useState<MicroProgramme[]>([]);
+  const [credentials, setCredentials] = useState<MicroCredential[]>([]);
+  const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
 
+  const [editingProg, setEditingProg] = useState<MicroProgramme | null>(null);
+  const [editingCred, setEditingCred] = useState<MicroCredential | null>(null);
+  const [parentProgId, setParentProgId] = useState<string | null>(null);
+
+  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" });
+  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "", developedBy: "", passGrade: "50" });
+  const [sections, setSections] = useState<CredentialSection[]>([]);
+
+  /* ─── Auth & data loading ────────────────────────────── */
+
   useEffect(() => {
-    fetch("/api/auth/session")
-      .then((r) => { if (!r.ok) { router.push("/login"); return null; } return r.json(); })
-      .then((data) => {
-        if (data?.user) {
-          if (data.user.role !== "ADMIN") { router.push("/"); return; }
-          setUser(data.user);
-        }
-      })
+    fetch("/api/auth/session").then(r => { if (!r.ok) { router.push("/login"); return null; } return r.json(); })
+      .then(d => { if (d?.user) { if (d.user.role !== "ADMIN") { router.push("/"); return; } setUser(d.user); } })
       .catch(() => router.push("/login"));
   }, [router]);
 
-  useEffect(() => { if (user) loadData(); }, [user]);
-
-  async function loadData() {
+  const loadData = useCallback(async () => {
     setLoading(true);
-    try {
-      const [credRes, progRes] = await Promise.all([
-        fetch("/api/micro-credentials"),
-        fetch("/api/micro-programmes"),
-      ]);
-      const credData = await credRes.json();
-      const progData = await progRes.json();
-      setCredentials(credData.credentials || []);
-      setProgrammes(progData.programmes || []);
-    } catch (err) {
-      console.error("Failed to load data:", err);
-    }
+    const [pR, cR] = await Promise.all([
+      fetch("/api/micro-programmes").then(r => r.ok ? r.json() : { programmes: [] }),
+      fetch("/api/micro-credentials").then(r => r.ok ? r.json() : { credentials: [] }),
+    ]);
+    setProgrammes(pR.programmes || []); setCredentials(cR.credentials || []);
     setLoading(false);
+  }, []);
+
+  useEffect(() => { if (user) loadData(); }, [user, loadData]);
+
+  function goList() { setView("list"); setEditingProg(null); setEditingCred(null); setParentProgId(null); setFormError(""); }
+
+  async function refreshProg(id: string) {
+    await loadData();
+    const r = await fetch(`/api/micro-programmes/${id}`);
+    if (r.ok) { const { programme } = await r.json(); setEditingProg(programme); setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, description: programme.description || "", image: programme.image || "" }); setView("edit-prog"); }
   }
 
-  // ─── Programme handlers ───────────────────────────────────
+  function progsUsingCred(credId: string) { return programmes.filter(p => (p.credentials || []).some(c => c.id === credId)).map(p => p.code); }
 
-  function resetProgForm() {
-    setProgForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" });
-    setEditingProg(null);
-    setShowProgForm(false);
-    setFormError("");
-  }
+  /* ─── Programme handlers ─────────────────────────────── */
 
-  function startEditProg(prog: MicroProgramme) {
-    setProgForm({
-      title: prog.title, slug: prog.slug, code: prog.code, project: prog.project,
-      description: prog.description || "", image: prog.image || "",
-    });
-    setEditingProg(prog);
-    setShowProgForm(true);
-    setFormError("");
-  }
+  function newProg() { setProgForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
+  function editProg(p: MicroProgramme) { setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: p.image || "" }); setEditingProg(p); setFormError(""); setView("edit-prog"); }
 
-  async function handleProgSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    if (!progForm.title || !progForm.slug || !progForm.code || !progForm.project) {
-      setFormError("Title, slug, code, and project are required.");
-      return;
-    }
+  async function saveProg(e: React.FormEvent) {
+    e.preventDefault(); setFormError("");
+    if (!progForm.title || !progForm.slug || !progForm.code) { setFormError("Title, slug, and code required."); return; }
     setFormLoading(true);
     try {
       const url = editingProg ? `/api/micro-programmes/${editingProg.id}` : "/api/micro-programmes";
-      const method = editingProg ? "PATCH" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: progForm.title.trim(),
-          slug: progForm.slug.trim(),
-          code: progForm.code.trim(),
-          project: progForm.project.trim(),
-          description: progForm.description.trim() || undefined,
-          image: progForm.image.trim() || undefined,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setFormError(data.error || "Failed to save."); setFormLoading(false); return; }
-      resetProgForm();
-      await loadData();
-    } catch {
-      setFormError("Network error. Check your connection and try again.");
-    }
+      const r = await fetch(url, { method: editingProg ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(progForm) });
+      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
+      if (!editingProg) { await refreshProg(d.programme.id); } else { await refreshProg(editingProg.id); }
+    } catch { setFormError("Network error."); }
     setFormLoading(false);
   }
 
-  async function deleteProg(id: string) {
-    if (!confirm("Delete this micro-programme and all its credential links?")) return;
-    await fetch(`/api/micro-programmes/${id}`, { method: "DELETE" });
-    await loadData();
+  async function delProg(id: string) { if (!confirm("Delete this programme?")) return; await fetch(`/api/micro-programmes/${id}`, { method: "DELETE" }); await loadData(); goList(); }
+
+  async function addCredToProg(credId: string) {
+    if (!editingProg) return;
+    const ids = (editingProg.credentials || []).map(c => c.id);
+    if (ids.includes(credId)) return;
+    await fetch(`/api/micro-programmes/${editingProg.id}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: [...ids, credId] }) });
+    await refreshProg(editingProg.id);
   }
 
-  // ─── Credential handlers ──────────────────────────────────
-
-  function resetCredForm() {
-    setCredForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "", developedBy: "", passGrade: "50", videoUrl: "", pptUrl: "" });
-    setQuizQuestions([]);
-    setEditingCred(null);
-    setShowCredForm(false);
-    setFormError("");
+  async function removeCredFromProg(credId: string) {
+    if (!editingProg || !confirm("Remove credential from programme?")) return;
+    const ids = (editingProg.credentials || []).filter(c => c.id !== credId).map(c => c.id);
+    await fetch(`/api/micro-programmes/${editingProg.id}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: ids }) });
+    await refreshProg(editingProg.id);
   }
 
-  function startEditCred(cred: MicroCredential) {
-    setCredForm({
-      title: cred.title, slug: cred.slug, code: cred.code, project: cred.project,
-      description: cred.description || "", image: cred.image || "",
-      developedBy: cred.developedBy || "", passGrade: String(cred.passGrade),
-      videoUrl: cred.videoUrl || "", pptUrl: cred.pptUrl || "",
-    });
-    setQuizQuestions(cred.questions || []);
-    setEditingCred(cred);
-    setShowCredForm(true);
-    setFormError("");
+  /* ─── Credential handlers ────────────────────────────── */
+
+  function newCred(progId?: string) {
+    setCredForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "", developedBy: "", passGrade: "50" });
+    setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError(""); setView("new-cred");
   }
 
-  async function handleCredSubmit(e: React.FormEvent) {
-    e.preventDefault();
-    setFormError("");
-    if (!credForm.title || !credForm.slug || !credForm.code || !credForm.project) {
-      setFormError("Title, slug, code, and project are required.");
-      return;
-    }
+  function editCred(c: MicroCredential, progId?: string) {
+    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: c.image || "", developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
+    setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError(""); setView("edit-cred");
+  }
+
+  async function saveCred(e: React.FormEvent) {
+    e.preventDefault(); setFormError("");
+    if (!credForm.title || !credForm.slug || !credForm.code) { setFormError("Title, slug, and code required."); return; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
       const method = editingCred ? "PATCH" : "POST";
-      const res = await fetch(url, {
-        method,
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          title: credForm.title.trim(),
-          slug: credForm.slug.trim(),
-          code: credForm.code.trim(),
-          project: credForm.project.trim(),
-          description: credForm.description.trim() || undefined,
-          image: credForm.image.trim() || undefined,
-          developedBy: credForm.developedBy.trim() || undefined,
-          passGrade: parseInt(credForm.passGrade) || 50,
-          videoUrl: credForm.videoUrl.trim() || undefined,
-          pptUrl: credForm.pptUrl.trim() || undefined,
-          questions: quizQuestions,
-        }),
-      });
-      const data = await res.json();
-      if (!res.ok) { setFormError(data.error || "Failed to save."); setFormLoading(false); return; }
-      resetCredForm();
-      await loadData();
-    } catch {
-      setFormError("Network error. Check your connection and try again.");
-    }
+      const payload = { ...credForm, passGrade: parseInt(credForm.passGrade) || 50, sections };
+      const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
+      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
+      if (!editingCred && parentProgId) {
+        const prog = programmes.find(p => p.id === parentProgId);
+        const ids = (prog?.credentials || []).map(c => c.id);
+        await fetch(`/api/micro-programmes/${parentProgId}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: [...ids, d.credential.id] }) });
+        await refreshProg(parentProgId);
+      } else if (parentProgId) { await refreshProg(parentProgId); }
+      else { await loadData(); goList(); }
+    } catch { setFormError("Network error."); }
     setFormLoading(false);
   }
 
-  async function deleteCred(id: string) {
-    if (!confirm("Delete this micro-credential?")) return;
-    await fetch(`/api/micro-credentials/${id}`, { method: "DELETE" });
-    await loadData();
+  async function delCred(id: string) {
+    if (!confirm("Delete credential permanently from all programmes?")) return;
+    await fetch(`/api/micro-credentials/${id}`, { method: "DELETE" }); await loadData();
+    if (editingProg) await refreshProg(editingProg.id); else goList();
   }
 
-  // ─── Quiz question helpers ────────────────────────────────
+  /* ─── Section / Subsection / Unit builders ───────────── */
 
-  function addQuestion() {
-    setQuizQuestions([...quizQuestions, { question: "", options: ["", ""], correctIndex: 0 }]);
+  function addSection() { setSections([...sections, { title: "", order: sections.length, subsections: [] }]); }
+  function removeSection(i: number) { setSections(sections.filter((_, x) => x !== i)); }
+  function updateSection(i: number, title: string) { const s = [...sections]; s[i] = { ...s[i], title }; setSections(s); }
+
+  function addSubsection(si: number) {
+    const s = [...sections]; s[si] = { ...s[si], subsections: [...s[si].subsections, { title: "", order: s[si].subsections.length, units: [] }] }; setSections(s);
+  }
+  function removeSubsection(si: number, ssi: number) {
+    const s = [...sections]; s[si] = { ...s[si], subsections: s[si].subsections.filter((_, x) => x !== ssi) }; setSections(s);
+  }
+  function updateSubsection(si: number, ssi: number, title: string) {
+    const s = [...sections]; s[si].subsections[ssi] = { ...s[si].subsections[ssi], title }; setSections(s);
   }
 
-  function removeQuestion(idx: number) {
-    setQuizQuestions(quizQuestions.filter((_, i) => i !== idx));
+  function addUnit(si: number, ssi: number, type: "VIDEO" | "QUIZ") {
+    const s = [...sections]; const units = s[si].subsections[ssi].units;
+    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", questions: [] }] }; setSections(s);
+  }
+  function removeUnit(si: number, ssi: number, ui: number) {
+    const s = [...sections]; s[si].subsections[ssi].units = s[si].subsections[ssi].units.filter((_, x) => x !== ui); setSections(s);
+  }
+  function updateUnit(si: number, ssi: number, ui: number, field: string, value: any) {
+    const s = [...sections]; (s[si].subsections[ssi].units[ui] as any)[field] = value; setSections(s);
   }
 
-  function updateQuestion(idx: number, field: string, value: any) {
-    const updated = [...quizQuestions];
-    (updated[idx] as any)[field] = value;
-    setQuizQuestions(updated);
+  // Quiz question helpers for units
+  function addUnitQ(si: number, ssi: number, ui: number) {
+    const s = [...sections]; const qs = s[si].subsections[ssi].units[ui].questions || [];
+    s[si].subsections[ssi].units[ui].questions = [...qs, { question: "", options: ["", ""], correctIndex: 0 }]; setSections(s);
+  }
+  function removeUnitQ(si: number, ssi: number, ui: number, qi: number) {
+    const s = [...sections]; s[si].subsections[ssi].units[ui].questions = (s[si].subsections[ssi].units[ui].questions || []).filter((_, x) => x !== qi); setSections(s);
+  }
+  function updateUnitQ(si: number, ssi: number, ui: number, qi: number, field: string, value: any) {
+    const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; (qs[qi] as any)[field] = value; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
+  }
+  function addUnitQOpt(si: number, ssi: number, ui: number, qi: number) {
+    const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; qs[qi].options = [...qs[qi].options, ""]; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
+  }
+  function removeUnitQOpt(si: number, ssi: number, ui: number, qi: number, oi: number) {
+    const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])];
+    qs[qi].options = qs[qi].options.filter((_, x) => x !== oi);
+    if (qs[qi].correctIndex >= qs[qi].options.length) qs[qi].correctIndex = 0;
+    s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
+  }
+  function updateUnitQOpt(si: number, ssi: number, ui: number, qi: number, oi: number, val: string) {
+    const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; qs[qi].options[oi] = val; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
   }
 
-  function addOption(qIdx: number) {
-    const updated = [...quizQuestions];
-    updated[qIdx].options.push("");
-    setQuizQuestions(updated);
+  /* ─── Render helpers ─────────────────────────────────── */
+
+  function renderProgForm() {
+    return (
+      <div className="grid md:grid-cols-2 gap-4">
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={progForm.slug} onChange={e => setProgForm({ ...progForm, slug: e.target.value })} required placeholder="e.g. mp1" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><select className="auth-input" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })}><option>RES4CITY</option><option>SHERLOCK</option><option>COSS</option></select></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
+      </div>
+    );
   }
 
-  function removeOption(qIdx: number, oIdx: number) {
-    const updated = [...quizQuestions];
-    updated[qIdx].options = updated[qIdx].options.filter((_, i) => i !== oIdx);
-    if (updated[qIdx].correctIndex >= updated[qIdx].options.length) {
-      updated[qIdx].correctIndex = 0;
-    }
-    setQuizQuestions(updated);
-  }
+  function renderSectionEditor() {
+    return (
+      <div className="mt-6">
+        <div className="flex items-center justify-between mb-3">
+          <h3 className="font-bold text-lg" style={{ color: "var(--bms-green)" }}>Sections</h3>
+          <button type="button" onClick={addSection} className="text-sm text-[var(--bms-green)] font-medium hover:underline">+ Add Section</button>
+        </div>
 
-  function updateOption(qIdx: number, oIdx: number, value: string) {
-    const updated = [...quizQuestions];
-    updated[qIdx].options[oIdx] = value;
-    setQuizQuestions(updated);
-  }
+        {sections.length === 0 && <p className="text-gray-400 text-sm py-4 text-center border border-dashed border-gray-300 rounded-xl">No sections yet.</p>}
 
-  // ─── Link credentials to programme ────────────────────────
+        {sections.map((sec, si) => (
+          <div key={si} className="mb-4 border border-gray-200 rounded-xl p-4 bg-gray-50">
+            <div className="flex items-center gap-2 mb-3">
+              <span className="text-xs font-bold text-gray-400">S{si + 1}</span>
+              <input className="auth-input flex-1" placeholder="Section title" value={sec.title} onChange={e => updateSection(si, e.target.value)} />
+              <button type="button" onClick={() => removeSection(si)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+            </div>
 
-  function startLinking(prog: MicroProgramme) {
-    setLinkingProgramme(prog);
-    setSelectedCredIds((prog.credentials || []).map((c) => c.id));
-  }
+            {/* Subsections */}
+            <div className="ml-4">
+              {sec.subsections.map((sub, ssi) => (
+                <div key={ssi} className="mb-3 border border-gray-200 rounded-lg p-3 bg-white">
+                  <div className="flex items-center gap-2 mb-2">
+                    <span className="text-xs font-bold text-gray-400">{si + 1}.{ssi + 1}</span>
+                    <input className="auth-input flex-1 text-sm" placeholder="Subsection title" value={sub.title} onChange={e => updateSubsection(si, ssi, e.target.value)} />
+                    <button type="button" onClick={() => removeSubsection(si, ssi)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                  </div>
 
-  async function saveLinking() {
-    if (!linkingProgramme) return;
-    setFormLoading(true);
-    try {
-      const res = await fetch(`/api/micro-programmes/${linkingProgramme.id}/credentials`, {
-        method: "PUT",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ credentialIds: selectedCredIds }),
-      });
-      if (!res.ok) {
-        const data = await res.json();
-        setFormError(data.error || "Failed to update credentials.");
-        setFormLoading(false);
-        return;
-      }
-      setLinkingProgramme(null);
-      await loadData();
-    } catch {
-      setFormError("Network error.");
-    }
-    setFormLoading(false);
-  }
+                  {/* Units */}
+                  <div className="ml-4 space-y-2">
+                    {sub.units.map((unit, ui) => (
+                      <div key={ui} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
+                        <div className="flex items-center gap-2 mb-2">
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${unit.type === "VIDEO" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
+                            {unit.type}
+                          </span>
+                          <input className="auth-input flex-1 text-sm" placeholder="Unit title" value={unit.title} onChange={e => updateUnit(si, ssi, ui, "title", e.target.value)} />
+                          <button type="button" onClick={() => removeUnit(si, ssi, ui)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
+                        </div>
 
-  function toggleCredSelection(id: string) {
-    setSelectedCredIds((prev) =>
-      prev.includes(id) ? prev.filter((x) => x !== id) : [...prev, id]
+                        {/* VIDEO: YouTube URL */}
+                        {unit.type === "VIDEO" && (
+                          <div className="ml-6">
+                            <input className="auth-input text-sm" placeholder="YouTube URL" value={unit.videoUrl || ""} onChange={e => updateUnit(si, ssi, ui, "videoUrl", e.target.value)} />
+                            {unit.videoUrl && unit.videoUrl.includes("youtu") && (
+                              <div className="mt-2 aspect-video max-w-xs rounded-lg overflow-hidden bg-black">
+                                <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${unit.videoUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ""}`} allowFullScreen />
+                              </div>
+                            )}
+                          </div>
+                        )}
+
+                        {/* QUIZ: questions */}
+                        {unit.type === "QUIZ" && (
+                          <div className="ml-6 mt-2">
+                            {(unit.questions || []).map((q, qi) => (
+                              <div key={qi} className="mb-3 p-3 border border-gray-200 rounded-lg bg-white">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-xs font-medium text-gray-500">Q{qi + 1}</span>
+                                  <button type="button" onClick={() => removeUnitQ(si, ssi, ui, qi)} className="text-xs text-red-500 hover:underline">Remove</button>
+                                </div>
+                                <input className="auth-input text-sm mb-2" placeholder="Question" value={q.question} onChange={e => updateUnitQ(si, ssi, ui, qi, "question", e.target.value)} />
+                                {q.options.map((opt, oi) => (
+                                  <div key={oi} className="flex items-center gap-2 mb-1">
+                                    <input type="radio" name={`u${si}-${ssi}-${ui}-${qi}`} checked={q.correctIndex === oi} onChange={() => updateUnitQ(si, ssi, ui, qi, "correctIndex", oi)} className="w-3.5 h-3.5 accent-[var(--bms-green)]" />
+                                    <input className="auth-input flex-1 text-sm" placeholder={`Option ${oi + 1}`} value={opt} onChange={e => updateUnitQOpt(si, ssi, ui, qi, oi, e.target.value)} />
+                                    {q.options.length > 2 && <button type="button" onClick={() => removeUnitQOpt(si, ssi, ui, qi, oi)} className="text-red-400 text-xs">✕</button>}
+                                  </div>
+                                ))}
+                                {q.options.length < 6 && <button type="button" onClick={() => addUnitQOpt(si, ssi, ui, qi)} className="text-xs text-[var(--bms-green)] hover:underline">+ Option</button>}
+                              </div>
+                            ))}
+                            <button type="button" onClick={() => addUnitQ(si, ssi, ui)} className="text-xs text-[var(--bms-green)] font-medium hover:underline">+ Add Question</button>
+                          </div>
+                        )}
+                      </div>
+                    ))}
+
+                    <div className="flex gap-2 mt-1">
+                      <button type="button" onClick={() => addUnit(si, ssi, "VIDEO")} className="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">+ Video</button>
+                      <button type="button" onClick={() => addUnit(si, ssi, "QUIZ")} className="text-xs px-2 py-1 rounded border border-yellow-300 text-yellow-700 hover:bg-yellow-50">+ Quiz</button>
+                    </div>
+                  </div>
+                </div>
+              ))}
+              <button type="button" onClick={() => addSubsection(si)} className="text-xs text-gray-500 hover:text-gray-700 mt-1">+ Add Subsection</button>
+            </div>
+          </div>
+        ))}
+      </div>
     );
   }
 
   if (!user) return null;
 
+  /* ═══ RENDER ═══════════════════════════════════════════ */
+
   return (
     <>
       <Header />
       <main className="py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1 className="text-3xl font-bold mb-8" style={{ color: "var(--bms-dark)" }}>Admin Panel</h1>
+        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
 
-          {/* Tabs */}
-          <div className="flex gap-1 mb-8 border-b border-gray-200">
-            <button
-              onClick={() => { setTab("programmes"); resetCredForm(); setLinkingProgramme(null); }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              Micro-programmes ({programmes.length})
-            </button>
-            <button
-              onClick={() => { setTab("credentials"); resetProgForm(); setLinkingProgramme(null); }}
-              className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500 hover:text-gray-700"}`}
-            >
-              Micro-credentials ({credentials.length})
-            </button>
-          </div>
+          {view === "list" && (
+            <>
+              <h1 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>Admin Panel</h1>
 
-          {loading ? (
-            <div className="flex justify-center py-20">
-              <div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
-            </div>
-          ) : tab === "programmes" ? (
-            /* ═══ PROGRAMMES TAB ═══ */
-            <div>
-              {/* Linking modal */}
-              {linkingProgramme && (
-                <div className="mb-8 bg-white border-2 border-[var(--bms-green)] rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
-                    Add credentials to: {linkingProgramme.title}
-                  </h3>
-                  <p className="text-sm text-gray-500 mb-4">Select the micro-credentials that belong to this programme.</p>
-                  {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
+              {/* Tabs */}
+              <div className="flex gap-1 mb-6 border-b border-gray-200">
+                <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
+                  Micro-programmes ({programmes.length})
+                </button>
+                <button onClick={() => setTab("credentials")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
+                  Micro-credentials ({credentials.length})
+                </button>
+              </div>
 
-                  {credentials.length === 0 ? (
-                    <p className="text-gray-500 py-4">No micro-credentials exist yet. Create some in the Micro-credentials tab first.</p>
-                  ) : (
-                    <div className="max-h-80 overflow-y-auto space-y-2 mb-4">
-                      {credentials.map((c) => (
-                        <label key={c.id} className={`flex items-center gap-3 p-3 rounded-lg border cursor-pointer transition-colors ${selectedCredIds.includes(c.id) ? "border-[var(--bms-green)] bg-[var(--bms-green-light)]" : "border-gray-200 hover:bg-gray-50"}`}>
-                          <input
-                            type="checkbox"
-                            checked={selectedCredIds.includes(c.id)}
-                            onChange={() => toggleCredSelection(c.id)}
-                            className="w-4 h-4 accent-[var(--bms-green)]"
-                          />
+              {loading ? <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div> : tab === "programmes" ? (
+                <>
+                  <div className="flex justify-end mb-4"><button onClick={newProg} className="px-5 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-green)" }}>+ New Programme</button></div>
+                  {programmes.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No programmes yet.</p> : (
+                    <div className="space-y-3">{programmes.map(p => (
+                      <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editProg(p)}>
+                        <div className="flex items-start justify-between">
                           <div>
-                            <span className="text-sm font-medium">{c.code}</span>
-                            <span className="text-sm text-gray-600 ml-2">{c.title}</span>
+                            <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-gray-400">|</span><span className="text-xs text-gray-500">{p.project}</span></div>
+                            <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{p.title}</h4>
+                            <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-gray-400 italic">No credentials</span>}</div>
                           </div>
-                        </label>
-                      ))}
-                    </div>
+                          <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                            <button onClick={() => editProg(p)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                            <button onClick={() => delProg(p.id)} className="text-red-500 text-sm hover:underline">Delete</button>
+                          </div>
+                        </div>
+                      </div>
+                    ))}</div>
                   )}
+                </>
+              ) : (
+                <>
+                  <div className="flex justify-end mb-4"><button onClick={() => newCred()} className="px-5 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-dark)" }}>+ New Credential</button></div>
+                  {credentials.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No credentials yet.</p> : (
+                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-200">
+                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Code</th>
+                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Title</th>
+                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Used in</th>
+                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Sections</th>
+                      <th className="text-right py-3 px-3 font-semibold text-gray-700">Actions</th>
+                    </tr></thead><tbody>{credentials.map(c => {
+                      const used = progsUsingCred(c.id);
+                      return (<tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
+                        <td className="py-3 px-3 font-medium">{c.code}</td>
+                        <td className="py-3 px-3">{c.title}</td>
+                        <td className="py-3 px-3">{used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full mr-1">{code}</span>) : <span className="text-xs text-gray-400">—</span>}</td>
+                        <td className="py-3 px-3 text-gray-500">{(c.sections || []).length}</td>
+                        <td className="py-3 px-3 text-right">
+                          <button onClick={() => editCred(c)} className="text-[var(--bms-green)] text-sm hover:underline mr-3">Edit</button>
+                          <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
+                        </td>
+                      </tr>);
+                    })}</tbody></table></div>
+                  )}
+                </>
+              )}
+            </>
+          )}
 
-                  <div className="flex gap-3">
-                    <button onClick={saveLinking} disabled={formLoading} className="px-5 py-2.5 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-green)" }}>
-                      {formLoading ? "Saving…" : `Save (${selectedCredIds.length} selected)`}
-                    </button>
-                    <button onClick={() => { setLinkingProgramme(null); setFormError(""); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">
-                      Cancel
-                    </button>
+          {/* NEW / EDIT PROGRAMME */}
+          {(view === "new-prog" || view === "edit-prog") && (
+            <>
+              <button onClick={goList} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
+              <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>{editingProg ? editingProg.title : "New Micro-programme"}</h1>
+              {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
+              <form onSubmit={saveProg} className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+                {renderProgForm()}
+                <div className="mt-4 flex gap-3">
+                  <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingProg ? "Save" : "Create & Add Credentials"}</button>
+                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
+                </div>
+              </form>
+
+              {/* Credential list inside programme */}
+              {editingProg && (
+                <div>
+                  <div className="flex items-center justify-between mb-4">
+                    <h2 className="text-xl font-bold" style={{ color: "var(--bms-green)" }}>Sections (Credentials)</h2>
+                    <button onClick={() => newCred(editingProg.id)} className="px-4 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-green)" }}>+ New Credential</button>
                   </div>
-                </div>
-              )}
-
-              <button
-                onClick={() => { resetProgForm(); setShowProgForm(true); setLinkingProgramme(null); }}
-                className="mb-6 px-5 py-2.5 rounded-full text-white text-sm font-medium"
-                style={{ background: "var(--bms-green)" }}
-              >
-                + New Micro-programme
-              </button>
-
-              {showProgForm && (
-                <div className="mb-8 bg-white border border-gray-200 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--bms-dark)" }}>
-                    {editingProg ? "Edit Micro-programme" : "New Micro-programme"}
-                  </h3>
-                  {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-                  <form onSubmit={handleProgSubmit} className="grid md:grid-cols-2 gap-4">
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                      <input className="auth-input" value={progForm.title} onChange={(e) => setProgForm({ ...progForm, title: e.target.value })} required />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
-                      <input className="auth-input" value={progForm.slug} onChange={(e) => setProgForm({ ...progForm, slug: e.target.value })} required placeholder="e.g. mp1" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
-                      <input className="auth-input" value={progForm.code} onChange={(e) => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" />
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Project *</label>
-                      <select className="auth-input" value={progForm.project} onChange={(e) => setProgForm({ ...progForm, project: e.target.value })}>
-                        <option value="RES4CITY">RES4CITY</option>
-                        <option value="SHERLOCK">SHERLOCK</option>
-                        <option value="COSS">COSS</option>
-                      </select>
-                    </div>
-                    <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                      <input className="auth-input" value={progForm.image} onChange={(e) => setProgForm({ ...progForm, image: e.target.value })} placeholder="/images/mp1.jpg" />
-                    </div>
-                    <div className="md:col-span-2">
-                      <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                      <textarea className="auth-input" rows={3} value={progForm.description} onChange={(e) => setProgForm({ ...progForm, description: e.target.value })} />
-                    </div>
-                    <div className="md:col-span-2 flex gap-3">
-                      <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>
-                        {formLoading ? "Saving…" : editingProg ? "Update" : "Create"}
-                      </button>
-                      <button type="button" onClick={resetProgForm} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
-                    </div>
-                  </form>
-                </div>
-              )}
-
-              {/* Programmes list */}
-              {programmes.length === 0 ? (
-                <p className="text-gray-500 py-10 text-center">No micro-programmes yet. Create one above.</p>
-              ) : (
-                <div className="space-y-4">
-                  {programmes.map((p) => (
-                    <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5">
-                      <div className="flex items-start justify-between gap-4">
-                        <div className="flex-1">
-                          <div className="flex items-center gap-2 mb-1">
-                            <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span>
-                            <span className="text-xs text-gray-400">|</span>
-                            <span className="text-xs text-gray-500">{p.project}</span>
-                          </div>
-                          <h4 className="font-semibold text-base mb-2" style={{ color: "var(--bms-dark)" }}>{p.title}</h4>
-                          {p.credentials && p.credentials.length > 0 ? (
-                            <div className="flex flex-wrap gap-1.5">
-                              {p.credentials.map((c) => (
-                                <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{c.code}</span>
-                              ))}
-                            </div>
-                          ) : (
-                            <p className="text-xs text-gray-400 italic">No credentials linked yet</p>
-                          )}
+                  {(editingProg.credentials || []).length === 0 ? <p className="text-gray-400 text-sm py-4 text-center border border-dashed border-gray-300 rounded-xl">No credentials.</p> : (
+                    <div className="space-y-3">{(editingProg.credentials || []).map(c => (
+                      <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                        <div className="flex-1 cursor-pointer" onClick={() => editCred(c, editingProg.id)}>
+                          <p className="font-medium" style={{ color: "var(--bms-dark)" }}>{c.title}</p>
+                          <span className="text-xs text-gray-500">{c.code} · {(c.sections || []).length} sections</span>
+                          {progsUsingCred(c.id).length > 1 && <span className="text-xs text-blue-500 ml-2">Shared</span>}
                         </div>
-                        <div className="flex items-center gap-2 flex-shrink-0">
-                          <button onClick={() => startLinking(p)} className="text-xs px-3 py-1.5 rounded-full border border-[var(--bms-green)] text-[var(--bms-green)] hover:bg-[var(--bms-green-light)]">
-                            + Credentials
-                          </button>
-                          <button onClick={() => startEditProg(p)} className="text-[var(--bms-green)] hover:underline text-sm">Edit</button>
-                          <button onClick={() => deleteProg(p.id)} className="text-red-500 hover:underline text-sm">Delete</button>
+                        <div className="flex gap-2">
+                          <button onClick={() => editCred(c, editingProg.id)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                          <button onClick={() => removeCredFromProg(c.id)} className="text-red-400 text-xs hover:underline">Remove</button>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    ))}</div>
+                  )}
+                  {(() => {
+                    const available = credentials.filter(c => !(editingProg.credentials || []).some(ec => ec.id === c.id));
+                    if (available.length === 0) return null;
+                    return (
+                      <div className="mt-4">
+                        <p className="text-xs text-gray-500 mb-1">Add existing credential:</p>
+                        <SearchableCredentialPicker credentials={available} onSelect={addCredToProg} />
+                      </div>
+                    );
+                  })()}
                 </div>
               )}
-            </div>
-          ) : (
-            /* ═══ CREDENTIALS TAB ═══ */
-            <div>
-              <button
-                onClick={() => { resetCredForm(); setShowCredForm(true); }}
-                className="mb-6 px-5 py-2.5 rounded-full text-white text-sm font-medium"
-                style={{ background: "var(--bms-green)" }}
-              >
-                + New Micro-credential
-              </button>
+            </>
+          )}
 
-              {showCredForm && (
-                <div className="mb-8 bg-white border border-gray-200 rounded-2xl p-6">
-                  <h3 className="text-lg font-semibold mb-4" style={{ color: "var(--bms-dark)" }}>
-                    {editingCred ? "Edit Micro-credential" : "New Micro-credential"}
-                  </h3>
-                  {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-                  <form onSubmit={handleCredSubmit}>
-                    <div className="grid md:grid-cols-2 gap-4 mb-6">
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Title *</label>
-                        <input className="auth-input" value={credForm.title} onChange={(e) => setCredForm({ ...credForm, title: e.target.value })} required />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label>
-                        <input className="auth-input" value={credForm.slug} onChange={(e) => setCredForm({ ...credForm, slug: e.target.value })} required placeholder="e.g. carbon-neutrality-esg" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Code *</label>
-                        <input className="auth-input" value={credForm.code} onChange={(e) => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC01" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Project *</label>
-                        <select className="auth-input" value={credForm.project} onChange={(e) => setCredForm({ ...credForm, project: e.target.value })}>
-                          <option value="RES4CITY">RES4CITY</option>
-                          <option value="SHERLOCK">SHERLOCK</option>
-                          <option value="COSS">COSS</option>
-                        </select>
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Developed by</label>
-                        <input className="auth-input" value={credForm.developedBy} onChange={(e) => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. Maynooth University" />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label>
-                        <input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={(e) => setCredForm({ ...credForm, passGrade: e.target.value })} />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Video URL (YouTube/Vimeo)</label>
-                        <input className="auth-input" value={credForm.videoUrl} onChange={(e) => setCredForm({ ...credForm, videoUrl: e.target.value })} placeholder="https://www.youtube.com/watch?v=..." />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">PowerPoint URL</label>
-                        <input className="auth-input" value={credForm.pptUrl} onChange={(e) => setCredForm({ ...credForm, pptUrl: e.target.value })} placeholder="https://docs.google.com/presentation/..." />
-                      </div>
-                      <div>
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Image URL</label>
-                        <input className="auth-input" value={credForm.image} onChange={(e) => setCredForm({ ...credForm, image: e.target.value })} placeholder="/images/mc01.jpg" />
-                      </div>
-                      <div className="md:col-span-2">
-                        <label className="block text-sm font-medium text-gray-700 mb-1">Description</label>
-                        <textarea className="auth-input" rows={3} value={credForm.description} onChange={(e) => setCredForm({ ...credForm, description: e.target.value })} />
-                      </div>
-                    </div>
-
-                    {/* Quiz Questions */}
-                    <div className="border-t border-gray-200 pt-5 mb-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="font-semibold text-sm" style={{ color: "var(--bms-dark)" }}>Quiz Questions ({quizQuestions.length})</h4>
-                        <button type="button" onClick={addQuestion} className="text-sm text-[var(--bms-green)] font-medium hover:underline">+ Add question</button>
-                      </div>
-
-                      {quizQuestions.map((q, qIdx) => (
-                        <div key={qIdx} className="mb-5 p-4 border border-gray-200 rounded-xl bg-gray-50">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-medium text-gray-700">Question {qIdx + 1}</span>
-                            <button type="button" onClick={() => removeQuestion(qIdx)} className="text-xs text-red-500 hover:underline">Remove</button>
-                          </div>
-                          <input
-                            className="auth-input mb-3"
-                            placeholder="Enter the question"
-                            value={q.question}
-                            onChange={(e) => updateQuestion(qIdx, "question", e.target.value)}
-                          />
-                          <p className="text-xs text-gray-500 mb-2">Options (select the correct answer):</p>
-                          {q.options.map((opt, oIdx) => (
-                            <div key={oIdx} className="flex items-center gap-2 mb-2">
-                              <input
-                                type="radio"
-                                name={`correct-${qIdx}`}
-                                checked={q.correctIndex === oIdx}
-                                onChange={() => updateQuestion(qIdx, "correctIndex", oIdx)}
-                                className="w-4 h-4 accent-[var(--bms-green)]"
-                              />
-                              <input
-                                className="auth-input flex-1"
-                                placeholder={`Option ${oIdx + 1}`}
-                                value={opt}
-                                onChange={(e) => updateOption(qIdx, oIdx, e.target.value)}
-                              />
-                              {q.options.length > 2 && (
-                                <button type="button" onClick={() => removeOption(qIdx, oIdx)} className="text-red-400 hover:text-red-600 text-sm">✕</button>
-                              )}
-                            </div>
-                          ))}
-                          {q.options.length < 6 && (
-                            <button type="button" onClick={() => addOption(qIdx)} className="text-xs text-[var(--bms-green)] hover:underline mt-1">+ Add option</button>
-                          )}
-                        </div>
-                      ))}
-                    </div>
-
-                    <div className="flex gap-3">
-                      <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>
-                        {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
-                      </button>
-                      <button type="button" onClick={resetCredForm} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
-                    </div>
-                  </form>
+          {/* NEW / EDIT CREDENTIAL */}
+          {(view === "new-cred" || view === "edit-cred") && (
+            <>
+              <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
+              <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
+              {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
+              <form onSubmit={saveCred} className="bg-white border border-gray-200 rounded-2xl p-6">
+                <div className="grid md:grid-cols-2 gap-4">
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={credForm.slug} onChange={e => setCredForm({ ...credForm, slug: e.target.value })} required placeholder="e.g. carbon-neutrality" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><select className="auth-input" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })}><option>RES4CITY</option><option>SHERLOCK</option><option>COSS</option></select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Developed by</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value })} /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} /></div>
                 </div>
-              )}
 
-              {/* Credentials list */}
-              {credentials.length === 0 ? (
-                <p className="text-gray-500 py-10 text-center">No micro-credentials yet. Create one above.</p>
-              ) : (
-                <div className="overflow-x-auto">
-                  <table className="w-full text-sm">
-                    <thead>
-                      <tr className="border-b border-gray-200">
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Code</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Title</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Project</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Video</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">PPT</th>
-                        <th className="text-left py-3 px-4 font-semibold text-gray-700">Quiz</th>
-                        <th className="text-right py-3 px-4 font-semibold text-gray-700">Actions</th>
-                      </tr>
-                    </thead>
-                    <tbody>
-                      {credentials.map((c) => (
-                        <tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                          <td className="py-3 px-4 font-medium">{c.code}</td>
-                          <td className="py-3 px-4">{c.title}</td>
-                          <td className="py-3 px-4">{c.project}</td>
-                          <td className="py-3 px-4">{c.videoUrl ? <span className="text-[var(--bms-green)]">✓</span> : <span className="text-gray-300">—</span>}</td>
-                          <td className="py-3 px-4">{c.pptUrl ? <span className="text-[var(--bms-green)]">✓</span> : <span className="text-gray-300">—</span>}</td>
-                          <td className="py-3 px-4">{c.questions && c.questions.length > 0 ? <span className="text-[var(--bms-green)]">{c.questions.length}q</span> : <span className="text-gray-300">—</span>}</td>
-                          <td className="py-3 px-4 text-right">
-                            <button onClick={() => startEditCred(c)} className="text-[var(--bms-green)] hover:underline text-sm mr-3">Edit</button>
-                            <button onClick={() => deleteCred(c.id)} className="text-red-500 hover:underline text-sm">Delete</button>
-                          </td>
-                        </tr>
-                      ))}
-                    </tbody>
-                  </table>
+                {renderSectionEditor()}
+
+                <div className="mt-6 flex gap-3">
+                  <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingCred ? "Update" : "Create"}</button>
+                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                 </div>
-              )}
-            </div>
+              </form>
+            </>
           )}
         </div>
       </main>

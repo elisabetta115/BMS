@@ -11,6 +11,12 @@ enum Role {
   ADMIN
 }
 
+enum UnitType {
+  VIDEO
+  QUIZ
+  EXAM
+}
+
 model User {
   id            String   @id @default(cuid())
   name          String
@@ -37,30 +43,69 @@ model MicroCredential {
   image       String?
   developedBy String?  @map("developed_by")
   passGrade   Int      @default(50) @map("pass_grade")
-  videoUrl    String?  @map("video_url")
-  pptUrl      String?  @map("ppt_url")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 
+  sections    CredentialSection[]
   programmes  ProgrammeCredential[]
   enrollments CredentialEnrollment[]
-  questions   QuizQuestion[]
 
   @@map("micro_credentials")
 }
 
-model QuizQuestion {
+model CredentialSection {
   id           String   @id @default(cuid())
   credentialId String   @map("credential_id")
+  title        String
+  order        Int      @default(0)
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  credential   MicroCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  subsections  CredentialSubsection[]
+
+  @@map("credential_sections")
+}
+
+model CredentialSubsection {
+  id        String   @id @default(cuid())
+  sectionId String   @map("section_id")
+  title     String
+  order     Int      @default(0)
+  createdAt DateTime @default(now()) @map("created_at")
+
+  section CredentialSection @relation(fields: [sectionId], references: [id], onDelete: Cascade)
+  units   CredentialUnit[]
+
+  @@map("credential_subsections")
+}
+
+model CredentialUnit {
+  id           String   @id @default(cuid())
+  subsectionId String   @map("subsection_id")
+  title        String
+  type         UnitType
+  order        Int      @default(0)
+  videoUrl     String?  @map("video_url")
+  createdAt    DateTime @default(now()) @map("created_at")
+
+  subsection CredentialSubsection @relation(fields: [subsectionId], references: [id], onDelete: Cascade)
+  questions  UnitQuestion[]
+
+  @@map("credential_units")
+}
+
+model UnitQuestion {
+  id           String   @id @default(cuid())
+  unitId       String   @map("unit_id")
   question     String
   options      String[]
   correctIndex Int      @map("correct_index")
   order        Int      @default(0)
   createdAt    DateTime @default(now()) @map("created_at")
 
-  credential MicroCredential @relation(fields: [credentialId], references: [id], onDelete: Cascade)
+  unit CredentialUnit @relation(fields: [unitId], references: [id], onDelete: Cascade)
 
-  @@map("quiz_questions")
+  @@map("unit_questions")
 }
 
 model MicroProgramme {
