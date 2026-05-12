@@ -90,6 +90,8 @@ export default function AdminPage() {
 
   useEffect(() => { if (user) loadData(); }, [user, loadData]);
 
+  const allProjects = Array.from(new Set([...programmes.map(p => p.project), ...credentials.map(c => c.project)].filter(Boolean))).sort();
+
   function goList() { setView("list"); setEditingProg(null); setEditingCred(null); setParentProgId(null); setFormError(""); }
 
   async function refreshProg(id: string) {
@@ -233,7 +235,7 @@ export default function AdminPage() {
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={progForm.slug} onChange={e => setProgForm({ ...progForm, slug: e.target.value })} required placeholder="e.g. mp1" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><select className="auth-input" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })}><option>RES4CITY</option><option>SHERLOCK</option><option>COSS</option></select></div>
+        <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
         <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
       </div>
     );
@@ -381,25 +383,32 @@ export default function AdminPage() {
                 <>
                   <div className="flex justify-end mb-4"><button onClick={() => newCred()} className="px-5 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-dark)" }}>+ New Credential</button></div>
                   {credentials.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No credentials yet.</p> : (
-                    <div className="overflow-x-auto"><table className="w-full text-sm"><thead><tr className="border-b border-gray-200">
-                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Code</th>
-                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Title</th>
-                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Used in</th>
-                      <th className="text-left py-3 px-3 font-semibold text-gray-700">Sections</th>
-                      <th className="text-right py-3 px-3 font-semibold text-gray-700">Actions</th>
-                    </tr></thead><tbody>{credentials.map(c => {
+                    <div className="space-y-3">{credentials.map(c => {
                       const used = progsUsingCred(c.id);
-                      return (<tr key={c.id} className="border-b border-gray-100 hover:bg-gray-50">
-                        <td className="py-3 px-3 font-medium">{c.code}</td>
-                        <td className="py-3 px-3">{c.title}</td>
-                        <td className="py-3 px-3">{used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full mr-1">{code}</span>) : <span className="text-xs text-gray-400">—</span>}</td>
-                        <td className="py-3 px-3 text-gray-500">{(c.sections || []).length}</td>
-                        <td className="py-3 px-3 text-right">
-                          <button onClick={() => editCred(c)} className="text-[var(--bms-green)] text-sm hover:underline mr-3">Edit</button>
-                          <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                        </td>
-                      </tr>);
-                    })}</tbody></table></div>
+                      return (
+                        <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editCred(c)}>
+                          <div className="flex items-start justify-between">
+                            <div>
+                              <div className="flex items-center gap-2 mb-1">
+                                <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
+                                <span className="text-xs text-gray-400">|</span>
+                                <span className="text-xs text-gray-500">{c.project}</span>
+                                <span className="text-xs text-gray-400">|</span>
+                                <span className="text-xs text-gray-500">{(c.sections || []).length} sections</span>
+                              </div>
+                              <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{c.title}</h4>
+                              <div className="flex flex-wrap gap-1">
+                                {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-gray-400 italic">Not in any programme</span>}
+                              </div>
+                            </div>
+                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
+                              <button onClick={() => editCred(c)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                              <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
+                            </div>
+                          </div>
+                        </div>
+                      );
+                    })}</div>
                   )}
                 </>
               )}
@@ -468,7 +477,7 @@ export default function AdminPage() {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={credForm.slug} onChange={e => setCredForm({ ...credForm, slug: e.target.value })} required placeholder="e.g. carbon-neutrality" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><select className="auth-input" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })}><option>RES4CITY</option><option>SHERLOCK</option><option>COSS</option></select></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Developed by</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value })} /></div>
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} /></div>

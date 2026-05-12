@@ -3,85 +3,140 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import { useState, useEffect, useMemo } from "react";
+import { useEffect, useState } from "react";
+import { useRouter } from "next/navigation";
 
-interface MicroCredential { id: string; title: string; code: string; }
-interface MicroProgramme { id: string; title: string; slug: string; code: string; project: string; description: string | null; image: string | null; credentials?: MicroCredential[]; }
-
-export default function ProgramsPage() {
-  const [programmes, setProgrammes] = useState<MicroProgramme[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
+export default function Home() {
+  const router = useRouter();
+  const [checked, setChecked] = useState(false);
 
   useEffect(() => {
-    fetch("/api/micro-programmes")
-      .then(r => r.ok ? r.json() : { programmes: [] })
-      .then(d => setProgrammes(d.programmes || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
-  }, []);
+    fetch("/api/auth/session")
+      .then((r) => {
+        if (r.ok) { router.replace("/dashboard"); return; }
+        setChecked(true);
+      })
+      .catch(() => setChecked(true));
+  }, [router]);
 
-  const filtered = useMemo(() => {
-    if (!search.trim()) return programmes;
-    const q = search.toLowerCase();
-    return programmes.filter(p =>
-      p.title.toLowerCase().includes(q) ||
-      p.code.toLowerCase().includes(q) ||
-      p.project.toLowerCase().includes(q) ||
-      (p.credentials || []).some(c => c.title.toLowerCase().includes(q))
-    );
-  }, [programmes, search]);
+  if (!checked) return null;
 
   return (
     <>
       <Header />
-      <main className="py-16">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-            <h1 className="text-3xl font-bold" style={{ color: "var(--bms-dark)" }}>All Micro-programmes</h1>
-            <div className="relative w-full sm:w-80">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-              <input
-                type="text"
-                className="auth-input pl-10"
-                placeholder="Search programmes..."
-                value={search}
-                onChange={e => setSearch(e.target.value)}
-              />
+      <main id="main">
+        <section className="relative overflow-hidden" style={{ background: "#ffff" }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16 md:py-24">
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <p className="text-sm font-semibold uppercase tracking-widest mb-3" style={{ color: "var(--bms-green)" }}>FREE fully funded courses</p>
+                <h1 className="text-4xl md:text-5xl font-bold leading-tight mb-6" style={{ color: "var(--bms-dark)" }}>Become a leader in sustainability</h1>
+                <p className="text-gray-600 leading-relaxed mb-8 max-w-lg">Accelerate and future proof your career in sustainability or gain the skills to advance your organisations sustainability initiatives, through courses developed by pan-European and international universities - co-funded by the EU, Swiss Confederation and a consortia of South Korean universities (COSS) - and supported by the United Nations Institute for Training &amp; Research (UNITAR)</p>
+                <div className="flex flex-wrap gap-4">
+                  <Link href="/programs" className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium text-sm transition-colors" style={{ background: "var(--bms-green)" }}>Explore Micro-programmes <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg></Link>
+                  <Link href="/courses" className="inline-flex items-center gap-2 px-6 py-3 rounded-full font-medium text-sm border-2 transition-colors" style={{ borderColor: "var(--bms-green)", color: "var(--bms-green)" }}>Explore Micro-credentials <svg width="16" height="16" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg></Link>
+                </div>
+              </div>
+              <div className="hidden md:flex justify-center"><img src="/images/landing_img.png" alt="landing page image" className="w-full max-w-md" /></div>
             </div>
           </div>
+        </section>
 
-          {loading ? (
-            <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div>
-          ) : filtered.length === 0 ? (
-            <p className="text-gray-500 text-center py-20">{search ? "No programmes match your search." : "No micro-programmes available yet."}</p>
-          ) : (
-            <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
-              {filtered.map(p => (
-                <div key={p.id} className="programme-card bg-white rounded-2xl shadow-md overflow-hidden flex flex-col">
-                  <div className="h-48 bg-gradient-to-br from-[var(--bms-green)] to-[var(--bms-blue)] relative flex items-center justify-center">
-                    {p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" /> : <span className="text-white/40 text-6xl font-bold">{p.code}</span>}
+        <section className="py-16" style={{ background: "#ffff" }}>
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--bms-green)" }}>Earn BoostMySkills</p>
+            <h2 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>Micro-credential and Micro-programme Certificates</h2>
+            <div className="grid md:grid-cols-2 gap-12 items-center">
+              <div>
+                <p className="text-gray-600 leading-relaxed mb-6">Develop and advance your expertise with our comprehensive micro-credential and micro-programme courses. Gain practical knowledge and skills to drive energy innovations and decarbonisation strategies.</p>
+                <div className="flex items-start gap-3 p-4 bg-white rounded-xl shadow-sm">
+                  <div className="w-10 h-10 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: "var(--bms-green-light)" }}>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#1a8a5c"><path d="M12 2L3 7v6c0 5.55 3.84 10.74 9 12 5.16-1.26 9-6.45 9-12V7l-9-5zm-1 15l-4-4 1.41-1.41L11 14.17l6.59-6.59L19 9l-8 8z" /></svg>
                   </div>
-                  <div className="p-5 flex flex-col flex-1">
-                    <h4 className="font-semibold text-base leading-snug mb-1">{p.title}</h4>
-                    <p className="text-xs text-gray-500 mb-3">{p.code} | {p.project}</p>
-                    {p.credentials && p.credentials.length > 0 && (
-                      <>
-                        <p className="text-xs font-medium text-gray-600 mb-2">Includes the following micro-credentials:</p>
-                        <ul className="text-xs text-gray-500 space-y-0.5 mb-4 flex-1">
-                          {p.credentials.map(c => <li key={c.id} className="flex gap-1"><span className="text-[var(--bms-green)]">•</span> {c.title}</li>)}
-                        </ul>
-                      </>
-                    )}
-                    <Link href={`/dashboard/programs/${p.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start" style={{ background: "var(--bms-green)" }}>
-                      Enrol <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
-                    </Link>
+                  <p className="text-sm text-gray-600">Developed by pan-European and international universities, co-funded by the EU, Swiss Confederation and a consortia of South Korean universities (COSS) - and supported by the United Nations Institute for Training &amp; Research (UNITAR)</p>
+                </div>
+              </div>
+              <div className="flex justify-center"><img src="/images/r4c-certificate.png" alt="certificate" className="w-full max-w-sm rounded-2xl" /></div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16 md:py-20">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 text-center">
+            <p className="text-sm font-semibold uppercase tracking-widest mb-2" style={{ color: "var(--bms-green)" }}>Expand your Knowledge with Specialised Learning Paths</p>
+            <h2 className="text-3xl font-bold mb-4" style={{ color: "var(--bms-dark)" }}>Choose your option</h2>
+            <p className="text-gray-600 max-w-2xl mx-auto mb-12">Choose a micro-programme, where each micro-programme consists of 10 micro-credentials. Or choose one or more individual micro-credentials.</p>
+            <div className="grid md:grid-cols-2 gap-8 max-w-4xl mx-auto">
+              <div className="rounded-2xl border-2 border-[#1a8a5c] p-10 text-center">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: "#e6f5ee" }}><svg width="22" height="22" viewBox="0 0 24 24" fill="#1a8a5c"><path d="M12 21.35l-1.45-1.32C5.4 15.36 2 12.28 2 8.5 2 5.42 4.42 3 7.5 3c1.74 0 3.41.81 4.5 2.09C13.09 3.81 14.76 3 16.5 3 19.58 3 22 5.42 22 8.5c0 3.78-3.4 6.86-8.55 11.54L12 21.35z" /></svg></div>
+                <h4 className="font-bold text-xl mb-4" style={{ color: "var(--bms-dark)" }}>Micro-programmes</h4>
+                <p className="text-gray-500 text-sm leading-relaxed mb-6">Deepen your expertise with our comprehensive micro-programmes designed to cover a wide range of topics in renewable energy</p>
+                <Link href="/programs" className="inline-block px-8 py-3 rounded-full text-white text-sm font-semibold" style={{ background: "var(--bms-green)" }}>View all</Link>
+              </div>
+              <div className="rounded-2xl border-2 border-gray-300 p-10 text-center">
+                <div className="w-12 h-12 rounded-full flex items-center justify-center mx-auto mb-5" style={{ background: "#e6f5ee" }}><svg width="20" height="20" viewBox="0 0 24 24" fill="#1a8a5c"><path d="M7 2v11h3v9l7-12h-4l4-8z" /></svg></div>
+                <h4 className="font-bold text-xl mb-4" style={{ color: "var(--bms-dark)" }}>Micro-credentials</h4>
+                <p className="text-gray-500 text-sm leading-relaxed mb-6">Boost your skill set with our targeted micro-credentials. These concise courses are ideal for those looking to enhance specific competencies</p>
+                <Link href="/courses" className="inline-block px-8 py-3 rounded-full text-white text-sm font-semibold" style={{ background: "var(--bms-dark)" }}>View all</Link>
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <div className="grid md:grid-cols-2 gap-16 items-start">
+              <div>
+                <p className="text-sm font-semibold italic mb-3" style={{ color: "var(--bms-green)" }}>How to get started?</p>
+                <h3 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>Get started in 3 simple steps</h3>
+                <p className="text-gray-500 leading-relaxed">Achieve your learning goals quickly by following these straight-forward steps</p>
+              </div>
+              <div className="space-y-10">
+                {[
+                  { n: 1, title: "First Step", text: "Create your free account and explore our diverse range of micro-programmes and micro-credentials" },
+                  { n: 2, title: "Second Step", text: "Choose the micro-programmes and/or micro-credentials that align with your goals and interests." },
+                  { n: 3, title: "Third Step", text: "Start learning at your own pace and earn your certifications to boost your skills and career prospects." },
+                ].map((step) => (
+                  <div key={step.n} className="flex gap-5">
+                    <div className="w-11 h-11 rounded-full flex items-center justify-center flex-shrink-0 text-sm font-semibold" style={{ background: "#e6f5ee", color: "var(--bms-green)" }}>{step.n}</div>
+                    <div><h5 className="font-bold text-base mb-1.5" style={{ color: "var(--bms-dark)" }}>{step.title}</h5><p className="text-gray-500 text-sm leading-relaxed">{step.text}</p></div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h2 className="text-3xl font-bold text-center mb-12" style={{ color: "var(--bms-dark)" }}>What People Are Saying</h2>
+            <div className="grid md:grid-cols-3 gap-8">
+              {[
+                { quote: "I was amazed by the breadth of renewable energy courses offered. I highly recommend BoostMySkills to anyone passionate about creating a sustainable future", name: "Anya Petrova", role: "Sustainability Consultant" },
+                { quote: "The practical skills I gained have already helped me implement sustainable practices in my workplace", name: "Maria Gonzalez", role: "Renewable Energy Engineer" },
+                { quote: "BoostMySkills helped me discover my passion for renewable energy and sustainability and explore potential career paths", name: "David Kim", role: "Student" },
+              ].map((t, i) => (
+                <div key={i} className="rounded-2xl p-6 border border-gray-200 bg-white">
+                  <p className="text-gray-600 text-sm leading-relaxed mb-8">&ldquo;{t.quote}&rdquo;</p>
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full flex items-center justify-center" style={{ background: "#c8e6c9" }}><svg width="16" height="16" viewBox="0 0 24 24" fill="#2e7d32"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg></div>
+                    <div><p className="text-sm font-semibold" style={{ color: "var(--bms-dark)" }}>{t.name}</p><p className="text-gray-400 text-xs">{t.role}</p></div>
                   </div>
                 </div>
               ))}
             </div>
-          )}
-        </div>
+          </div>
+        </section>
+
+        <section className="py-16">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            <h3 className="text-2xl font-bold mb-8 text-center" style={{ color: "var(--bms-dark)" }}>Our Partners</h3>
+            <div className="space-y-6">
+              <div><img src="/images/partners.jpeg" alt="partners" className="w-full" /></div>
+              <div className="rounded-2xl p-8" style={{ background: "#e8f5e9" }}><img src="/images/extra_partners.png" alt="extra partners" className="w-full" /></div>
+            </div>
+          </div>
+        </section>
       </main>
       <Footer />
     </>

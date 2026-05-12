@@ -5,55 +5,75 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 
-interface MicroCredential { id: string; title: string; slug: string; code: string; project: string; description: string | null; image: string | null; developedBy: string | null; passGrade: number; }
+interface MicroCredential {
+  id: string; title: string; slug: string; code: string; project: string;
+  description: string | null; image: string | null; developedBy: string | null; passGrade: number;
+}
 
 export default function CoursesPage() {
   const [credentials, setCredentials] = useState<MicroCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
+  const [projectFilter, setProjectFilter] = useState("ALL");
 
   useEffect(() => {
-    fetch("/api/micro-credentials")
-      .then(r => r.ok ? r.json() : { credentials: [] })
-      .then(d => setCredentials(d.credentials || []))
-      .catch(() => {})
-      .finally(() => setLoading(false));
+    fetch("/api/micro-credentials").then(r => r.ok ? r.json() : { credentials: [] }).then(d => setCredentials(d.credentials || [])).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
+  const projects = useMemo(() => {
+    const s = new Set(credentials.map(c => c.project));
+    return ["ALL", ...Array.from(s).sort()];
+  }, [credentials]);
+
   const filtered = useMemo(() => {
-    if (!search.trim()) return credentials;
-    const q = search.toLowerCase();
-    return credentials.filter(c =>
-      c.title.toLowerCase().includes(q) ||
-      c.code.toLowerCase().includes(q) ||
-      c.project.toLowerCase().includes(q) ||
-      (c.developedBy || "").toLowerCase().includes(q)
-    );
-  }, [credentials, search]);
+    let r = credentials;
+    if (projectFilter !== "ALL") r = r.filter(c => c.project === projectFilter);
+    if (search.trim()) {
+      const q = search.toLowerCase();
+      r = r.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
+    }
+    return r;
+  }, [credentials, search, projectFilter]);
 
   return (
     <>
       <Header />
       <main className="py-16">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-10">
-            <h1 className="text-3xl font-bold" style={{ color: "var(--bms-dark)" }}>All Micro-credentials</h1>
-            <div className="relative w-full sm:w-80">
-              <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+          <h1 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>All Micro-credentials</h1>
+
+          {/* Search & Filter */}
+          <div className="flex flex-col sm:flex-row gap-3 mb-10">
+            <div style={{ position: "relative", flex: 1 }}>
               <input
                 type="text"
-                className="auth-input pl-10"
+                style={{ width: "100%", padding: "12px 16px 12px 44px", border: "1.5px solid #e8e8e8", borderRadius: "12px", fontSize: "14px", outline: "none", background: "white" }}
                 placeholder="Search credentials..."
                 value={search}
                 onChange={e => setSearch(e.target.value)}
+                onFocus={e => { e.target.style.borderColor = "#1a8a5c"; }}
+                onBlur={e => { e.target.style.borderColor = "#e8e8e8"; }}
               />
+              <svg style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+            </div>
+            <div className="flex gap-2 flex-wrap">
+              {projects.map(p => (
+                <button
+                  key={p}
+                  onClick={() => setProjectFilter(p)}
+                  style={projectFilter === p ? { background: "#1a8a5c", color: "white", borderColor: "#1a8a5c" } : {}}
+                  className={`px-4 py-2 rounded-full text-sm font-medium border transition-colors ${projectFilter !== p ? "bg-white text-gray-600 border-gray-200 hover:border-gray-400" : ""}`}
+                >
+                  {p === "ALL" ? "All Projects" : p}
+                </button>
+              ))}
             </div>
           </div>
 
           {loading ? (
             <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div>
           ) : filtered.length === 0 ? (
-            <p className="text-gray-500 text-center py-20">{search ? "No credentials match your search." : "No micro-credentials available yet."}</p>
+            <p className="text-gray-500 text-center py-20">{search || projectFilter !== "ALL" ? "No credentials match your search." : "No micro-credentials available yet."}</p>
           ) : (
             <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-8">
               {filtered.map(c => (
