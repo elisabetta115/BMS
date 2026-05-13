@@ -23,7 +23,16 @@ export async function GET() {
         },
       },
     });
-    const result = programmes.map((p: any) => ({ ...p, credentials: p.credentials.map((pc: any) => pc.credential) }));
+    const result = programmes.map((p: any) => ({
+      ...p,
+      imageData: undefined, // never send binary to client
+      hasImage: !!p.imageData,
+      credentials: p.credentials.map((pc: any) => ({
+        ...pc.credential,
+        imageData: undefined,
+        hasImage: !!pc.credential.imageData,
+      })),
+    }));
     return NextResponse.json({ programmes: result });
   } catch (err) {
     console.error("Error fetching micro-programmes:", err);
@@ -36,10 +45,24 @@ export async function POST(req: NextRequest) {
   if (!session || session.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, image } = await req.json();
+    const { title, slug, code, project, description, imageBase64, imageMime } = await req.json();
     if (!title || !slug || !code) return NextResponse.json({ error: "Title, slug, and code required." }, { status: 400 });
-    const programme = await prisma.microProgramme.create({ data: { title, slug, code, project: project || "RES4CITY", description: description || null, image: image || null } });
-    return NextResponse.json({ programme }, { status: 201 });
+
+    const data: any = {
+      title, slug, code,
+      project: project || "RES4CITY",
+      description: description || null,
+    };
+
+    if (imageBase64 && imageMime) {
+      data.imageData = Buffer.from(imageBase64, "base64");
+      data.imageMime = imageMime;
+    }
+
+    const programme = await prisma.microProgramme.create({ data });
+    return NextResponse.json({
+      programme: { ...programme, imageData: undefined, hasImage: !!programme.imageData },
+    }, { status: 201 });
   } catch (err: any) {
     console.error("Error creating micro-programme:", err);
     if (err?.code === "P2002") return NextResponse.json({ error: "Slug already exists." }, { status: 409 });

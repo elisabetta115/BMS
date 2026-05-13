@@ -8,19 +8,19 @@ import { useRouter } from "next/navigation";
 /* ─── Types ────────────────────────────────────────────── */
 
 interface UnitQuestion { id?: string; question: string; options: string[]; correctIndex: number; }
-interface CredentialUnit { id?: string; title: string; type: "VIDEO" | "QUIZ"; order: number; videoUrl?: string; questions?: UnitQuestion[]; }
+interface CredentialUnit { id?: string; title: string; type: "VIDEO" | "QUIZ" | "PRESENTATION"; order: number; videoUrl?: string; pptxBase64?: string; pptxMime?: string; pptxName?: string; hasPptx?: boolean; questions?: UnitQuestion[]; }
 interface CredentialSubsection { id?: string; title: string; order: number; units: CredentialUnit[]; }
 interface CredentialSection { id?: string; title: string; order: number; subsections: CredentialSubsection[]; }
 
 interface MicroCredential {
   id: string; title: string; slug: string; code: string; project: string;
-  description: string | null; image: string | null; developedBy: string | null;
+  description: string | null; image: string | null; hasImage: boolean; developedBy: string | null;
   passGrade: number; sections?: CredentialSection[];
 }
 
 interface MicroProgramme {
   id: string; title: string; slug: string; code: string; project: string;
-  description: string | null; image: string | null; credentials?: MicroCredential[];
+  description: string | null; image: string | null; hasImage: boolean; credentials?: MicroCredential[];
 }
 
 function SearchableCredentialPicker({ credentials, onSelect }: { credentials: MicroCredential[]; onSelect: (id: string) => void }) {
@@ -44,6 +44,77 @@ function SearchableCredentialPicker({ credentials, onSelect }: { credentials: Mi
           </button>
         ))}
       </div>
+    </div>
+  );
+}
+
+function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl: string) => void }) {
+  const [error, setError] = useState("");
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    setError("");
+
+    if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
+      setError("Only PNG and JPG files are allowed."); e.target.value = ""; return;
+    }
+    if (file.size > 2 * 1024 * 1024) {
+      setError("File must be under 2 MB."); e.target.value = ""; return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = () => { onChange(reader.result as string); };
+    reader.onerror = () => { setError("Failed to read file."); };
+    reader.readAsDataURL(file);
+    e.target.value = "";
+  }
+
+  return (
+    <div>
+      {value ? (
+        <div className="flex items-start gap-3">
+          <img src={value} alt="Preview" className="h-24 w-auto rounded-lg border border-gray-200 object-cover" />
+          <button type="button" onClick={() => onChange("")} className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+            Remove
+          </button>
+        </div>
+      ) : (
+        <>
+          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+            Upload image
+            <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
+          </label>
+          <p className="text-xs text-gray-400 mt-1">PNG or JPG, max 2 MB</p>
+        </>
+      )}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function UnitTypePicker({ onSelect }: { onSelect: (type: "VIDEO" | "QUIZ" | "PRESENTATION") => void }) {
+  const [open, setOpen] = useState(false);
+  return (
+    <div className="relative mt-1">
+      <button type="button" onClick={() => setOpen(!open)} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--bms-green)] text-[var(--bms-green)] font-medium hover:bg-[var(--bms-green-light)] transition-colors">
+        + Add Unit
+      </button>
+      {open && (
+        <div className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[160px] z-10">
+          <button type="button" onClick={() => { onSelect("VIDEO"); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-blue-500" /> Video
+          </button>
+          <button type="button" onClick={() => { onSelect("QUIZ"); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-yellow-500" /> Quiz
+          </button>
+          <button type="button" onClick={() => { onSelect("PRESENTATION"); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-purple-500" /> Presentation
+          </button>
+        </div>
+      )}
     </div>
   );
 }
@@ -105,15 +176,32 @@ export default function AdminPage() {
   /* ─── Programme handlers ─────────────────────────────── */
 
   function newProg() { setProgForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
-  function editProg(p: MicroProgramme) { setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: p.image || "" }); setEditingProg(p); setFormError(""); setView("edit-prog"); }
+  function editProg(p: MicroProgramme) {
+    const imgUrl = p.hasImage ? `/api/images/programme/${p.id}` : p.image || "";
+    setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: imgUrl });
+    setEditingProg(p); setFormError(""); setView("edit-prog");
+  }
 
   async function saveProg(e: React.FormEvent) {
     e.preventDefault(); setFormError("");
     if (!progForm.title || !progForm.slug || !progForm.code) { setFormError("Title, slug, and code required."); return; }
     setFormLoading(true);
     try {
+      const payload: any = { ...progForm };
+      // If image is a data URL (new upload), split into base64 + mime
+      if (progForm.image && progForm.image.startsWith("data:")) {
+        const [header, data] = progForm.image.split(",");
+        payload.imageBase64 = data;
+        payload.imageMime = header.match(/data:(.*?);/)?.[1] || "image/png";
+        delete payload.image;
+      } else if (!progForm.image) {
+        payload.removeImage = true;
+        delete payload.image;
+      } else {
+        delete payload.image; // existing URL, no change
+      }
       const url = editingProg ? `/api/micro-programmes/${editingProg.id}` : "/api/micro-programmes";
-      const r = await fetch(url, { method: editingProg ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(progForm) });
+      const r = await fetch(url, { method: editingProg ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
       if (!editingProg) { await refreshProg(d.programme.id); } else { await refreshProg(editingProg.id); }
     } catch { setFormError("Network error."); }
@@ -145,7 +233,8 @@ export default function AdminPage() {
   }
 
   function editCred(c: MicroCredential, progId?: string) {
-    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: c.image || "", developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
+    const imgUrl = c.hasImage ? `/api/images/credential/${c.id}` : c.image || "";
+    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
     setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError(""); setView("edit-cred");
   }
 
@@ -156,7 +245,18 @@ export default function AdminPage() {
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
       const method = editingCred ? "PATCH" : "POST";
-      const payload = { ...credForm, passGrade: parseInt(credForm.passGrade) || 50, sections };
+      const payload: any = { ...credForm, passGrade: parseInt(credForm.passGrade) || 50, sections };
+      if (credForm.image && credForm.image.startsWith("data:")) {
+        const [header, data] = credForm.image.split(",");
+        payload.imageBase64 = data;
+        payload.imageMime = header.match(/data:(.*?);/)?.[1] || "image/png";
+        delete payload.image;
+      } else if (!credForm.image) {
+        payload.removeImage = true;
+        delete payload.image;
+      } else {
+        delete payload.image;
+      }
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
       if (!editingCred && parentProgId) {
@@ -192,9 +292,9 @@ export default function AdminPage() {
     const s = [...sections]; s[si].subsections[ssi] = { ...s[si].subsections[ssi], title }; setSections(s);
   }
 
-  function addUnit(si: number, ssi: number, type: "VIDEO" | "QUIZ") {
+  function addUnit(si: number, ssi: number, type: "VIDEO" | "QUIZ" | "PRESENTATION") {
     const s = [...sections]; const units = s[si].subsections[ssi].units;
-    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", questions: [] }] }; setSections(s);
+    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", pptxBase64: "", pptxMime: "", pptxName: "", questions: [] }] }; setSections(s);
   }
   function removeUnit(si: number, ssi: number, ui: number) {
     const s = [...sections]; s[si].subsections[ssi].units = s[si].subsections[ssi].units.filter((_, x) => x !== ui); setSections(s);
@@ -237,6 +337,7 @@ export default function AdminPage() {
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
         <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
       </div>
     );
   }
@@ -254,27 +355,28 @@ export default function AdminPage() {
         {sections.map((sec, si) => (
           <div key={si} className="mb-4 border border-gray-200 rounded-xl p-4 bg-gray-50">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-xs font-bold text-gray-400">S{si + 1}</span>
+              <span className="text-sm font-bold text-[var(--bms-green)] min-w-[2rem]">{si + 1}</span>
               <input className="auth-input flex-1" placeholder="Section title" value={sec.title} onChange={e => updateSection(si, e.target.value)} />
               <button type="button" onClick={() => removeSection(si)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
             </div>
 
             {/* Subsections */}
-            <div className="ml-4">
+            <div className="ml-6">
               {sec.subsections.map((sub, ssi) => (
                 <div key={ssi} className="mb-3 border border-gray-200 rounded-lg p-3 bg-white">
                   <div className="flex items-center gap-2 mb-2">
-                    <span className="text-xs font-bold text-gray-400">{si + 1}.{ssi + 1}</span>
+                    <span className="text-sm font-bold text-[var(--bms-dark)] min-w-[2.5rem]">{si + 1}.{ssi + 1}</span>
                     <input className="auth-input flex-1 text-sm" placeholder="Subsection title" value={sub.title} onChange={e => updateSubsection(si, ssi, e.target.value)} />
                     <button type="button" onClick={() => removeSubsection(si, ssi)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                   </div>
 
                   {/* Units */}
-                  <div className="ml-4 space-y-2">
+                  <div className="ml-8 space-y-2">
                     {sub.units.map((unit, ui) => (
                       <div key={ui} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${unit.type === "VIDEO" ? "bg-blue-100 text-blue-700" : "bg-yellow-100 text-yellow-700"}`}>
+                          <span className="text-sm font-medium text-gray-600 min-w-[3rem]">{si + 1}.{ssi + 1}.{ui + 1}</span>
+                          <span className={`text-xs font-bold px-2 py-0.5 rounded ${unit.type === "VIDEO" ? "bg-blue-100 text-blue-700" : unit.type === "PRESENTATION" ? "bg-purple-100 text-purple-700" : "bg-yellow-100 text-yellow-700"}`}>
                             {unit.type}
                           </span>
                           <input className="auth-input flex-1 text-sm" placeholder="Unit title" value={unit.title} onChange={e => updateUnit(si, ssi, ui, "title", e.target.value)} />
@@ -283,7 +385,7 @@ export default function AdminPage() {
 
                         {/* VIDEO: YouTube URL */}
                         {unit.type === "VIDEO" && (
-                          <div className="ml-6">
+                          <div className="ml-12">
                             <input className="auth-input text-sm" placeholder="YouTube URL" value={unit.videoUrl || ""} onChange={e => updateUnit(si, ssi, ui, "videoUrl", e.target.value)} />
                             {unit.videoUrl && unit.videoUrl.includes("youtu") && (
                               <div className="mt-2 aspect-video max-w-xs rounded-lg overflow-hidden bg-black">
@@ -293,9 +395,51 @@ export default function AdminPage() {
                           </div>
                         )}
 
+                        {/* PRESENTATION: PPTX upload */}
+                        {unit.type === "PRESENTATION" && (
+                          <div className="ml-12">
+                            {(unit.pptxName || unit.hasPptx) ? (
+                              <div className="flex items-center gap-3">
+                                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                  <span className="text-sm text-purple-700">{unit.pptxName || "presentation.pptx"}</span>
+                                </div>
+                                <button type="button" onClick={() => { updateUnit(si, ssi, ui, "pptxBase64", ""); updateUnit(si, ssi, ui, "pptxMime", ""); updateUnit(si, ssi, ui, "pptxName", ""); updateUnit(si, ssi, ui, "hasPptx", false); updateUnit(si, ssi, ui, "removePptx", true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                  Remove
+                                </button>
+                              </div>
+                            ) : (
+                              <div>
+                                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
+                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                                  Upload presentation
+                                  <input type="file" accept=".pptx,.ppt" className="hidden" onChange={e => {
+                                    const file = e.target.files?.[0];
+                                    if (!file) return;
+                                    if (file.size > 10 * 1024 * 1024) { alert("File must be under 10 MB."); e.target.value = ""; return; }
+                                    const reader = new FileReader();
+                                    reader.onload = () => {
+                                      const dataUrl = reader.result as string;
+                                      const [header, data] = dataUrl.split(",");
+                                      const mime = header.match(/data:(.*?);/)?.[1] || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                                      updateUnit(si, ssi, ui, "pptxBase64", data);
+                                      updateUnit(si, ssi, ui, "pptxMime", mime);
+                                      updateUnit(si, ssi, ui, "pptxName", file.name);
+                                    };
+                                    reader.readAsDataURL(file);
+                                    e.target.value = "";
+                                  }} />
+                                </label>
+                                <p className="text-xs text-gray-400 mt-1">PPTX or PPT, max 10 MB</p>
+                              </div>
+                            )}
+                          </div>
+                        )}
+
                         {/* QUIZ: questions */}
                         {unit.type === "QUIZ" && (
-                          <div className="ml-6 mt-2">
+                          <div className="ml-12 mt-2">
                             {(unit.questions || []).map((q, qi) => (
                               <div key={qi} className="mb-3 p-3 border border-gray-200 rounded-lg bg-white">
                                 <div className="flex items-center justify-between mb-2">
@@ -319,10 +463,8 @@ export default function AdminPage() {
                       </div>
                     ))}
 
-                    <div className="flex gap-2 mt-1">
-                      <button type="button" onClick={() => addUnit(si, ssi, "VIDEO")} className="text-xs px-2 py-1 rounded border border-blue-300 text-blue-600 hover:bg-blue-50">+ Video</button>
-                      <button type="button" onClick={() => addUnit(si, ssi, "QUIZ")} className="text-xs px-2 py-1 rounded border border-yellow-300 text-yellow-700 hover:bg-yellow-50">+ Quiz</button>
-                    </div>
+                    {/* Add Unit — single button with type picker */}
+                    <UnitTypePicker onSelect={(type) => addUnit(si, ssi, type)} />
                   </div>
                 </div>
               ))}
@@ -474,13 +616,14 @@ export default function AdminPage() {
               {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
               <form onSubmit={saveCred} className="bg-white border border-gray-200 rounded-2xl p-6">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={credForm.slug} onChange={e => setCredForm({ ...credForm, slug: e.target.value })} required placeholder="e.g. carbon-neutrality" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Developed by</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value })} /></div>
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
                 </div>
 
                 {renderSectionEditor()}

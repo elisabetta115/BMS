@@ -7,23 +7,30 @@ import { useState, useEffect, useMemo } from "react";
 
 interface MicroCredential {
   id: string; title: string; slug: string; code: string; project: string;
-  description: string | null; image: string | null; developedBy: string | null; passGrade: number;
+  description: string | null; image: string | null; hasImage: boolean; developedBy: string | null; passGrade: number;
 }
 
 export default function CoursesPage() {
   const [credentials, setCredentials] = useState<MicroCredential[]>([]);
+  const [allProjects, setAllProjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("ALL");
 
   useEffect(() => {
-    fetch("/api/micro-credentials").then(r => r.ok ? r.json() : { credentials: [] }).then(d => setCredentials(d.credentials || [])).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/micro-programmes").then(r => r.ok ? r.json() : { programmes: [] }),
+      fetch("/api/micro-credentials").then(r => r.ok ? r.json() : { credentials: [] }),
+    ]).then(([pD, cD]) => {
+      const progs = pD.programmes || [];
+      const creds = cD.credentials || [];
+      setCredentials(creds);
+      const projectSet = new Set<string>();
+      progs.forEach((p: any) => { if (p.project) projectSet.add(p.project); });
+      creds.forEach((c: any) => { if (c.project) projectSet.add(c.project); });
+      setAllProjects(Array.from(projectSet).sort());
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
-
-  const projects = useMemo(() => {
-    const s = new Set(credentials.map(c => c.project));
-    return ["ALL", ...Array.from(s).sort()];
-  }, [credentials]);
 
   const filtered = useMemo(() => {
     let r = credentials;
@@ -57,7 +64,7 @@ export default function CoursesPage() {
               <svg style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {projects.map(p => (
+              {["ALL", ...allProjects].map(p => (
                 <button
                   key={p}
                   onClick={() => setProjectFilter(p)}
@@ -79,7 +86,7 @@ export default function CoursesPage() {
               {filtered.map(c => (
                 <div key={c.id} className="bg-white rounded-2xl shadow-md overflow-hidden flex flex-col">
                   <div className="h-40 bg-gradient-to-br from-[var(--bms-green-light)] to-[#d4edda] relative flex items-center justify-center">
-                    {c.image ? <img src={c.image} alt={c.title} className="w-full h-full object-cover" /> : <span className="text-[var(--bms-green)] text-5xl font-bold opacity-30">{c.code}</span>}
+                    {c.hasImage ? <img src={`/api/images/credential/${c.id}`} alt={c.title} className="w-full h-full object-cover" /> : c.image ? <img src={c.image} alt={c.title} className="w-full h-full object-cover" /> : <span className="text-[var(--bms-green)] text-5xl font-bold opacity-30">{c.code}</span>}
                   </div>
                   <div className="p-5 flex flex-col flex-1">
                     <h4 className="font-semibold text-base leading-snug mb-1">{c.title}</h4>

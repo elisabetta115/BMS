@@ -6,22 +6,29 @@ import Link from "next/link";
 import { useState, useEffect, useMemo } from "react";
 
 interface MicroCredential { id: string; title: string; code: string; }
-interface MicroProgramme { id: string; title: string; slug: string; code: string; project: string; description: string | null; image: string | null; credentials?: MicroCredential[]; }
+interface MicroProgramme { id: string; title: string; slug: string; code: string; project: string; description: string | null; image: string | null; hasImage: boolean; credentials?: MicroCredential[]; }
 
 export default function ProgramsPage() {
   const [programmes, setProgrammes] = useState<MicroProgramme[]>([]);
+  const [allProjects, setAllProjects] = useState<string[]>([]);
   const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("ALL");
 
   useEffect(() => {
-    fetch("/api/micro-programmes").then(r => r.ok ? r.json() : { programmes: [] }).then(d => setProgrammes(d.programmes || [])).catch(() => {}).finally(() => setLoading(false));
+    Promise.all([
+      fetch("/api/micro-programmes").then(r => r.ok ? r.json() : { programmes: [] }),
+      fetch("/api/micro-credentials").then(r => r.ok ? r.json() : { credentials: [] }),
+    ]).then(([pD, cD]) => {
+      const progs = pD.programmes || [];
+      const creds = cD.credentials || [];
+      setProgrammes(progs);
+      const projectSet = new Set<string>();
+      progs.forEach((p: any) => { if (p.project) projectSet.add(p.project); });
+      creds.forEach((c: any) => { if (c.project) projectSet.add(c.project); });
+      setAllProjects(Array.from(projectSet).sort());
+    }).catch(() => {}).finally(() => setLoading(false));
   }, []);
-
-  const projects = useMemo(() => {
-    const s = new Set(programmes.map(p => p.project));
-    return ["ALL", ...Array.from(s).sort()];
-  }, [programmes]);
 
   const filtered = useMemo(() => {
     let r = programmes;
@@ -55,7 +62,7 @@ export default function ProgramsPage() {
               <svg style={{ position: "absolute", left: "16px", top: "50%", transform: "translateY(-50%)", pointerEvents: "none" }} width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
             </div>
             <div className="flex gap-2 flex-wrap">
-              {projects.map(p => (
+              {["ALL", ...allProjects].map(p => (
                 <button
                   key={p}
                   onClick={() => setProjectFilter(p)}
@@ -77,7 +84,7 @@ export default function ProgramsPage() {
               {filtered.map(p => (
                 <div key={p.id} className="programme-card bg-white rounded-2xl shadow-md overflow-hidden flex flex-col">
                   <div className="h-48 bg-gradient-to-br from-[var(--bms-green)] to-[var(--bms-blue)] relative flex items-center justify-center">
-                    {p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" /> : <span className="text-white/40 text-6xl font-bold">{p.code}</span>}
+                    {p.hasImage ? <img src={`/api/images/programme/${p.id}`} alt={p.title} className="w-full h-full object-cover" /> : p.image ? <img src={p.image} alt={p.title} className="w-full h-full object-cover" /> : <span className="text-white/40 text-6xl font-bold">{p.code}</span>}
                   </div>
                   <div className="p-5 flex flex-col flex-1">
                     <h4 className="font-semibold text-base leading-snug mb-1">{p.title}</h4>
