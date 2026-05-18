@@ -1,43 +1,95 @@
 import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 
-export async function GET(
+const MAX_SIZE = 20 * 1024 * 1024; // 20MB
+const ALLOWED_TYPES = ["image/png", "image/jpeg", "image/jpg"];
+
+export async function POST(
   req: NextRequest,
   { params }: { params: Promise<{ type: string; id: string }> }
 ) {
   try {
-    if (!prisma) return new NextResponse("Not configured", { status: 500 });
+    const session = await getSession();
+    if (!session || session.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
+    }
+    if (!prisma) {
+      return NextResponse.json({ error: "Database not configured." }, { status: 500 });
+    }
 
     const { type, id } = await params;
 
-    let record: { imageData: Buffer | null; imageMime: string | null } | null = null;
+    if (type !== "programme" && type !== "credential") {
+      return NextResponse.json({ error: "Invalid type." }, { status: 400 });
+    }
+
+    const formData = await req.formData();
+    const file = formData.get("image") as File | null;
+
+    if (!file) {
+      return NextResponse.json({ error: "No file provided." }, { status: 400 });
+    }
+
+    if (!ALLOWED_TYPES.includes(file.type)) {
+      return NextResponse.json({ error: "Only PNG and JPG files are allowed." }, { status: 400 });
+    }
+
+    if (file.size > MAX_SIZE) {
+      return NextResponse.json({ error: "File too large. Maximum size is 2MB." }, { status: 400 });
+    }
+
+    const buffer = Buffer.from(await file.arrayBuffer());
 
     if (type === "programme") {
-      record = await prisma.microProgramme.findUnique({
+      await prisma.microProgramme.update({
         where: { id },
-        select: { imageData: true, imageMime: true },
-      });
-    } else if (type === "credential") {
-      record = await prisma.microCredential.findUnique({
-        where: { id },
-        select: { imageData: true, imageMime: true },
+        data: { imageData: buffer, imageMime: file.type },
       });
     } else {
-      return new NextResponse("Invalid type", { status: 400 });
+      await prisma.microCredential.update({
+        where: { id },
+        data: { imageData: buffer, imageMime: file.type },
+      });
     }
 
-    if (!record || !record.imageData) {
-      return new NextResponse("No image", { status: 404 });
-    }
-
-    return new NextResponse(record.imageData, {
-      headers: {
-        "Content-Type": record.imageMime || "image/png",
-        "Cache-Control": "public, max-age=3600, immutable",
-      },
-    });
+    return NextResponse.json({ success: true, url: `/api/images/${type}/${id}` });
   } catch (err) {
-    console.error("Image serve error:", err);
-    return new NextResponse("Error", { status: 500 });
+    console.error("Image upload error:", err);
+    return NextResponse.json({ error: "Upload failed." }, { status: 500 });
+  }
+}
+
+export async function DELETE(
+  req: NextRequest,
+  { params }: { params: Promise<{ type: string; id: string }> }
+) {
+  try {
+    const session = await getSession();
+    if (!session || session.role !== "ADMIN") {
+      return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
+    }
+    if (!prisma) {
+      return NextResponse.json({ error: "Database not configured." }, { status: 500 });
+    }
+
+    const { type, id } = await params;
+
+    if (type === "programme") {
+      await prisma.microProgramme.update({
+        where: { id },
+        data: { imageData: null, imageMime: null },
+      });
+    } else if (type === "credential") {
+      await prisma.microCredential.update({
+        where: { id },
+        data: { imageData: null, imageMime: null },
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error("Image delete error:", err);
+    return NextResponse.json({ error: "Delete failed." }, { status: 500 });
   }
 }

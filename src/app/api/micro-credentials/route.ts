@@ -47,11 +47,13 @@ export async function POST(req: NextRequest) {
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { title, slug, code, project, description, developedBy, passGrade, sections, imageBase64, imageMime } = await req.json();
-    if (!title || !slug || !code) return NextResponse.json({ error: "Title, slug, and code required." }, { status: 400 });
+    if (!title || !code) return NextResponse.json({ error: "Title and code required." }, { status: 400 });
+
+    const finalSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
     const data: any = {
-      title, slug, code,
-      project: project || "RES4CITY",
+      title, slug: finalSlug, code,
+      project: project || "",
       description: description || null,
       developedBy: developedBy || null,
       passGrade: passGrade || 50,

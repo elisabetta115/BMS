@@ -2,7 +2,7 @@
 
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 
 /* ─── Types ────────────────────────────────────────────── */
@@ -59,8 +59,8 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
     if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
       setError("Only PNG and JPG files are allowed."); e.target.value = ""; return;
     }
-    if (file.size > 2 * 1024 * 1024) {
-      setError("File must be under 2 MB."); e.target.value = ""; return;
+    if (file.size > 20 * 1024 * 1024) {
+      setError("File must be under 20 MB."); e.target.value = ""; return;
     }
 
     const reader = new FileReader();
@@ -73,12 +73,9 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
   return (
     <div>
       {value ? (
-        <div className="flex items-start gap-3">
+        <div className="relative inline-block">
           <img src={value} alt="Preview" className="h-24 w-auto rounded-lg border border-gray-200 object-cover" />
-          <button type="button" onClick={() => onChange("")} className="mt-1 inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-            <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-            Remove
-          </button>
+          <button type="button" onClick={() => onChange("")} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 shadow-sm">✕</button>
         </div>
       ) : (
         <>
@@ -87,7 +84,7 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
             Upload image
             <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
           </label>
-          <p className="text-xs text-gray-400 mt-1">PNG or JPG, max 2 MB</p>
+          <p className="text-xs text-gray-400 mt-1">PNG or JPG, max 20 MB</p>
         </>
       )}
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -97,8 +94,19 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
 
 function UnitTypePicker({ onSelect }: { onSelect: (type: "VIDEO" | "QUIZ" | "PRESENTATION") => void }) {
   const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
   return (
-    <div className="relative mt-1">
+    <div className="relative mt-1" ref={ref}>
       <button type="button" onClick={() => setOpen(!open)} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--bms-green)] text-[var(--bms-green)] font-medium hover:bg-[var(--bms-green-light)] transition-colors">
         + Add Unit
       </button>
@@ -119,6 +127,39 @@ function UnitTypePicker({ onSelect }: { onSelect: (type: "VIDEO" | "QUIZ" | "PRE
   );
 }
 
+function AddPicker({ onProg, onCred }: { onProg: () => void; onCred: () => void }) {
+  const [open, setOpen] = useState(false);
+  const ref = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    if (!open) return;
+    function handleClick(e: MouseEvent) {
+      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
+    }
+    document.addEventListener("mousedown", handleClick);
+    return () => document.removeEventListener("mousedown", handleClick);
+  }, [open]);
+
+  return (
+    <div className="relative" ref={ref}>
+      <button onClick={() => setOpen(!open)} className="px-5 py-2.5 rounded-full text-white text-sm font-medium flex items-center gap-1.5" style={{ background: "var(--bms-green)" }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
+        Add
+      </button>
+      {open && (
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[200px] z-10">
+          <button onClick={() => { onProg(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full bg-[var(--bms-green)]" /> Micro-programme
+          </button>
+          <button onClick={() => { onCred(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
+            <span className="w-2 h-2 rounded-full" style={{ background: "var(--bms-dark)" }} /> Micro-credential
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Tab = "programmes" | "credentials";
 type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred";
 
@@ -132,13 +173,14 @@ export default function AdminPage() {
   const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState("");
   const [formLoading, setFormLoading] = useState(false);
+  const [adminSearch, setAdminSearch] = useState("");
 
   const [editingProg, setEditingProg] = useState<MicroProgramme | null>(null);
   const [editingCred, setEditingCred] = useState<MicroCredential | null>(null);
   const [parentProgId, setParentProgId] = useState<string | null>(null);
 
-  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" });
-  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "", developedBy: "", passGrade: "50" });
+  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
+  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
 
   /* ─── Auth & data loading ────────────────────────────── */
@@ -163,6 +205,18 @@ export default function AdminPage() {
 
   const allProjects = Array.from(new Set([...programmes.map(p => p.project), ...credentials.map(c => c.project)].filter(Boolean))).sort();
 
+  const filteredProgs = useMemo(() => {
+    if (!adminSearch.trim()) return programmes;
+    const q = adminSearch.toLowerCase();
+    return programmes.filter(p => p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.project.toLowerCase().includes(q));
+  }, [programmes, adminSearch]);
+
+  const filteredCreds = useMemo(() => {
+    if (!adminSearch.trim()) return credentials;
+    const q = adminSearch.toLowerCase();
+    return credentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
+  }, [credentials, adminSearch]);
+
   function goList() { setView("list"); setEditingProg(null); setEditingCred(null); setParentProgId(null); setFormError(""); }
 
   async function refreshProg(id: string) {
@@ -175,7 +229,9 @@ export default function AdminPage() {
 
   /* ─── Programme handlers ─────────────────────────────── */
 
-  function newProg() { setProgForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
+  function toSlug(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
+
+  function newProg() { setProgForm({ title: "", slug: "", code: "", project: "", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
   function editProg(p: MicroProgramme) {
     const imgUrl = p.hasImage ? `/api/images/programme/${p.id}` : p.image || "";
     setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: imgUrl });
@@ -184,10 +240,10 @@ export default function AdminPage() {
 
   async function saveProg(e: React.FormEvent) {
     e.preventDefault(); setFormError("");
-    if (!progForm.title || !progForm.slug || !progForm.code) { setFormError("Title, slug, and code required."); return; }
+    if (!progForm.title || !progForm.code) { setFormError("Title and code required."); return; }
     setFormLoading(true);
     try {
-      const payload: any = { ...progForm };
+      const payload: any = { ...progForm, slug: progForm.slug || toSlug(progForm.title) };
       // If image is a data URL (new upload), split into base64 + mime
       if (progForm.image && progForm.image.startsWith("data:")) {
         const [header, data] = progForm.image.split(",");
@@ -228,7 +284,7 @@ export default function AdminPage() {
   /* ─── Credential handlers ────────────────────────────── */
 
   function newCred(progId?: string) {
-    setCredForm({ title: "", slug: "", code: "", project: "RES4CITY", description: "", image: "", developedBy: "", passGrade: "50" });
+    setCredForm({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
     setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError(""); setView("new-cred");
   }
 
@@ -240,12 +296,12 @@ export default function AdminPage() {
 
   async function saveCred(e: React.FormEvent) {
     e.preventDefault(); setFormError("");
-    if (!credForm.title || !credForm.slug || !credForm.code) { setFormError("Title, slug, and code required."); return; }
+    if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
       const method = editingCred ? "PATCH" : "POST";
-      const payload: any = { ...credForm, passGrade: parseInt(credForm.passGrade) || 50, sections };
+      const payload: any = { ...credForm, slug: credForm.slug || toSlug(credForm.title), passGrade: parseInt(credForm.passGrade) || 50, sections };
       if (credForm.image && credForm.image.startsWith("data:")) {
         const [header, data] = credForm.image.split(",");
         payload.imageBase64 = data;
@@ -333,9 +389,8 @@ export default function AdminPage() {
     return (
       <div className="grid md:grid-cols-2 gap-4">
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={progForm.slug} onChange={e => setProgForm({ ...progForm, slug: e.target.value })} required placeholder="e.g. mp1" /></div>
         <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
         <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
         <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
       </div>
@@ -414,10 +469,10 @@ export default function AdminPage() {
                                 <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                                   Upload presentation
-                                  <input type="file" accept=".pptx,.ppt" className="hidden" onChange={e => {
+                                  <input type="file" accept=".pptx,.ppt,.pdf" className="hidden" onChange={e => {
                                     const file = e.target.files?.[0];
                                     if (!file) return;
-                                    if (file.size > 10 * 1024 * 1024) { alert("File must be under 10 MB."); e.target.value = ""; return; }
+                                    if (file.size > 1024 * 1024 * 1024) { alert("File must be under 1 GB."); e.target.value = ""; return; }
                                     const reader = new FileReader();
                                     reader.onload = () => {
                                       const dataUrl = reader.result as string;
@@ -431,7 +486,7 @@ export default function AdminPage() {
                                     e.target.value = "";
                                   }} />
                                 </label>
-                                <p className="text-xs text-gray-400 mt-1">PPTX or PPT, max 10 MB</p>
+                                <p className="text-xs text-gray-400 mt-1">PPTX, PPT, or PDF, max 1 GB</p>
                               </div>
                             )}
                           </div>
@@ -488,23 +543,38 @@ export default function AdminPage() {
 
           {view === "list" && (
             <>
-              <h1 className="text-3xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>Admin Panel</h1>
+              <div className="flex items-center justify-between mb-6">
+                <h1 className="text-3xl font-bold" style={{ color: "var(--bms-dark)" }}>Admin Panel</h1>
+                <AddPicker onProg={newProg} onCred={() => newCred()} />
+              </div>
+
+              {/* Search */}
+              <div className="relative mb-6">
+                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+                <input
+                  type="text"
+                  className="w-full py-3 pl-10 pr-9 border border-gray-200 rounded-xl text-sm outline-none focus:border-[var(--bms-green)] transition-colors bg-white"
+                  placeholder="Search programmes and credentials..."
+                  value={adminSearch}
+                  onChange={e => setAdminSearch(e.target.value)}
+                />
+                {adminSearch && <button onClick={() => setAdminSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">✕</button>}
+              </div>
 
               {/* Tabs */}
               <div className="flex gap-1 mb-6 border-b border-gray-200">
                 <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
-                  Micro-programmes ({programmes.length})
+                  Micro-programmes ({filteredProgs.length})
                 </button>
                 <button onClick={() => setTab("credentials")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
-                  Micro-credentials ({credentials.length})
+                  Micro-credentials ({filteredCreds.length})
                 </button>
               </div>
 
               {loading ? <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div> : tab === "programmes" ? (
                 <>
-                  <div className="flex justify-end mb-4"><button onClick={newProg} className="px-5 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-green)" }}>+ New Programme</button></div>
-                  {programmes.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No programmes yet.</p> : (
-                    <div className="space-y-3">{programmes.map(p => (
+                  {filteredProgs.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">{adminSearch ? "No programmes match your search." : "No programmes yet."}</p> : (
+                    <div className="space-y-3">{filteredProgs.map(p => (
                       <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editProg(p)}>
                         <div className="flex items-start justify-between">
                           <div>
@@ -523,9 +593,8 @@ export default function AdminPage() {
                 </>
               ) : (
                 <>
-                  <div className="flex justify-end mb-4"><button onClick={() => newCred()} className="px-5 py-2 rounded-full text-white text-sm font-medium" style={{ background: "var(--bms-dark)" }}>+ New Credential</button></div>
-                  {credentials.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No credentials yet.</p> : (
-                    <div className="space-y-3">{credentials.map(c => {
+                  {filteredCreds.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">{adminSearch ? "No credentials match your search." : "No credentials yet."}</p> : (
+                    <div className="space-y-3">{filteredCreds.map(c => {
                       const used = progsUsingCred(c.id);
                       return (
                         <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editCred(c)}>
@@ -593,16 +662,6 @@ export default function AdminPage() {
                       </div>
                     ))}</div>
                   )}
-                  {(() => {
-                    const available = credentials.filter(c => !(editingProg.credentials || []).some(ec => ec.id === c.id));
-                    if (available.length === 0) return null;
-                    return (
-                      <div className="mt-4">
-                        <p className="text-xs text-gray-500 mb-1">Add existing credential:</p>
-                        <SearchableCredentialPicker credentials={available} onSelect={addCredToProg} />
-                      </div>
-                    );
-                  })()}
                 </div>
               )}
             </>
@@ -619,8 +678,7 @@ export default function AdminPage() {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="e.g. RES4CITY" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Slug *</label><input className="auth-input" value={credForm.slug} onChange={e => setCredForm({ ...credForm, slug: e.target.value })} required placeholder="e.g. carbon-neutrality" /></div>
+                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value })} /></div>
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} /></div>
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
