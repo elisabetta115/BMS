@@ -89,9 +89,9 @@ model CredentialUnit {
   type         UnitType
   order        Int      @default(0)
   videoUrl     String?  @map("video_url")
-  pptxData     Bytes?   @map("pptx_data")
-  pptxMime     String?  @map("pptx_mime")
-  pptxName     String?  @map("pptx_name")
+  fileData     Bytes?   @map("file_data")
+  fileMime     String?  @map("file_mime")
+  fileName     String?  @map("file_name")
   createdAt    DateTime @default(now()) @map("created_at")
 
   subsection CredentialSubsection @relation(fields: [subsectionId], references: [id], onDelete: Cascade)

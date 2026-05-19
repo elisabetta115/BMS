@@ -1,3 +1,4 @@
+// app/api/micro-credentials/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
@@ -13,8 +14,8 @@ function stripBinaryFromCredential(c: any) {
         ...ss,
         units: (ss.units || []).map((u: any) => ({
           ...u,
-          pptxData: undefined,
-          hasPptx: !!u.pptxData,
+          fileData: undefined,
+          hasFile: !!u.fileData,
         })),
       })),
     })),
@@ -81,10 +82,19 @@ export async function POST(req: NextRequest) {
                     order: ui,
                     videoUrl: u.videoUrl || null,
                   };
-                  if (u.type === "PRESENTATION" && u.pptxBase64) {
-                    unitData.pptxData = Buffer.from(u.pptxBase64, "base64");
-                    unitData.pptxMime = u.pptxMime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                    unitData.pptxName = u.pptxName || "presentation.pptx";
+                  // PRESENTATION accepts pdf or pptx (any binary file).
+                  // Frontend should send fileBase64 + fileMime + fileName.
+                  // Legacy pptxBase64 still accepted for backward compatibility.
+                  if (u.type === "PRESENTATION") {
+                    const b64 = u.fileBase64 || u.pptxBase64;
+                    const mime = u.fileMime || u.pptxMime;
+                    const name = u.fileName || u.pptxName;
+                    if (b64) {
+                      unitData.fileData = Buffer.from(b64, "base64");
+                      unitData.fileMime =
+                        mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                      unitData.fileName = name || "file";
+                    }
                   }
                   if (u.type === "QUIZ" && u.questions?.length) {
                     unitData.questions = {

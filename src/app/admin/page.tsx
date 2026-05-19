@@ -8,7 +8,19 @@ import { useRouter } from "next/navigation";
 /* ─── Types ────────────────────────────────────────────── */
 
 interface UnitQuestion { id?: string; question: string; options: string[]; correctIndex: number; }
-interface CredentialUnit { id?: string; title: string; type: "VIDEO" | "QUIZ" | "PRESENTATION"; order: number; videoUrl?: string; pptxBase64?: string; pptxMime?: string; pptxName?: string; hasPptx?: boolean; questions?: UnitQuestion[]; }
+interface CredentialUnit {
+  id?: string;
+  title: string;
+  type: "VIDEO" | "QUIZ" | "PRESENTATION";
+  order: number;
+  videoUrl?: string;
+  fileBase64?: string;
+  fileMime?: string;
+  fileName?: string;
+  hasFile?: boolean;
+  removeFile?: boolean;
+  questions?: UnitQuestion[];
+}
 interface CredentialSubsection { id?: string; title: string; order: number; units: CredentialUnit[]; }
 interface CredentialSection { id?: string; title: string; order: number; subsections: CredentialSubsection[]; }
 
@@ -50,11 +62,12 @@ function SearchableCredentialPicker({ credentials, onSelect }: { credentials: Mi
 
 function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl: string) => void }) {
   const [error, setError] = useState("");
+  const [imgError, setImgError] = useState(false);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
     if (!file) return;
-    setError("");
+    setError(""); setImgError(false);
 
     if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
       setError("Only PNG and JPG files are allowed."); e.target.value = ""; return;
@@ -72,10 +85,15 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
 
   return (
     <div>
-      {value ? (
+      {value && !imgError ? (
         <div className="relative inline-block">
-          <img src={value} alt="Preview" className="h-24 w-auto rounded-lg border border-gray-200 object-cover" />
-          <button type="button" onClick={() => onChange("")} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 shadow-sm">✕</button>
+          <img
+            src={value}
+            alt="Preview"
+            className="h-24 w-auto rounded-lg border border-gray-200 object-cover"
+            onError={() => setImgError(true)}
+          />
+          <button type="button" onClick={() => { onChange(""); setImgError(false); }} className="absolute -top-2 -right-2 w-5 h-5 bg-red-500 text-white rounded-full text-xs flex items-center justify-center hover:bg-red-600 shadow-sm">✕</button>
         </div>
       ) : (
         <>
@@ -85,6 +103,7 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
             <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
           </label>
           <p className="text-xs text-gray-400 mt-1">PNG or JPG, max 20 MB</p>
+          {value && imgError && <p className="text-xs text-orange-500 mt-1">Couldn&apos;t load existing image (it will be kept unless you upload a new one or remove it).</p>}
         </>
       )}
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
@@ -160,6 +179,56 @@ function AddPicker({ onProg, onCred }: { onProg: () => void; onCred: () => void 
   );
 }
 
+/* ─── PDF inline preview ──────────────────────────────── */
+/* Shows the PDF in an iframe. Works for both:
+   - newly uploaded files (data URL from fileBase64+fileMime)
+   - already-saved files (served from /api/units/[unitId]/file) */
+function PdfPreview({ unit }: { unit: CredentialUnit }) {
+  const [open, setOpen] = useState(false);
+
+  // Decide what URL the iframe should load
+  const src = useMemo(() => {
+    if (unit.fileBase64 && unit.fileMime === "application/pdf") {
+      // newly-uploaded, not yet saved
+      return `data:application/pdf;base64,${unit.fileBase64}`;
+    }
+    if (unit.hasFile && unit.id) {
+      // already saved on the server
+      return `/api/units/${unit.id}/file`;
+    }
+    return null;
+  }, [unit.fileBase64, unit.fileMime, unit.hasFile, unit.id]);
+
+  // Is this file actually a PDF? (mime may be empty for legacy rows)
+  const isPdf =
+    unit.fileMime === "application/pdf" ||
+    (unit.fileName || "").toLowerCase().endsWith(".pdf");
+
+  if (!src || !isPdf) return null;
+
+  return (
+    <div className="mt-2">
+      <button
+        type="button"
+        onClick={() => setOpen(!open)}
+        className="text-xs text-[var(--bms-green)] font-medium hover:underline"
+      >
+        {open ? "Hide preview" : "Show PDF preview"}
+      </button>
+      {open && (
+        <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
+          <iframe
+            src={src}
+            className="w-full"
+            style={{ height: "600px" }}
+            title={unit.fileName || "PDF preview"}
+          />
+        </div>
+      )}
+    </div>
+  );
+}
+
 type Tab = "programmes" | "credentials";
 type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred";
 
@@ -222,7 +291,13 @@ export default function AdminPage() {
   async function refreshProg(id: string) {
     await loadData();
     const r = await fetch(`/api/micro-programmes/${id}`);
-    if (r.ok) { const { programme } = await r.json(); setEditingProg(programme); setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, description: programme.description || "", image: programme.image || "" }); setView("edit-prog"); }
+    if (r.ok) {
+      const { programme } = await r.json();
+      setEditingProg(programme);
+      const imgUrl = programme.hasImage ? `/api/images/programme/${programme.id}?t=${Date.now()}` : programme.image || "";
+      setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, description: programme.description || "", image: imgUrl });
+      setView("edit-prog");
+    }
   }
 
   function progsUsingCred(credId: string) { return programmes.filter(p => (p.credentials || []).some(c => c.id === credId)).map(p => p.code); }
@@ -233,7 +308,7 @@ export default function AdminPage() {
 
   function newProg() { setProgForm({ title: "", slug: "", code: "", project: "", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
   function editProg(p: MicroProgramme) {
-    const imgUrl = p.hasImage ? `/api/images/programme/${p.id}` : p.image || "";
+    const imgUrl = p.hasImage ? `/api/images/programme/${p.id}?t=${Date.now()}` : p.image || "";
     setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: imgUrl });
     setEditingProg(p); setFormError(""); setView("edit-prog");
   }
@@ -289,7 +364,7 @@ export default function AdminPage() {
   }
 
   function editCred(c: MicroCredential, progId?: string) {
-    const imgUrl = c.hasImage ? `/api/images/credential/${c.id}` : c.image || "";
+    const imgUrl = c.hasImage ? `/api/images/credential/${c.id}?t=${Date.now()}` : c.image || "";
     setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
     setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError(""); setView("edit-cred");
   }
@@ -350,7 +425,7 @@ export default function AdminPage() {
 
   function addUnit(si: number, ssi: number, type: "VIDEO" | "QUIZ" | "PRESENTATION") {
     const s = [...sections]; const units = s[si].subsections[ssi].units;
-    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", pptxBase64: "", pptxMime: "", pptxName: "", questions: [] }] }; setSections(s);
+    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", fileBase64: "", fileMime: "", fileName: "", questions: [] }] }; setSections(s);
   }
   function removeUnit(si: number, ssi: number, ui: number) {
     const s = [...sections]; s[si].subsections[ssi].units = s[si].subsections[ssi].units.filter((_, x) => x !== ui); setSections(s);
@@ -450,20 +525,30 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {/* PRESENTATION: PPTX upload */}
+                        {/* PRESENTATION: PDF/PPTX upload with inline PDF preview */}
                         {unit.type === "PRESENTATION" && (
                           <div className="ml-12">
-                            {(unit.pptxName || unit.hasPptx) ? (
-                              <div className="flex items-center gap-3">
-                                <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
-                                  <span className="text-sm text-purple-700">{unit.pptxName || "presentation.pptx"}</span>
+                            {(unit.fileName || unit.hasFile) ? (
+                              <>
+                                <div className="flex items-center gap-3">
+                                  <div className="flex items-center gap-2 px-3 py-2 bg-purple-50 border border-purple-200 rounded-lg">
+                                    <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#7c3aed" strokeWidth="2"><path d="M14 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V8z"/><polyline points="14 2 14 8 20 8"/></svg>
+                                    <span className="text-sm text-purple-700">{unit.fileName || "presentation"}</span>
+                                  </div>
+                                  <button type="button" onClick={() => {
+                                    updateUnit(si, ssi, ui, "fileBase64", "");
+                                    updateUnit(si, ssi, ui, "fileMime", "");
+                                    updateUnit(si, ssi, ui, "fileName", "");
+                                    updateUnit(si, ssi, ui, "hasFile", false);
+                                    updateUnit(si, ssi, ui, "removeFile", true);
+                                  }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
+                                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
+                                    Remove
+                                  </button>
                                 </div>
-                                <button type="button" onClick={() => { updateUnit(si, ssi, ui, "pptxBase64", ""); updateUnit(si, ssi, ui, "pptxMime", ""); updateUnit(si, ssi, ui, "pptxName", ""); updateUnit(si, ssi, ui, "hasPptx", false); updateUnit(si, ssi, ui, "removePptx", true); }} className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg border border-red-300 text-sm font-medium text-red-600 hover:bg-red-50 transition-colors">
-                                  <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18"/><path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6"/><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/></svg>
-                                  Remove
-                                </button>
-                              </div>
+                                {/* Inline PDF preview (collapsible) */}
+                                <PdfPreview unit={unit} />
+                              </>
                             ) : (
                               <div>
                                 <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
@@ -478,15 +563,16 @@ export default function AdminPage() {
                                       const dataUrl = reader.result as string;
                                       const [header, data] = dataUrl.split(",");
                                       const mime = header.match(/data:(.*?);/)?.[1] || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                                      updateUnit(si, ssi, ui, "pptxBase64", data);
-                                      updateUnit(si, ssi, ui, "pptxMime", mime);
-                                      updateUnit(si, ssi, ui, "pptxName", file.name);
+                                      updateUnit(si, ssi, ui, "fileBase64", data);
+                                      updateUnit(si, ssi, ui, "fileMime", mime);
+                                      updateUnit(si, ssi, ui, "fileName", file.name);
+                                      updateUnit(si, ssi, ui, "removeFile", false);
                                     };
                                     reader.readAsDataURL(file);
                                     e.target.value = "";
                                   }} />
                                 </label>
-                                <p className="text-xs text-gray-400 mt-1">PPTX, PPT, or PDF, max 1 GB</p>
+                                <p className="text-xs text-gray-400 mt-1">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
                               </div>
                             )}
                           </div>
