@@ -13,6 +13,7 @@ interface CredentialUnit {
   title: string;
   type: "VIDEO" | "QUIZ" | "PRESENTATION";
   order: number;
+  weight?: number;
   videoUrl?: string;
   fileBase64?: string;
   fileMime?: string;
@@ -35,34 +36,11 @@ interface MicroProgramme {
   description: string | null; image: string | null; hasImage: boolean; credentials?: MicroCredential[];
 }
 
-function SearchableCredentialPicker({ credentials, onSelect }: { credentials: MicroCredential[]; onSelect: (id: string) => void }) {
-  const [q, setQ] = useState("");
-  const filtered = credentials.filter(c =>
-    !q.trim() || c.title.toLowerCase().includes(q.toLowerCase()) || c.code.toLowerCase().includes(q.toLowerCase())
-  );
-  return (
-    <div className="max-w-md">
-      <div className="relative mb-2">
-        <svg className="absolute left-3 top-1/2 -translate-y-1/2 text-gray-400" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
-        <input className="auth-input pl-9 text-sm" placeholder="Search credentials..." value={q} onChange={e => setQ(e.target.value)} />
-      </div>
-      <div className="max-h-48 overflow-y-auto border border-gray-200 rounded-lg">
-        {filtered.length === 0 ? (
-          <p className="text-xs text-gray-400 p-3 text-center">No matches</p>
-        ) : filtered.map(c => (
-          <button key={c.id} type="button" onClick={() => { onSelect(c.id); setQ(""); }}
-            className="w-full text-left px-3 py-2 text-sm hover:bg-[var(--bms-green-light)] border-b border-gray-100 last:border-0 transition-colors">
-            <span className="font-medium text-[var(--bms-green)]">{c.code}</span> <span className="text-gray-700">{c.title}</span>
-          </button>
-        ))}
-      </div>
-    </div>
-  );
-}
-
 function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl: string) => void }) {
   const [error, setError] = useState("");
   const [imgError, setImgError] = useState(false);
+
+  useEffect(() => { setImgError(false); }, [value]);
 
   function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
     const file = e.target.files?.[0];
@@ -179,27 +157,19 @@ function AddPicker({ onProg, onCred }: { onProg: () => void; onCred: () => void 
   );
 }
 
-/* ─── PDF inline preview ──────────────────────────────── */
-/* Shows the PDF in an iframe. Works for both:
-   - newly uploaded files (data URL from fileBase64+fileMime)
-   - already-saved files (served from /api/units/[unitId]/file) */
 function PdfPreview({ unit }: { unit: CredentialUnit }) {
   const [open, setOpen] = useState(false);
 
-  // Decide what URL the iframe should load
   const src = useMemo(() => {
     if (unit.fileBase64 && unit.fileMime === "application/pdf") {
-      // newly-uploaded, not yet saved
       return `data:application/pdf;base64,${unit.fileBase64}`;
     }
     if (unit.hasFile && unit.id) {
-      // already saved on the server
       return `/api/units/${unit.id}/file`;
     }
     return null;
   }, [unit.fileBase64, unit.fileMime, unit.hasFile, unit.id]);
 
-  // Is this file actually a PDF? (mime may be empty for legacy rows)
   const isPdf =
     unit.fileMime === "application/pdf" ||
     (unit.fileName || "").toLowerCase().endsWith(".pdf");
@@ -208,13 +178,23 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
 
   return (
     <div className="mt-2">
-      <button
-        type="button"
-        onClick={() => setOpen(!open)}
-        className="text-xs text-[var(--bms-green)] font-medium hover:underline"
-      >
-        {open ? "Hide preview" : "Show PDF preview"}
-      </button>
+      <div className="flex items-center gap-3">
+        <button
+          type="button"
+          onClick={() => setOpen(!open)}
+          className="text-xs text-[var(--bms-green)] font-medium hover:underline"
+        >
+          {open ? "Hide preview" : "Show PDF preview"}
+        </button>
+        <a
+          href={src}
+          target="_blank"
+          rel="noopener noreferrer"
+          className="text-xs text-gray-500 hover:underline"
+        >
+          Open in new tab ↗
+        </a>
+      </div>
       {open && (
         <div className="mt-2 rounded-lg overflow-hidden border border-gray-200 bg-gray-50">
           <iframe
@@ -232,6 +212,11 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
 type Tab = "programmes" | "credentials";
 type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred";
 
+function imageUrlFor(type: "programme" | "credential", id: string, version: number, fallback: string | null) {
+  if (version === 0) return fallback || "";
+  return `/api/images/${type}/${id}?v=${version}`;
+}
+
 export default function AdminPage() {
   const router = useRouter();
   const [user, setUser] = useState<any>(null);
@@ -248,9 +233,46 @@ export default function AdminPage() {
   const [editingCred, setEditingCred] = useState<MicroCredential | null>(null);
   const [parentProgId, setParentProgId] = useState<string | null>(null);
 
+  const [returnTab, setReturnTab] = useState<Tab>("programmes");
+  const [imageVersion, setImageVersion] = useState(1);
+
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
   const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
+
+  /* ─── Browser back-button → return to list view ──────────
+     We push a history entry when entering an edit view, then listen
+     for popstate (browser back). If the user backs out of an edit
+     view, we intercept it and return to the list instead of leaving
+     the page. Skipping this would dump the user on /dashboard. */
+  const isHandlingPopRef = useRef(false);
+
+  useEffect(() => {
+    function onPop() {
+      // The browser already went back one entry by the time we get here.
+      // If we're in any edit view, treat back as "return to list".
+      if (view !== "list") {
+        isHandlingPopRef.current = true;
+        // Push a fresh state so the user can press back again.
+        window.history.pushState({ adminView: "list" }, "", window.location.href);
+        setView("list");
+        setEditingProg(null);
+        setEditingCred(null);
+        setParentProgId(null);
+        setFormError("");
+        setTab(returnTab);
+      }
+    }
+    window.addEventListener("popstate", onPop);
+    return () => window.removeEventListener("popstate", onPop);
+  }, [view, returnTab]);
+
+  // Push a new history entry whenever we enter an edit view (not when leaving).
+  function pushAdminHistory(nextView: View) {
+    if (nextView !== "list" && view === "list" && typeof window !== "undefined") {
+      window.history.pushState({ adminView: nextView }, "", window.location.href);
+    }
+  }
 
   /* ─── Auth & data loading ────────────────────────────── */
 
@@ -286,7 +308,26 @@ export default function AdminPage() {
     return credentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
   }, [credentials, adminSearch]);
 
-  function goList() { setView("list"); setEditingProg(null); setEditingCred(null); setParentProgId(null); setFormError(""); }
+  const totalWeight = useMemo(() => {
+    let total = 0;
+    for (const s of sections) for (const ss of s.subsections) for (const u of ss.units) total += Number(u.weight) || 0;
+    return total;
+  }, [sections]);
+
+  function goList() {
+    // If we got here via the in-page back button, undo the history entry too.
+    if (view !== "list" && !isHandlingPopRef.current && typeof window !== "undefined") {
+      window.history.back();
+      return; // popstate handler will reset state
+    }
+    isHandlingPopRef.current = false;
+    setView("list");
+    setEditingProg(null);
+    setEditingCred(null);
+    setParentProgId(null);
+    setFormError("");
+    setTab(returnTab);
+  }
 
   async function refreshProg(id: string) {
     await loadData();
@@ -294,23 +335,29 @@ export default function AdminPage() {
     if (r.ok) {
       const { programme } = await r.json();
       setEditingProg(programme);
-      const imgUrl = programme.hasImage ? `/api/images/programme/${programme.id}?t=${Date.now()}` : programme.image || "";
+      setImageVersion(v => v + 1);
+      const imgUrl = programme.hasImage ? imageUrlFor("programme", programme.id, imageVersion + 1, null) : programme.image || "";
       setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, description: programme.description || "", image: imgUrl });
+      // Already in an edit view, no new history push needed.
       setView("edit-prog");
     }
   }
 
   function progsUsingCred(credId: string) { return programmes.filter(p => (p.credentials || []).some(c => c.id === credId)).map(p => p.code); }
 
-  /* ─── Programme handlers ─────────────────────────────── */
-
   function toSlug(s: string) { return s.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, ""); }
 
-  function newProg() { setProgForm({ title: "", slug: "", code: "", project: "", description: "", image: "" }); setEditingProg(null); setFormError(""); setView("new-prog"); }
+  function newProg() {
+    pushAdminHistory("new-prog");
+    setProgForm({ title: "", slug: "", code: "", project: "", description: "", image: "" });
+    setEditingProg(null); setFormError(""); setReturnTab("programmes"); setView("new-prog");
+  }
+
   function editProg(p: MicroProgramme) {
-    const imgUrl = p.hasImage ? `/api/images/programme/${p.id}?t=${Date.now()}` : p.image || "";
+    pushAdminHistory("edit-prog");
+    const imgUrl = p.hasImage ? imageUrlFor("programme", p.id, imageVersion, null) : p.image || "";
     setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: imgUrl });
-    setEditingProg(p); setFormError(""); setView("edit-prog");
+    setEditingProg(p); setFormError(""); setReturnTab("programmes"); setView("edit-prog");
   }
 
   async function saveProg(e: React.FormEvent) {
@@ -319,7 +366,6 @@ export default function AdminPage() {
     setFormLoading(true);
     try {
       const payload: any = { ...progForm, slug: progForm.slug || toSlug(progForm.title) };
-      // If image is a data URL (new upload), split into base64 + mime
       if (progForm.image && progForm.image.startsWith("data:")) {
         const [header, data] = progForm.image.split(",");
         payload.imageBase64 = data;
@@ -329,7 +375,7 @@ export default function AdminPage() {
         payload.removeImage = true;
         delete payload.image;
       } else {
-        delete payload.image; // existing URL, no change
+        delete payload.image;
       }
       const url = editingProg ? `/api/micro-programmes/${editingProg.id}` : "/api/micro-programmes";
       const r = await fetch(url, { method: editingProg ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
@@ -356,22 +402,27 @@ export default function AdminPage() {
     await refreshProg(editingProg.id);
   }
 
-  /* ─── Credential handlers ────────────────────────────── */
-
   function newCred(progId?: string) {
+    pushAdminHistory("new-cred");
     setCredForm({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
-    setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError(""); setView("new-cred");
+    setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError("");
+    if (!progId) setReturnTab("credentials");
+    setView("new-cred");
   }
 
   function editCred(c: MicroCredential, progId?: string) {
-    const imgUrl = c.hasImage ? `/api/images/credential/${c.id}?t=${Date.now()}` : c.image || "";
+    pushAdminHistory("edit-cred");
+    const imgUrl = c.hasImage ? imageUrlFor("credential", c.id, imageVersion, null) : c.image || "";
     setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
-    setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError(""); setView("edit-cred");
+    setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError("");
+    if (!progId) setReturnTab("credentials");
+    setView("edit-cred");
   }
 
   async function saveCred(e: React.FormEvent) {
     e.preventDefault(); setFormError("");
     if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return; }
+    if (totalWeight > 100) { setFormError(`Total unit weight is ${totalWeight}%. It must not exceed 100%.`); return; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
@@ -390,6 +441,7 @@ export default function AdminPage() {
       }
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
       const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
+      setImageVersion(v => v + 1);
       if (!editingCred && parentProgId) {
         const prog = programmes.find(p => p.id === parentProgId);
         const ids = (prog?.credentials || []).map(c => c.id);
@@ -407,8 +459,6 @@ export default function AdminPage() {
     if (editingProg) await refreshProg(editingProg.id); else goList();
   }
 
-  /* ─── Section / Subsection / Unit builders ───────────── */
-
   function addSection() { setSections([...sections, { title: "", order: sections.length, subsections: [] }]); }
   function removeSection(i: number) { setSections(sections.filter((_, x) => x !== i)); }
   function updateSection(i: number, title: string) { const s = [...sections]; s[i] = { ...s[i], title }; setSections(s); }
@@ -425,7 +475,7 @@ export default function AdminPage() {
 
   function addUnit(si: number, ssi: number, type: "VIDEO" | "QUIZ" | "PRESENTATION") {
     const s = [...sections]; const units = s[si].subsections[ssi].units;
-    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, videoUrl: "", fileBase64: "", fileMime: "", fileName: "", questions: [] }] }; setSections(s);
+    s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, weight: 0, videoUrl: "", fileBase64: "", fileMime: "", fileName: "", questions: [] }] }; setSections(s);
   }
   function removeUnit(si: number, ssi: number, ui: number) {
     const s = [...sections]; s[si].subsections[ssi].units = s[si].subsections[ssi].units.filter((_, x) => x !== ui); setSections(s);
@@ -434,7 +484,6 @@ export default function AdminPage() {
     const s = [...sections]; (s[si].subsections[ssi].units[ui] as any)[field] = value; setSections(s);
   }
 
-  // Quiz question helpers for units
   function addUnitQ(si: number, ssi: number, ui: number) {
     const s = [...sections]; const qs = s[si].subsections[ssi].units[ui].questions || [];
     s[si].subsections[ssi].units[ui].questions = [...qs, { question: "", options: ["", ""], correctIndex: 0 }]; setSections(s);
@@ -458,8 +507,6 @@ export default function AdminPage() {
     const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; qs[qi].options[oi] = val; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
   }
 
-  /* ─── Render helpers ─────────────────────────────────── */
-
   function renderProgForm() {
     return (
       <div className="grid md:grid-cols-2 gap-4">
@@ -473,12 +520,21 @@ export default function AdminPage() {
   }
 
   function renderSectionEditor() {
+    const overWeight = totalWeight > 100;
     return (
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-lg" style={{ color: "var(--bms-green)" }}>Sections</h3>
-          <button type="button" onClick={addSection} className="text-sm text-[var(--bms-green)] font-medium hover:underline">+ Add Section</button>
+          <div className="flex items-center gap-3">
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : totalWeight === 100 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+              Total weight: {totalWeight}%
+            </span>
+            <button type="button" onClick={addSection} className="text-sm text-[var(--bms-green)] font-medium hover:underline">+ Add Section</button>
+          </div>
         </div>
+        {overWeight && (
+          <p className="text-xs text-red-600 mb-3">Total weight exceeds 100%. Adjust individual unit weights before saving.</p>
+        )}
 
         {sections.length === 0 && <p className="text-gray-400 text-sm py-4 text-center border border-dashed border-gray-300 rounded-xl">No sections yet.</p>}
 
@@ -490,7 +546,6 @@ export default function AdminPage() {
               <button type="button" onClick={() => removeSection(si)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
             </div>
 
-            {/* Subsections */}
             <div className="ml-6">
               {sec.subsections.map((sub, ssi) => (
                 <div key={ssi} className="mb-3 border border-gray-200 rounded-lg p-3 bg-white">
@@ -500,7 +555,6 @@ export default function AdminPage() {
                     <button type="button" onClick={() => removeSubsection(si, ssi)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                   </div>
 
-                  {/* Units */}
                   <div className="ml-8 space-y-2">
                     {sub.units.map((unit, ui) => (
                       <div key={ui} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
@@ -510,10 +564,26 @@ export default function AdminPage() {
                             {unit.type}
                           </span>
                           <input className="auth-input flex-1 text-sm" placeholder="Unit title" value={unit.title} onChange={e => updateUnit(si, ssi, ui, "title", e.target.value)} />
+                          <div className="flex items-center gap-1">
+                            <input
+                              type="number"
+                              min={0}
+                              max={100}
+                              className="auth-input text-sm"
+                              style={{ width: "70px", textAlign: "right" }}
+                              placeholder="0"
+                              value={unit.weight ?? 0}
+                              onChange={e => {
+                                const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                updateUnit(si, ssi, ui, "weight", v);
+                              }}
+                              title="Weight (% of total grade)"
+                            />
+                            <span className="text-xs text-gray-500">%</span>
+                          </div>
                           <button type="button" onClick={() => removeUnit(si, ssi, ui)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                         </div>
 
-                        {/* VIDEO: YouTube URL */}
                         {unit.type === "VIDEO" && (
                           <div className="ml-12">
                             <input className="auth-input text-sm" placeholder="YouTube URL" value={unit.videoUrl || ""} onChange={e => updateUnit(si, ssi, ui, "videoUrl", e.target.value)} />
@@ -525,7 +595,6 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {/* PRESENTATION: PDF/PPTX upload with inline PDF preview */}
                         {unit.type === "PRESENTATION" && (
                           <div className="ml-12">
                             {(unit.fileName || unit.hasFile) ? (
@@ -546,7 +615,6 @@ export default function AdminPage() {
                                     Remove
                                   </button>
                                 </div>
-                                {/* Inline PDF preview (collapsible) */}
                                 <PdfPreview unit={unit} />
                               </>
                             ) : (
@@ -578,7 +646,6 @@ export default function AdminPage() {
                           </div>
                         )}
 
-                        {/* QUIZ: questions */}
                         {unit.type === "QUIZ" && (
                           <div className="ml-12 mt-2">
                             {(unit.questions || []).map((q, qi) => (
@@ -604,7 +671,6 @@ export default function AdminPage() {
                       </div>
                     ))}
 
-                    {/* Add Unit — single button with type picker */}
                     <UnitTypePicker onSelect={(type) => addUnit(si, ssi, type)} />
                   </div>
                 </div>
@@ -619,8 +685,6 @@ export default function AdminPage() {
 
   if (!user) return null;
 
-  /* ═══ RENDER ═══════════════════════════════════════════ */
-
   return (
     <>
       <Header />
@@ -634,7 +698,6 @@ export default function AdminPage() {
                 <AddPicker onProg={newProg} onCred={() => newCred()} />
               </div>
 
-              {/* Search */}
               <div className="relative mb-6">
                 <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
                 <input
@@ -647,7 +710,6 @@ export default function AdminPage() {
                 {adminSearch && <button onClick={() => setAdminSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">✕</button>}
               </div>
 
-              {/* Tabs */}
               <div className="flex gap-1 mb-6 border-b border-gray-200">
                 <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
                   Micro-programmes ({filteredProgs.length})
@@ -712,7 +774,6 @@ export default function AdminPage() {
             </>
           )}
 
-          {/* NEW / EDIT PROGRAMME */}
           {(view === "new-prog" || view === "edit-prog") && (
             <>
               <button onClick={goList} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
@@ -726,7 +787,6 @@ export default function AdminPage() {
                 </div>
               </form>
 
-              {/* Credential list inside programme */}
               {editingProg && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
@@ -753,7 +813,6 @@ export default function AdminPage() {
             </>
           )}
 
-          {/* NEW / EDIT CREDENTIAL */}
           {(view === "new-cred" || view === "edit-cred") && (
             <>
               <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
@@ -773,7 +832,13 @@ export default function AdminPage() {
                 {renderSectionEditor()}
 
                 <div className="mt-6 flex gap-3">
-                  <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingCred ? "Update" : "Create"}</button>
+                  <button
+                    type="submit"
+                    className="auth-btn max-w-xs"
+                    disabled={formLoading || totalWeight > 100}
+                  >
+                    {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
+                  </button>
                   <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
                   {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                 </div>

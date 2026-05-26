@@ -22,11 +22,27 @@ function stripBinaryFromCredential(c: any) {
   };
 }
 
+function validateWeights(sections: any[]): string | null {
+  let total = 0;
+  for (const s of sections || []) {
+    for (const ss of s.subsections || []) {
+      for (const u of ss.units || []) {
+        const w = Number(u.weight) || 0;
+        if (w < 0 || w > 100) return `Unit "${u.title || "(untitled)"}" weight must be between 0 and 100.`;
+        total += w;
+      }
+    }
+  }
+  if (total > 100) return `Total unit weight is ${total}%. It must not exceed 100%.`;
+  return null;
+}
+
 function buildUnitCreate(u: any, ui: number) {
   const unitData: any = {
     title: u.title,
     type: u.type,
     order: ui,
+    weight: Number(u.weight) || 0,
     videoUrl: u.videoUrl || null,
   };
   if (u.type === "PRESENTATION") {
@@ -99,6 +115,11 @@ export async function PATCH(
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { id } = await params;
     const { title, slug, code, project, description, developedBy, passGrade, sections, imageBase64, imageMime, removeImage } = await req.json();
+
+    if (sections) {
+      const weightErr = validateWeights(sections);
+      if (weightErr) return NextResponse.json({ error: weightErr }, { status: 400 });
+    }
 
     await prisma.credentialSection.deleteMany({ where: { credentialId: id } });
 

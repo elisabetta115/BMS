@@ -88,6 +88,7 @@ model CredentialUnit {
   title        String
   type         UnitType
   order        Int      @default(0)
+  weight       Int      @default(0)
   videoUrl     String?  @map("video_url")
   fileData     Bytes?   @map("file_data")
   fileMime     String?  @map("file_mime")
