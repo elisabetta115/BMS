@@ -70,8 +70,8 @@ export default function ProgramsPage() {
                         </ul>
                       </>
                     )}
-                    <Link href={`/dashboard/programs/${p.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start" style={{ background: "var(--bms-green)" }}>
-                      Enrol <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
+                    <Link href={`/programs/${p.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start" style={{ background: "var(--bms-green)" }}>
+                      View <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
                     </Link>
                   </div>
                 </div>

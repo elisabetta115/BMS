@@ -71,7 +71,7 @@ export default function MyProgrammesPage() {
                     {prog.credentials && prog.credentials.length > 0 && (
                       <p className="text-xs font-medium text-gray-600 mb-4">Includes {prog.credentials.length} micro-credentials</p>
                     )}
-                    <Link href={`/dashboard/programs/${prog.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium text-sm" style={{ background: "var(--bms-green)" }}>
+                    <Link href={`/programs/${prog.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium text-sm" style={{ background: "var(--bms-green)" }}>
                       View Micro-programme
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
                     </Link>

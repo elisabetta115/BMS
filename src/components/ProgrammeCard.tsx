@@ -27,7 +27,7 @@ export default function ProgrammeCard({ programme }: { programme: Programme }) {
         </ul>
 
         <Link
-          href={`/dashboard/programs/${programme.id}`}
+          href={`/programs/${programme.id}`}
           className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start transition-colors"
           style={{ background: "var(--bms-green)" }}
         >

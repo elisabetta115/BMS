@@ -566,15 +566,15 @@ export default function AdminPage() {
                           <input className="auth-input flex-1 text-sm" placeholder="Unit title" value={unit.title} onChange={e => updateUnit(si, ssi, ui, "title", e.target.value)} />
                           <div className="flex items-center gap-1">
                             <input
-                              type="number"
-                              min={0}
-                              max={100}
+                              type="text"
+                              inputMode="numeric"
                               className="auth-input text-sm"
                               style={{ width: "70px", textAlign: "right" }}
                               placeholder="0"
                               value={unit.weight ?? 0}
                               onChange={e => {
-                                const v = e.target.value === "" ? 0 : Math.max(0, Math.min(100, parseInt(e.target.value) || 0));
+                                const digits = e.target.value.replace(/[^0-9]/g, "");
+                                const v = digits === "" ? 0 : Math.max(0, Math.min(100, parseInt(digits) || 0));
                                 updateUnit(si, ssi, ui, "weight", v);
                               }}
                               title="Weight (% of total grade)"
