@@ -6,6 +6,7 @@ frontend:
         - nvm use 22 || (nvm install 22 && nvm use 22)
         - npm ci
         - npx prisma generate
+        - npx prisma db seed
     build:
       commands:
         - npm run build
