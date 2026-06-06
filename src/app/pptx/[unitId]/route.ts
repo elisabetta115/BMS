@@ -12,17 +12,17 @@ export async function GET(
 
     const unit = await prisma.credentialUnit.findUnique({
       where: { id: unitId },
-      select: { pptxData: true, pptxMime: true, pptxName: true },
+      select: { fileData: true, fileMime: true, fileName: true },
     });
 
-    if (!unit || !unit.pptxData) {
+    if (!unit || !unit.fileData) {
       return new NextResponse("No file", { status: 404 });
     }
 
-    return new NextResponse(unit.pptxData, {
+    return new NextResponse(unit.fileData, {
       headers: {
-        "Content-Type": unit.pptxMime || "application/vnd.openxmlformats-officedocument.presentationml.presentation",
-        "Content-Disposition": `attachment; filename="${unit.pptxName || "presentation.pptx"}"`,
+        "Content-Type": unit.fileMime || "application/vnd.openxmlformats-officedocument.presentationml.presentation",
+        "Content-Disposition": `attachment; filename="${unit.fileName || "presentation.pptx"}"`,
         "Cache-Control": "public, max-age=3600",
       },
     });
