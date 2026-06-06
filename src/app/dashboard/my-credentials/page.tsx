@@ -73,7 +73,7 @@ export default function MyCredentialsPage() {
                       <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
                       <span className="text-sm font-medium" style={{ color: "var(--bms-green)" }}>Grade required to pass the course: {cred.passGrade}%</span>
                     </div>
-                    <Link href={`/dashboard/credentials/${cred.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium text-sm" style={{ background: "var(--bms-green)" }}>
+                    <Link href={`/credentials/${cred.id}`} className="inline-flex items-center gap-2 px-6 py-3 rounded-full text-white font-medium text-sm" style={{ background: "var(--bms-green)" }}>
                       View Micro-credential
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
                     </Link>

@@ -63,7 +63,7 @@ export async function POST(req: NextRequest) {
   if (!session || session.role !== "ADMIN") return NextResponse.json({ error: "Unauthorized." }, { status: 403 });
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, developedBy, passGrade, sections, imageBase64, imageMime } = await req.json();
+    const { title, slug, code, project, description, overview, objectives, developedBy, passGrade, sections, imageBase64, imageMime } = await req.json();
     if (!title || !code) return NextResponse.json({ error: "Title and code required." }, { status: 400 });
 
     const weightErr = validateWeights(sections || []);
@@ -75,6 +75,8 @@ export async function POST(req: NextRequest) {
       title, slug: finalSlug, code,
       project: project || "",
       description: description || null,
+      overview: overview || null,
+      objectives: objectives || null,
       developedBy: developedBy || null,
       passGrade: passGrade || 50,
     };

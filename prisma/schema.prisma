@@ -41,6 +41,8 @@ model MicroCredential {
   code        String
   project     String
   description String?
+  overview    String?
+  objectives  String?
   image       String?
   imageData   Bytes?   @map("image_data")
   imageMime   String?  @map("image_mime")

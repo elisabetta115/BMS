@@ -1,6 +1,3 @@
-// Prisma client singleton for Prisma 7+
-// Uses @prisma/adapter-pg driver adapter (required in Prisma 7)
-
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";

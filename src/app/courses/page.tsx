@@ -66,7 +66,7 @@ export default function CoursesPage() {
                     <p className="text-xs text-gray-500 mb-2">{c.code} | {c.project}</p>
                     {c.developedBy && <p className="text-xs text-gray-500 mb-3">By {c.developedBy}</p>}
                     {c.description && <p className="text-sm text-gray-600 mb-4 flex-1 line-clamp-3">{c.description}</p>}
-                    <Link href={`/dashboard/credentials/${c.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start" style={{ background: "var(--bms-green)" }}>
+                    <Link href={`/credentials/${c.id}`} className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start" style={{ background: "var(--bms-green)" }}>
                       View <svg width="16" height="16" viewBox="0 0 24 24" fill="white"><path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" /></svg>
                     </Link>
                   </div>

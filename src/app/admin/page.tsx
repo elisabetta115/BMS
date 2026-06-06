@@ -27,7 +27,8 @@ interface CredentialSection { id?: string; title: string; order: number; subsect
 
 interface MicroCredential {
   id: string; title: string; slug: string; code: string; project: string;
-  description: string | null; image: string | null; hasImage: boolean; developedBy: string | null;
+  description: string | null; overview: string | null; objectives: string | null;
+  image: string | null; hasImage: boolean; developedBy: string | null;
   passGrade: number; sections?: CredentialSection[];
 }
 
@@ -237,7 +238,7 @@ export default function AdminPage() {
   const [imageVersion, setImageVersion] = useState(1);
 
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
-  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
+  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
 
   /* ─── Browser back-button → return to list view ──────────
@@ -404,7 +405,7 @@ export default function AdminPage() {
 
   function newCred(progId?: string) {
     pushAdminHistory("new-cred");
-    setCredForm({ title: "", slug: "", code: "", project: "", description: "", image: "", developedBy: "", passGrade: "50" });
+    setCredForm({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", passGrade: "50" });
     setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("new-cred");
@@ -413,7 +414,7 @@ export default function AdminPage() {
   function editCred(c: MicroCredential, progId?: string) {
     pushAdminHistory("edit-cred");
     const imgUrl = c.hasImage ? imageUrlFor("credential", c.id, imageVersion, null) : c.image || "";
-    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
+    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", overview: c.overview || "", objectives: c.objectives || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
     setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("edit-cred");
@@ -825,7 +826,9 @@ export default function AdminPage() {
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
                   <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value })} /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} placeholder="Brief summary shown on catalogue cards" /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Context and overview</label><textarea className="auth-input" rows={4} value={credForm.overview} onChange={e => setCredForm({ ...credForm, overview: e.target.value })} placeholder="Full context and overview shown on the credential page" /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Learning objectives</label><textarea className="auth-input" rows={4} value={credForm.objectives} onChange={e => setCredForm({ ...credForm, objectives: e.target.value })} placeholder="What learners will be able to do after this credential" /></div>
                   <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
                 </div>
 

@@ -114,7 +114,7 @@ export async function PATCH(
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { id } = await params;
-    const { title, slug, code, project, description, developedBy, passGrade, sections, imageBase64, imageMime, removeImage } = await req.json();
+    const { title, slug, code, project, description, overview, objectives, developedBy, passGrade, sections, imageBase64, imageMime, removeImage } = await req.json();
 
     if (sections) {
       const weightErr = validateWeights(sections);
@@ -129,6 +129,8 @@ export async function PATCH(
     if (code !== undefined) data.code = code;
     if (project !== undefined) data.project = project;
     if (description !== undefined) data.description = description || null;
+    if (overview !== undefined) data.overview = overview || null;
+    if (objectives !== undefined) data.objectives = objectives || null;
     if (developedBy !== undefined) data.developedBy = developedBy || null;
     if (passGrade !== undefined) data.passGrade = passGrade;
 
