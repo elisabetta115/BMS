@@ -1,15 +1,15 @@
 # BoostMySkills
 
-Next.js reproduction of [BoostMySkills.eu](https://boostmyskills.eu/) with authentication. Vercel + Supabase.
+Next.js platform for micro-credentials and learning programmes. AWS Amplify + Supabase.
 
 ## Stack
 
-- **Framework**: Next.js 16 (App Router, TypeScript)
+- **Framework**: Next.js 15 (App Router, TypeScript)
 - **Styling**: Tailwind CSS v4
 - **Database**: Supabase PostgreSQL
-- **ORM**: Prisma (with Supabase JS fallback)
+- **ORM**: Prisma
 - **Auth**: Custom JWT sessions (httpOnly cookies, bcrypt hashing)
-- **Deployment**: Vercel
+- **Deployment**: AWS Amplify (eu-north-1)
 
 ## Setup
 
@@ -19,15 +19,13 @@ Next.js reproduction of [BoostMySkills.eu](https://boostmyskills.eu/) with authe
 3. Copy your project URL and keys
 
 ### 2. Environment Variables
-Copy `.env` and fill in your values:
+Create a `.env` file with:
 ```
-DATABASE_URL="postgresql://postgres:PASSWORD@db.REF.supabase.co:5432/postgres?pgbouncer=true"
 DIRECT_URL="postgresql://postgres:PASSWORD@db.REF.supabase.co:5432/postgres"
 NEXT_PUBLIC_SUPABASE_URL="https://REF.supabase.co"
 NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
 SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
-NEXTAUTH_SECRET="run: openssl rand -base64 32"
-NEXTAUTH_URL="http://localhost:3000"
+JWT_SECRET="run: openssl rand -base64 32"
 ```
 
 ### 3. Prisma
@@ -36,16 +34,18 @@ npx prisma generate
 npx prisma db push
 ```
 
-### 4. Run
+### 4. Run locally
 ```bash
+npm install
 npm run dev
 ```
 
-### 5. Deploy
-```bash
-npx vercel
-```
-Set env vars in Vercel dashboard. `vercel.json` runs `prisma generate` before build.
+### 5. Deploy to AWS Amplify
+1. Push this repo to GitHub
+2. Go to [AWS Amplify Console](https://console.aws.amazon.com/amplify) (eu-north-1)
+3. Click **New app → Host web app** and connect your GitHub repo
+4. Add all environment variables from step 2 in the Amplify environment settings
+5. Amplify will build and deploy automatically on every push to `main`
 
 ## Security
 - bcrypt (12 rounds), JWT httpOnly/Secure/SameSite cookies
