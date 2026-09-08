@@ -98,12 +98,12 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
         </div>
       ) : (
         <>
-          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
+          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
             Upload image
             <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
           </label>
-          <p className="text-xs text-gray-400 mt-1">PNG or JPG, max 20 MB</p>
+          <p className="text-xs text-brand-muted mt-1">PNG or JPG, max 20 MB</p>
           {value && imgError && <p className="text-xs text-orange-500 mt-1">Couldn&apos;t load existing image (it will be kept unless you upload a new one or remove it).</p>}
         </>
       )}
@@ -127,7 +127,7 @@ function UnitTypePicker({ onSelect }: { onSelect: (type: "VIDEO" | "QUIZ" | "PRE
 
   return (
     <div className="relative mt-1" ref={ref}>
-      <button type="button" onClick={() => setOpen(!open)} className="text-xs px-3 py-1.5 rounded-lg border border-[var(--bms-green)] text-[var(--bms-green)] font-medium hover:bg-[var(--bms-green-light)] transition-colors">
+      <button type="button" onClick={() => setOpen(!open)} className="text-xs px-3 py-1.5 rounded-lg border border-brand-green text-brand-green font-medium hover:bg-[var(--bms-green-light)] transition-colors">
         + Add Unit
       </button>
       {open && (
@@ -180,7 +180,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
             <span className="text-sm text-red-700">{name}</span>
           </div>
         )}
-        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer bg-white text-gray-700 hover:border-gray-400 transition-colors">
+        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer bg-white text-brand-dark hover:border-gray-400 transition-colors">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           {name ? "Replace PDF" : "Upload PDF"}
           <input type="file" accept=".pdf" onChange={handleFile} className="hidden" />
@@ -191,7 +191,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
           </button>
         )}
       </div>
-      <p className="text-xs text-gray-400 mt-1">PDF only, max 50 MB</p>
+      <p className="text-xs text-brand-muted mt-1">PDF only, max 50 MB</p>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       {!value && !name && <p className="text-xs text-orange-500 mt-1">A PDF template is required.</p>}
     </div>
@@ -344,7 +344,7 @@ function CertificatePositioner({ pdfSrc, nameX, nameY, titleX, titleY, nameFontS
           className="w-full rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center"
           style={{ aspectRatio: pdfAspect }}
         >
-          <div className="flex flex-col items-center gap-3 text-gray-400">
+          <div className="flex flex-col items-center gap-3 text-brand-muted">
             <div className="w-8 h-8 border-2 border-gray-300 border-t-[var(--bms-green)] rounded-full animate-spin" />
             <span className="text-xs">Loading certificate…</span>
           </div>
@@ -382,7 +382,7 @@ function CertificatePositioner({ pdfSrc, nameX, nameY, titleX, titleY, nameFontS
         </div>
       </div>
       {rendered && (
-        <p className="text-xs text-gray-400 mt-1.5">
+        <p className="text-xs text-brand-muted mt-1.5">
           Drag the coloured labels to reposition. The text preview shows the actual size and placement on the certificate.
         </p>
       )}
@@ -451,7 +451,7 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
         <button
           type="button"
           onClick={() => setOpen(!open)}
-          className="text-xs text-[var(--bms-green)] font-medium hover:underline"
+          className="text-xs text-brand-green font-medium hover:underline"
         >
           {open ? "Hide preview" : "Show PDF preview"}
         </button>
@@ -459,7 +459,7 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
           href={src}
           target="_blank"
           rel="noopener noreferrer"
-          className="text-xs text-gray-500 hover:underline"
+          className="text-xs text-brand-muted hover:underline"
         >
           Open in new tab ↗
         </a>
@@ -862,11 +862,11 @@ export default function AdminPage() {
   function renderProgForm() {
     return (
       <div className="grid md:grid-cols-2 gap-4">
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
-        <div><label className="block text-sm font-medium text-gray-700 mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
+        <div><label className="block text-sm font-medium text-brand-dark mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
+        <div><label className="block text-sm font-medium text-brand-dark mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
+        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
       </div>
     );
   }
@@ -878,22 +878,22 @@ export default function AdminPage() {
         <div className="flex items-center justify-between mb-3">
           <h3 className="font-bold text-lg" style={{ color: "var(--bms-green)" }}>Sections</h3>
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : totalWeight === 100 ? "bg-green-100 text-green-700" : "bg-gray-100 text-gray-600"}`}>
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : totalWeight === 100 ? "bg-green-100 text-green-700" : "bg-gray-100 text-brand-muted"}`}>
               Total weight: {totalWeight}%
             </span>
-            <button type="button" onClick={addSection} className="text-sm text-[var(--bms-green)] font-medium hover:underline">+ Add Section</button>
+            <button type="button" onClick={addSection} className="text-sm text-brand-green font-medium hover:underline">+ Add Section</button>
           </div>
         </div>
         {overWeight && (
           <p className="text-xs text-red-600 mb-3">Total weight exceeds 100%. Adjust individual unit weights before saving.</p>
         )}
 
-        {sections.length === 0 && <p className="text-gray-400 text-sm py-4 text-center border border-dashed border-gray-300 rounded-xl">No sections yet.</p>}
+        {sections.length === 0 && <p className="text-brand-muted text-sm py-4 text-center rounded-2xl border border-dashed border-brand-line">No sections yet.</p>}
 
         {sections.map((sec, si) => (
           <div key={si} className="mb-4 border border-gray-200 rounded-xl p-4 bg-gray-50">
             <div className="flex items-center gap-2 mb-3">
-              <span className="text-sm font-bold text-[var(--bms-green)] min-w-[2rem]">{si + 1}</span>
+              <span className="text-sm font-bold text-brand-green min-w-[2rem]">{si + 1}</span>
               <input className="auth-input flex-1" placeholder="Section title" value={sec.title} onChange={e => updateSection(si, e.target.value)} />
               <button type="button" onClick={() => removeSection(si)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
             </div>
@@ -911,7 +911,7 @@ export default function AdminPage() {
                     {sub.units.map((unit, ui) => (
                       <div key={ui} className="border border-gray-200 rounded-lg p-3 bg-gray-50">
                         <div className="flex items-center gap-2 mb-2">
-                          <span className="text-sm font-medium text-gray-600 min-w-[3rem]">{si + 1}.{ssi + 1}.{ui + 1}</span>
+                          <span className="text-sm font-medium text-brand-muted min-w-[3rem]">{si + 1}.{ssi + 1}.{ui + 1}</span>
                           <span className={`text-xs font-bold px-2 py-0.5 rounded ${unit.type === "VIDEO" ? "bg-blue-100 text-blue-700" : unit.type === "PRESENTATION" ? "bg-purple-100 text-purple-700" : "bg-yellow-100 text-yellow-700"}`}>
                             {unit.type}
                           </span>
@@ -933,7 +933,7 @@ export default function AdminPage() {
                               onKeyDown={e => e.key === "Enter" && e.preventDefault()}
                               title="Weight (% of total grade)"
                             />
-                            <span className="text-xs text-gray-500">%</span>
+                            <span className="text-xs text-brand-muted">%</span>
                           </div>
                           <button type="button" onClick={() => removeUnit(si, ssi, ui)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                         </div>
@@ -973,7 +973,7 @@ export default function AdminPage() {
                               </>
                             ) : (
                               <div>
-                                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-gray-700 hover:border-gray-400">
+                                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400">
                                   <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                                   Upload presentation
                                   <input type="file" accept=".pptx,.ppt,.pdf" className="hidden" onChange={e => {
@@ -994,7 +994,7 @@ export default function AdminPage() {
                                     e.target.value = "";
                                   }} />
                                 </label>
-                                <p className="text-xs text-gray-400 mt-1">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
+                                <p className="text-xs text-brand-muted mt-1">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
                               </div>
                             )}
                           </div>
@@ -1005,7 +1005,7 @@ export default function AdminPage() {
                             {(unit.questions || []).map((q, qi) => (
                               <div key={qi} className="mb-3 p-3 border border-gray-200 rounded-lg bg-white">
                                 <div className="flex items-center justify-between mb-2">
-                                  <span className="text-xs font-medium text-gray-500">Q{qi + 1}</span>
+                                  <span className="text-xs font-medium text-brand-muted">Q{qi + 1}</span>
                                   <button type="button" onClick={() => removeUnitQ(si, ssi, ui, qi)} className="text-xs text-red-500 hover:underline">Remove</button>
                                 </div>
                                 <input className="auth-input text-sm mb-2" placeholder="Question" value={q.question} onChange={e => updateUnitQ(si, ssi, ui, qi, "question", e.target.value)} />
@@ -1016,10 +1016,10 @@ export default function AdminPage() {
                                     {q.options.length > 2 && <button type="button" onClick={() => removeUnitQOpt(si, ssi, ui, qi, oi)} className="text-red-400 text-xs">✕</button>}
                                   </div>
                                 ))}
-                                {q.options.length < 6 && <button type="button" onClick={() => addUnitQOpt(si, ssi, ui, qi)} className="text-xs text-[var(--bms-green)] hover:underline">+ Option</button>}
+                                {q.options.length < 6 && <button type="button" onClick={() => addUnitQOpt(si, ssi, ui, qi)} className="text-xs text-brand-green hover:underline">+ Option</button>}
                               </div>
                             ))}
-                            <button type="button" onClick={() => addUnitQ(si, ssi, ui)} className="text-xs text-[var(--bms-green)] font-medium hover:underline">+ Add Question</button>
+                            <button type="button" onClick={() => addUnitQ(si, ssi, ui)} className="text-xs text-brand-green font-medium hover:underline">+ Add Question</button>
                           </div>
                         )}
                       </div>
@@ -1029,7 +1029,7 @@ export default function AdminPage() {
                   </div>
                 </div>
               ))}
-              <button type="button" onClick={() => addSubsection(si)} className="text-xs text-gray-500 hover:text-gray-700 mt-1">+ Add Subsection</button>
+              <button type="button" onClick={() => addSubsection(si)} className="text-xs text-brand-muted hover:text-brand-dark mt-1">+ Add Subsection</button>
             </div>
           </div>
         ))}
@@ -1042,13 +1042,13 @@ export default function AdminPage() {
   return (
     <>
       <Header />
-      <main className="py-10">
-        <div className="max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main id="main">
+        <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
 
           {view === "list" && (
             <>
               <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold" style={{ color: "var(--bms-dark)" }}>Admin Panel</h1>
+                <h1 className="text-3xl font-bold text-brand-dark">Admin Panel</h1>
                 <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
               </div>
 
@@ -1061,18 +1061,18 @@ export default function AdminPage() {
                   value={adminSearch}
                   onChange={e => setAdminSearch(e.target.value)}
                 />
-                {adminSearch && <button onClick={() => setAdminSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs">✕</button>}
+                {adminSearch && <button onClick={() => setAdminSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-muted text-xs">✕</button>}
               </div>
 
               {!adminSearch.trim() && (
                 <div className="flex gap-1 mb-6 border-b border-gray-200">
-                  <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
+                  <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
                     Micro-programmes ({programmes.length})
                   </button>
-                  <button onClick={() => setTab("credentials")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
+                  <button onClick={() => setTab("credentials")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
                     Micro-credentials ({credentials.length})
                   </button>
-                  <button onClick={() => setTab("certificates")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "certificates" ? "border-[var(--bms-green)] text-[var(--bms-green)]" : "border-transparent text-gray-500"}`}>
+                  <button onClick={() => setTab("certificates")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "certificates" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
                     Certificates ({certificates.length})
                   </button>
                 </div>
@@ -1082,22 +1082,22 @@ export default function AdminPage() {
                 /* ── Cross-category search results ── */
                 <>
                   {filteredProgs.length === 0 && filteredCreds.length === 0 && filteredCerts.length === 0 ? (
-                    <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No results match your search.</p>
+                    <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No results match your search.</p>
                   ) : (
                     <div className="space-y-6">
                       {filteredProgs.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Micro-programmes ({filteredProgs.length})</p>
+                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Micro-programmes ({filteredProgs.length})</p>
                           <div className="space-y-3">{filteredProgs.map(p => (
-                            <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editProg(p)}>
+                            <div key={p.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editProg(p)}>
                               <div className="flex items-start justify-between">
                                 <div>
-                                  <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-gray-400">|</span><span className="text-xs text-gray-500">{p.project}</span></div>
-                                  <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{p.title}</h4>
-                                  <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-gray-400 italic">No credentials</span>}</div>
+                                  <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-brand-muted">|</span><span className="text-xs text-brand-muted">{p.project}</span></div>
+                                  <h4 className="font-semibold mb-2 text-brand-dark">{p.title}</h4>
+                                  <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-brand-muted italic">No credentials</span>}</div>
                                 </div>
                                 <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                  <button onClick={() => editProg(p)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                                  <button onClick={() => editProg(p)} className="text-brand-green text-sm hover:underline">Edit</button>
                                   <button onClick={() => delProg(p.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                                 </div>
                               </div>
@@ -1107,27 +1107,27 @@ export default function AdminPage() {
                       )}
                       {filteredCreds.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Micro-credentials ({filteredCreds.length})</p>
+                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Micro-credentials ({filteredCreds.length})</p>
                           <div className="space-y-3">{filteredCreds.map(c => {
                             const used = progsUsingCred(c.id);
                             return (
-                              <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editCred(c)}>
+                              <div key={c.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editCred(c)}>
                                 <div className="flex items-start justify-between">
                                   <div>
                                     <div className="flex items-center gap-2 mb-1">
                                       <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
-                                      <span className="text-xs text-gray-400">|</span>
-                                      <span className="text-xs text-gray-500">{c.project}</span>
-                                      <span className="text-xs text-gray-400">|</span>
-                                      <span className="text-xs text-gray-500">{(c.sections || []).length} sections</span>
+                                      <span className="text-xs text-brand-muted">|</span>
+                                      <span className="text-xs text-brand-muted">{c.project}</span>
+                                      <span className="text-xs text-brand-muted">|</span>
+                                      <span className="text-xs text-brand-muted">{(c.sections || []).length} sections</span>
                                     </div>
-                                    <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{c.title}</h4>
+                                    <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
                                     <div className="flex flex-wrap gap-1">
-                                      {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-gray-400 italic">Not in any programme</span>}
+                                      {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-brand-muted italic">Not in any programme</span>}
                                     </div>
                                   </div>
                                   <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => editCred(c)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                                    <button onClick={() => editCred(c)} className="text-brand-green text-sm hover:underline">Edit</button>
                                     <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                                   </div>
                                 </div>
@@ -1138,16 +1138,16 @@ export default function AdminPage() {
                       )}
                       {filteredCerts.length > 0 && (
                         <div>
-                          <p className="text-xs font-semibold text-gray-400 uppercase tracking-wide mb-2">Certificates ({filteredCerts.length})</p>
+                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Certificates ({filteredCerts.length})</p>
                           <div className="space-y-3">{filteredCerts.map(cert => (
-                            <div key={cert.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
+                            <div key={cert.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
                               <div className="flex items-center gap-2">
                                 <span className="w-2 h-2 rounded-full bg-red-500" />
-                                <span className="text-sm font-bold" style={{ color: "var(--bms-dark)" }}>{cert.project}</span>
+                                <span className="text-sm font-bold text-brand-dark">{cert.project}</span>
                               </div>
                               <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                                 <a href={`/api/certificates/${cert.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm hover:underline">Preview</a>
-                                <button onClick={() => editCert(cert)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                                <button onClick={() => editCert(cert)} className="text-brand-green text-sm hover:underline">Edit</button>
                                 <button onClick={() => delCert(cert.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                               </div>
                             </div>
@@ -1159,17 +1159,17 @@ export default function AdminPage() {
                 </>
               ) : tab === "programmes" ? (
                 <>
-                  {programmes.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No programmes yet.</p> : (
+                  {programmes.length === 0 ? <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No programmes yet.</p> : (
                     <div className="space-y-3">{programmes.map(p => (
-                      <div key={p.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editProg(p)}>
+                      <div key={p.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editProg(p)}>
                         <div className="flex items-start justify-between">
                           <div>
-                            <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-gray-400">|</span><span className="text-xs text-gray-500">{p.project}</span></div>
-                            <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{p.title}</h4>
-                            <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-gray-400 italic">No credentials</span>}</div>
+                            <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-brand-muted">|</span><span className="text-xs text-brand-muted">{p.project}</span></div>
+                            <h4 className="font-semibold mb-2 text-brand-dark">{p.title}</h4>
+                            <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-brand-muted italic">No credentials</span>}</div>
                           </div>
                           <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => editProg(p)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                            <button onClick={() => editProg(p)} className="text-brand-green text-sm hover:underline">Edit</button>
                             <button onClick={() => delProg(p.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                           </div>
                         </div>
@@ -1179,27 +1179,27 @@ export default function AdminPage() {
                 </>
               ) : tab === "credentials" ? (
                 <>
-                  {credentials.length === 0 ? <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No credentials yet.</p> : (
+                  {credentials.length === 0 ? <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No credentials yet.</p> : (
                     <div className="space-y-3">{credentials.map(c => {
                       const used = progsUsingCred(c.id);
                       return (
-                        <div key={c.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer" onClick={() => editCred(c)}>
+                        <div key={c.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editCred(c)}>
                           <div className="flex items-start justify-between">
                             <div>
                               <div className="flex items-center gap-2 mb-1">
                                 <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
-                                <span className="text-xs text-gray-400">|</span>
-                                <span className="text-xs text-gray-500">{c.project}</span>
-                                <span className="text-xs text-gray-400">|</span>
-                                <span className="text-xs text-gray-500">{(c.sections || []).length} sections</span>
+                                <span className="text-xs text-brand-muted">|</span>
+                                <span className="text-xs text-brand-muted">{c.project}</span>
+                                <span className="text-xs text-brand-muted">|</span>
+                                <span className="text-xs text-brand-muted">{(c.sections || []).length} sections</span>
                               </div>
-                              <h4 className="font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>{c.title}</h4>
+                              <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
                               <div className="flex flex-wrap gap-1">
-                                {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-[var(--bms-green)] px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-gray-400 italic">Not in any programme</span>}
+                                {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-brand-muted italic">Not in any programme</span>}
                               </div>
                             </div>
                             <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => editCred(c)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                              <button onClick={() => editCred(c)} className="text-brand-green text-sm hover:underline">Edit</button>
                               <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                             </div>
                           </div>
@@ -1212,19 +1212,19 @@ export default function AdminPage() {
                 /* Certificates tab */
                 <>
                   {certificates.length === 0 ? (
-                    <p className="text-gray-400 text-sm py-6 text-center border border-dashed border-gray-300 rounded-xl">No certificates yet. Use Add → Certificate to create one.</p>
+                    <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No certificates yet. Use Add → Certificate to create one.</p>
                   ) : (
                     <div className="space-y-3">{certificates.map(cert => (
-                      <div key={cert.id} className="bg-white border border-gray-200 rounded-xl p-5 hover:shadow-sm cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
+                      <div key={cert.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
                         <div>
                           <div className="flex items-center gap-2">
                             <span className="w-2 h-2 rounded-full bg-red-500" />
-                            <span className="text-sm font-bold" style={{ color: "var(--bms-dark)" }}>{cert.project}</span>
+                            <span className="text-sm font-bold text-brand-dark">{cert.project}</span>
                           </div>
                         </div>
                         <div className="flex gap-2" onClick={e => e.stopPropagation()}>
                           <a href={`/api/certificates/${cert.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm hover:underline">Preview</a>
-                          <button onClick={() => editCert(cert)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                          <button onClick={() => editCert(cert)} className="text-brand-green text-sm hover:underline">Edit</button>
                           <button onClick={() => delCert(cert.id)} className="text-red-500 text-sm hover:underline">Delete</button>
                         </div>
                       </div>
@@ -1237,14 +1237,14 @@ export default function AdminPage() {
 
           {(view === "new-prog" || view === "edit-prog") && (
             <>
-              <button onClick={goList} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
-              <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>{editingProg ? editingProg.title : "New Micro-programme"}</h1>
+              <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
+              <h1 className="text-2xl font-bold mb-6 text-brand-dark">{editingProg ? editingProg.title : "New Micro-programme"}</h1>
               {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-              <form onSubmit={saveProg} autoComplete="off" className="bg-white border border-gray-200 rounded-2xl p-6 mb-6">
+              <form onSubmit={saveProg} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6 mb-6">
                 {renderProgForm()}
                 <div className="mt-4 flex gap-3">
                   <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingProg ? "Save" : "Create & Add Credentials"}</button>
-                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
                 </div>
               </form>
 
@@ -1291,8 +1291,8 @@ export default function AdminPage() {
                     return (
                       <div className="mb-4 border border-[var(--bms-green)] rounded-xl p-4 bg-white">
                         <div className="flex items-center justify-between mb-3">
-                          <p className="text-sm font-semibold" style={{ color: "var(--bms-dark)" }}>Add existing credential</p>
-                          <button onClick={() => setCredPickerOpen(false)} className="text-gray-400 hover:text-gray-600 text-xs">✕ Close</button>
+                          <p className="text-sm font-semibold text-brand-dark">Add existing credential</p>
+                          <button onClick={() => setCredPickerOpen(false)} className="text-brand-muted hover:text-brand-muted text-xs">✕ Close</button>
                         </div>
                         <input
                           autoFocus
@@ -1302,7 +1302,7 @@ export default function AdminPage() {
                           onChange={e => setCredPickerSearch(e.target.value)}
                         />
                         {filtered.length === 0 ? (
-                          <p className="text-gray-400 text-sm text-center py-4">{available.length === 0 ? "All credentials are already in this programme." : "No credentials match your search."}</p>
+                          <p className="text-brand-muted text-sm text-center py-4">{available.length === 0 ? "All credentials are already in this programme." : "No credentials match your search."}</p>
                         ) : (
                           <div className="space-y-2 max-h-64 overflow-y-auto">
                             {filtered.map(c => (
@@ -1312,9 +1312,9 @@ export default function AdminPage() {
                                 className="w-full text-left px-4 py-3 rounded-lg border border-gray-200 hover:border-[var(--bms-green)] hover:bg-[var(--bms-green-light)] transition-colors"
                               >
                                 <span className="text-xs font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
-                                <span className="text-xs text-gray-400 mx-1">·</span>
-                                <span className="text-sm font-medium" style={{ color: "var(--bms-dark)" }}>{c.title}</span>
-                                {c.project && <span className="text-xs text-gray-400 ml-2">({c.project})</span>}
+                                <span className="text-xs text-brand-muted mx-1">·</span>
+                                <span className="text-sm font-medium text-brand-dark">{c.title}</span>
+                                {c.project && <span className="text-xs text-brand-muted ml-2">({c.project})</span>}
                               </button>
                             ))}
                           </div>
@@ -1323,16 +1323,16 @@ export default function AdminPage() {
                     );
                   })()}
 
-                  {(editingProg.credentials || []).length === 0 ? <p className="text-gray-400 text-sm py-4 text-center border border-dashed border-gray-300 rounded-xl">No credentials.</p> : (
+                  {(editingProg.credentials || []).length === 0 ? <p className="text-brand-muted text-sm py-4 text-center rounded-2xl border border-dashed border-brand-line">No credentials.</p> : (
                     <div className="space-y-3">{(editingProg.credentials || []).map(c => (
-                      <div key={c.id} className="bg-white border border-gray-200 rounded-xl px-5 py-4 flex items-center justify-between">
+                      <div key={c.id} className="rounded-2xl border border-brand-line bg-white px-5 py-4 flex items-center justify-between">
                         <div className="flex-1 cursor-pointer" onClick={() => editCred(c, editingProg.id)}>
-                          <p className="font-medium" style={{ color: "var(--bms-dark)" }}>{c.title}</p>
-                          <span className="text-xs text-gray-500">{c.code} · {(c.sections || []).length} sections</span>
+                          <p className="font-medium text-brand-dark">{c.title}</p>
+                          <span className="text-xs text-brand-muted">{c.code} · {(c.sections || []).length} sections</span>
                           {progsUsingCred(c.id).length > 1 && <span className="text-xs text-blue-500 ml-2">Shared</span>}
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => editCred(c, editingProg.id)} className="text-[var(--bms-green)] text-sm hover:underline">Edit</button>
+                          <button onClick={() => editCred(c, editingProg.id)} className="text-brand-green text-sm hover:underline">Edit</button>
                           <button onClick={() => removeCredFromProg(c.id)} className="text-red-400 text-xs hover:underline">Remove</button>
                         </div>
                       </div>
@@ -1345,20 +1345,20 @@ export default function AdminPage() {
 
           {(view === "new-cred" || view === "edit-cred") && (
             <>
-              <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
-              <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
+              <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
+              <h1 className="text-2xl font-bold mb-6 text-brand-dark">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
               {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-              <form onSubmit={saveCred} autoComplete="off" className="bg-white border border-gray-200 rounded-2xl p-6">
+              <form onSubmit={saveCred} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-                  <div><label className="block text-sm font-medium text-gray-700 mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value.replace(/^0+(\d)/, "$1") })} onKeyDown={e => e.key === "Enter" && e.preventDefault()} /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Short Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} placeholder="Brief summary shown on catalogue cards" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Context and overview</label><textarea className="auth-input" rows={4} value={credForm.overview} onChange={e => setCredForm({ ...credForm, overview: e.target.value })} placeholder="Full context and overview shown on the credential page" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Learning objectives</label><textarea className="auth-input" rows={4} value={credForm.objectives} onChange={e => setCredForm({ ...credForm, objectives: e.target.value })} placeholder="What learners will be able to do after this credential" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-gray-700 mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
+                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
+                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
+                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
+                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
+                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value.replace(/^0+(\d)/, "$1") })} onKeyDown={e => e.key === "Enter" && e.preventDefault()} /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Short Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} placeholder="Brief summary shown on catalogue cards" /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Context and overview</label><textarea className="auth-input" rows={4} value={credForm.overview} onChange={e => setCredForm({ ...credForm, overview: e.target.value })} placeholder="Full context and overview shown on the credential page" /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Learning objectives</label><textarea className="auth-input" rows={4} value={credForm.objectives} onChange={e => setCredForm({ ...credForm, objectives: e.target.value })} placeholder="What learners will be able to do after this credential" /></div>
+                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
                 </div>
 
                 {renderSectionEditor()}
@@ -1371,7 +1371,7 @@ export default function AdminPage() {
                   >
                     {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
                   </button>
-                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
                   {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                 </div>
               </form>
@@ -1385,15 +1385,15 @@ export default function AdminPage() {
 
             return (
               <>
-                <button onClick={goList} className="text-sm text-gray-500 hover:text-gray-700 mb-4">← Back</button>
-                <h1 className="text-2xl font-bold mb-6" style={{ color: "var(--bms-dark)" }}>
+                <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
+                <h1 className="text-2xl font-bold mb-6 text-brand-dark">
                   {editingCert ? `Edit Certificate: ${editingCert.project}` : "New Certificate"}
                 </h1>
                 {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-                <form onSubmit={saveCertificate} autoComplete="off" className="bg-white border border-gray-200 rounded-2xl p-6 space-y-6">
+                <form onSubmit={saveCertificate} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6 space-y-6">
                   {/* Project */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-1">Project *</label>
+                    <label className="block text-sm font-medium text-brand-dark mb-1">Project *</label>
                     <input
                       className="auth-input"
                       list="cert-project-options"
@@ -1407,7 +1407,7 @@ export default function AdminPage() {
 
                   {/* PDF upload */}
                   <div>
-                    <label className="block text-sm font-medium text-gray-700 mb-2">Certificate Template (PDF) *</label>
+                    <label className="block text-sm font-medium text-brand-dark mb-2">Certificate Template (PDF) *</label>
                     <CertificatePdfUploader
                       value={certForm.pdfBase64}
                       name={certForm.pdfName}
@@ -1419,35 +1419,35 @@ export default function AdminPage() {
                     {/* Max text width */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
                           Learner name — max width
                         </label>
                         <div className="flex items-center gap-2 mt-2">
                           <input type="range" min="10" max="100" step="1" value={certForm.nameMaxWidth} onChange={e => setCertForm(f => ({ ...f, nameMaxWidth: parseInt(e.target.value) }))} className="flex-1 accent-blue-500" />
                           <input type="number" min="10" max="100" value={certForm.nameMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameMaxWidth: Math.min(100, Math.max(10, f.nameMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-sm text-brand-muted">%</span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">Text shrinks automatically if the name is too long for this width.</p>
+                        <p className="text-xs text-brand-muted mt-1">Text shrinks automatically if the name is too long for this width.</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
                           Course title — max width
                         </label>
                         <div className="flex items-center gap-2 mt-2">
                           <input type="range" min="10" max="100" step="1" value={certForm.titleMaxWidth} onChange={e => setCertForm(f => ({ ...f, titleMaxWidth: parseInt(e.target.value) }))} className="flex-1 accent-orange-500" />
                           <input type="number" min="10" max="100" value={certForm.titleMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleMaxWidth: Math.min(100, Math.max(10, f.titleMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                          <span className="text-sm text-gray-500">%</span>
+                          <span className="text-sm text-brand-muted">%</span>
                         </div>
-                        <p className="text-xs text-gray-400 mt-1">Text shrinks automatically if the title is too long for this width.</p>
+                        <p className="text-xs text-brand-muted mt-1">Text shrinks automatically if the title is too long for this width.</p>
                       </div>
                     </div>
 
                     {/* Independent font sizes */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
                           Learner name — text size
                         </label>
@@ -1468,11 +1468,11 @@ export default function AdminPage() {
                             className="auth-input no-spin text-sm text-right"
                             style={{ width: "64px" }}
                           />
-                          <span className="text-sm text-gray-500">pt</span>
+                          <span className="text-sm text-brand-muted">pt</span>
                         </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-gray-700 mb-2 flex items-center gap-2">
+                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
                           <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
                           Course title — text size
                         </label>
@@ -1493,14 +1493,14 @@ export default function AdminPage() {
                             className="auth-input no-spin text-sm text-right"
                             style={{ width: "64px" }}
                           />
-                          <span className="text-sm text-gray-500">pt</span>
+                          <span className="text-sm text-brand-muted">pt</span>
                         </div>
                       </div>
                     </div>
 
                     {/* Visual position picker */}
                     <div>
-                      <label className="block text-sm font-medium text-gray-700 mb-2">Text Positions</label>
+                      <label className="block text-sm font-medium text-brand-dark mb-2">Text Positions</label>
                       <CertificatePositioner
                         pdfSrc={pdfSrc}
                         nameX={certForm.nameX}
@@ -1524,19 +1524,19 @@ export default function AdminPage() {
                           Learner name position
                         </p>
                         <div>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1"><span>← Left</span><span>Right →</span></div>
+                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>← Left</span><span>Right →</span></div>
                           <div className="flex items-center gap-2">
                             <input type="range" min="0" max="100" step="0.5" value={certForm.nameX} onChange={e => setCertForm(f => ({ ...f, nameX: parseFloat(e.target.value) }))} className="flex-1 accent-blue-500" />
                             <input type="number" min="0" max="100" step="any" value={certForm.nameX} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameX: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameX: Math.min(100, Math.max(0, f.nameX)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-gray-500">%</span>
+                            <span className="text-xs text-brand-muted">%</span>
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
+                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
                           <div className="flex items-center gap-2">
                             <input type="range" min="0" max="100" step="0.5" value={certForm.nameY} onChange={e => setCertForm(f => ({ ...f, nameY: parseFloat(e.target.value) }))} className="flex-1 accent-blue-500" />
                             <input type="number" min="0" max="100" step="any" value={certForm.nameY} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameY: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameY: Math.min(100, Math.max(0, f.nameY)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-gray-500">%</span>
+                            <span className="text-xs text-brand-muted">%</span>
                           </div>
                         </div>
                       </div>
@@ -1546,19 +1546,19 @@ export default function AdminPage() {
                           Credential / programme title position
                         </p>
                         <div>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1"><span>← Left</span><span>Right →</span></div>
+                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>← Left</span><span>Right →</span></div>
                           <div className="flex items-center gap-2">
                             <input type="range" min="0" max="100" step="0.5" value={certForm.titleX} onChange={e => setCertForm(f => ({ ...f, titleX: parseFloat(e.target.value) }))} className="flex-1 accent-orange-500" />
                             <input type="number" min="0" max="100" step="any" value={certForm.titleX} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleX: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleX: Math.min(100, Math.max(0, f.titleX)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-gray-500">%</span>
+                            <span className="text-xs text-brand-muted">%</span>
                           </div>
                         </div>
                         <div>
-                          <div className="flex justify-between text-xs text-gray-500 mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
+                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
                           <div className="flex items-center gap-2">
                             <input type="range" min="0" max="100" step="0.5" value={certForm.titleY} onChange={e => setCertForm(f => ({ ...f, titleY: parseFloat(e.target.value) }))} className="flex-1 accent-orange-500" />
                             <input type="number" min="0" max="100" step="any" value={certForm.titleY} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleY: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleY: Math.min(100, Math.max(0, f.titleY)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-gray-500">%</span>
+                            <span className="text-xs text-brand-muted">%</span>
                           </div>
                         </div>
                       </div>
@@ -1569,7 +1569,7 @@ export default function AdminPage() {
                     <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>
                       {formLoading ? "Saving…" : editingCert ? "Update" : "Create"}
                     </button>
-                    <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-gray-600 border border-gray-300 hover:bg-gray-50">Cancel</button>
+                    <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
                     {editingCert && <button type="button" onClick={() => delCert(editingCert.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                   </div>
                 </form>

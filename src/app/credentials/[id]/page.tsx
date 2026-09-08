@@ -165,7 +165,7 @@ export default function CredentialDetailPage() {
                 <div className="h-6 w-32 bg-gray-200 rounded animate-pulse mb-4" />
                 <div className="space-y-3">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="border border-gray-200 rounded-xl p-5">
+                    <div key={i} className="rounded-2xl border border-brand-line p-5">
                       <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse mb-2" />
                       <div className="h-3 w-1/4 bg-gray-200 rounded animate-pulse" />
                     </div>
@@ -179,7 +179,7 @@ export default function CredentialDetailPage() {
                   <div className="h-3 w-4/5 bg-gray-200 rounded animate-pulse mb-4" />
                   <div className="h-11 w-full bg-gray-200 rounded-full animate-pulse" />
                 </div>
-                <div className="border border-gray-200 rounded-2xl p-6 space-y-4">
+                <div className="rounded-2xl border border-brand-line p-6 space-y-4">
                   <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
                   {[1, 2, 3].map(i => (
                     <div key={i} className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
@@ -251,9 +251,9 @@ export default function CredentialDetailPage() {
               )}
 
               {/* Journey box */}
-              <div className="bg-[var(--bms-green-light)] rounded-2xl p-6 mb-10">
-                <h3 className="font-bold text-lg mb-2" style={{ color: "var(--bms-green)" }}>Your Learning Journey</h3>
-                <p className="text-sm text-gray-700">
+              <div className="bg-brand-pale rounded-2xl p-6 mb-10">
+                <h3 className="font-bold text-lg mb-2 text-brand-green">Your Learning Journey</h3>
+                <p className="text-sm text-brand-dark">
                   Track and complete your progress through the {totalUnits} unit{totalUnits !== 1 ? "s" : ""} in this micro-credential.
                   A minimum grade of <strong>{credential.passGrade}%</strong> is required to pass.
                 </p>
@@ -262,18 +262,18 @@ export default function CredentialDetailPage() {
               {/* Overview */}
               {credential.overview && (
                 <div className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4" style={{ color: "var(--bms-green)" }}>Overview</h2>
-                  <hr className="border-[var(--bms-green-light)] border-t-2 mb-4" />
-                  <p className="text-gray-600 leading-relaxed whitespace-pre-line">{credential.overview}</p>
+                  <h2 className="text-2xl font-bold mb-4 text-brand-green">Overview</h2>
+                  <hr className="border-t border-brand-pale mb-4" />
+                  <p className="text-brand-muted leading-relaxed whitespace-pre-line">{credential.overview}</p>
                 </div>
               )}
 
               {/* Objectives */}
               {credential.objectives && (
                 <div className="mb-10">
-                  <h2 className="text-2xl font-bold mb-4" style={{ color: "var(--bms-green)" }}>Learning Objectives</h2>
-                  <hr className="border-[var(--bms-green-light)] border-t-2 mb-4" />
-                  <p className="text-gray-600 leading-relaxed whitespace-pre-line">{credential.objectives}</p>
+                  <h2 className="text-2xl font-bold mb-4 text-brand-green">Learning Objectives</h2>
+                  <hr className="border-t border-brand-pale mb-4" />
+                  <p className="text-brand-muted leading-relaxed whitespace-pre-line">{credential.objectives}</p>
                 </div>
               )}
 
@@ -281,25 +281,25 @@ export default function CredentialDetailPage() {
               {credential.sections.length > 0 && (
                 <div>
                   <div className="flex items-center gap-2 mb-1">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
-                    <h2 className="text-2xl font-bold" style={{ color: "var(--bms-green)" }}>Course Content</h2>
-                    <span className="text-lg font-bold text-gray-500">{totalSections} section{totalSections !== 1 ? "s" : ""} · {totalUnits} unit{totalUnits !== 1 ? "s" : ""}</span>
+                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
+                    <h2 className="text-2xl font-bold text-brand-green">Course Content</h2>
+                    <span className="text-lg font-bold text-brand-muted">{totalSections} section{totalSections !== 1 ? "s" : ""} · {totalUnits} unit{totalUnits !== 1 ? "s" : ""}</span>
                   </div>
-                  <hr className="border-[var(--bms-green-light)] border-t-2 mb-6" />
+                  <hr className="border-t border-brand-pale mb-6" />
 
                   <div className="space-y-3">
                     {credential.sections.map(section => {
                       const isOpen = expandedSections.has(section.id);
                       const sectionUnits = section.subsections.reduce((a, ss) => a + ss.units.length, 0);
                       return (
-                        <div key={section.id} className="border border-gray-200 rounded-xl overflow-hidden">
+                        <div key={section.id} className="rounded-2xl border border-brand-line overflow-hidden">
                           <button
                             onClick={() => toggleSection(section.id)}
-                            className="w-full flex items-center justify-between p-5 text-left hover:bg-gray-50 transition-colors"
+                            className="w-full flex items-center justify-between p-5 text-left hover:bg-brand-wash transition-colors"
                           >
                             <div>
                               <span className="font-semibold text-base" style={{ color: "var(--bms-dark)" }}>{section.title}</span>
-                              <span className="ml-3 text-sm text-gray-400">{sectionUnits} unit{sectionUnits !== 1 ? "s" : ""}</span>
+                              <span className="ml-3 text-sm text-brand-muted">{sectionUnits} unit{sectionUnits !== 1 ? "s" : ""}</span>
                             </div>
                             <svg
                               width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"
@@ -310,21 +310,21 @@ export default function CredentialDetailPage() {
                           </button>
 
                           {isOpen && (
-                            <div className="border-t border-gray-100">
+                            <div className="border-t border-brand-line">
                               {section.subsections.map(ss => (
                                 <div key={ss.id}>
                                   {ss.title && (
-                                    <div className="px-5 py-2 bg-gray-50 text-sm font-medium text-gray-600 border-b border-gray-100">
+                                    <div className="px-5 py-2 bg-brand-wash text-sm font-medium text-brand-muted border-b border-brand-line">
                                       {ss.title}
                                     </div>
                                   )}
                                   {ss.units.map(unit => (
-                                    <div key={unit.id} className="flex items-center gap-3 px-5 py-3 border-b border-gray-50 last:border-0">
-                                      <span className="text-gray-400 flex-shrink-0">{unitTypeIcon(unit.type)}</span>
-                                      <span className="text-sm text-gray-700 flex-1">{unit.title}</span>
-                                      <span className="text-xs text-gray-400 flex-shrink-0">{unitTypeLabel(unit.type)}</span>
+                                    <div key={unit.id} className="flex items-center gap-3 px-5 py-3 border-b border-brand-line last:border-0">
+                                      <span className="text-brand-muted flex-shrink-0">{unitTypeIcon(unit.type)}</span>
+                                      <span className="text-sm text-brand-dark flex-1">{unit.title}</span>
+                                      <span className="text-xs text-brand-muted flex-shrink-0">{unitTypeLabel(unit.type)}</span>
                                       {unit.weight > 0 && (
-                                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-[var(--bms-green-light)] text-[var(--bms-green)] flex-shrink-0">
+                                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-pale text-brand-green flex-shrink-0">
                                           {unit.weight}%
                                         </span>
                                       )}
@@ -345,7 +345,7 @@ export default function CredentialDetailPage() {
             {/* Right: sidebar */}
             <aside className="space-y-6">
               {/* Image / placeholder */}
-              <div className="rounded-2xl overflow-hidden h-48 bg-gradient-to-br from-[var(--bms-green)] to-[var(--bms-blue)] flex items-center justify-center">
+              <div className="rounded-2xl overflow-hidden h-48 bg-gradient-to-br from-[var(--bms-green)] to-[#079845] flex items-center justify-center">
                 {credential.hasImage ? (
                   <img src={`/api/images/credential/${credential.id}`} alt={credential.title} className="w-full h-full object-cover" />
                 ) : (
@@ -355,9 +355,9 @@ export default function CredentialDetailPage() {
 
               {/* Enroll card or continue button */}
               {enrolled ? (
-                <div className="border-2 border-[var(--bms-green)] rounded-2xl p-6 text-center">
-                  <p className="text-sm font-semibold text-[var(--bms-green)] mb-1">You are enrolled</p>
-                  <p className="text-xs text-gray-500 mb-4">Track your progress and access all course materials.</p>
+                <div className="border border-brand-green rounded-2xl p-6 text-center">
+                  <p className="text-sm font-semibold text-brand-green mb-1">You are enrolled</p>
+                  <p className="text-xs text-brand-muted mb-4">Track your progress and access all course materials.</p>
                   <Link
                     href={`/dashboard/credentials/${credential.id}`}
                     className="block w-full px-6 py-3 rounded-full text-white font-medium text-sm text-center transition-colors"
@@ -367,8 +367,8 @@ export default function CredentialDetailPage() {
                   </Link>
                 </div>
               ) : (
-                <div className="border-2 border-[var(--bms-green)] rounded-2xl p-6 text-center">
-                  <p className="text-sm text-gray-600 mb-4">
+                <div className="border border-brand-green rounded-2xl p-6 text-center">
+                  <p className="text-sm text-brand-muted mb-4">
                     {user
                       ? "Enroll to access all course materials and track your progress."
                       : "Log in to enroll and start learning."}
@@ -385,37 +385,37 @@ export default function CredentialDetailPage() {
               )}
 
               {/* Stats card */}
-              <div className="border border-gray-200 rounded-2xl p-6 space-y-4">
+              <div className="rounded-2xl border border-brand-line p-6 space-y-4">
                 <h3 className="font-bold text-base" style={{ color: "var(--bms-dark)" }}>Credential Details</h3>
 
                 <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
-                  <span className="text-sm text-gray-600">{totalSections} section{totalSections !== 1 ? "s" : ""}</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
+                  <span className="text-sm text-brand-muted">{totalSections} section{totalSections !== 1 ? "s" : ""}</span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                  <span className="text-sm text-gray-600">{totalUnits} unit{totalUnits !== 1 ? "s" : ""} total</span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
+                  <span className="text-sm text-brand-muted">{totalUnits} unit{totalUnits !== 1 ? "s" : ""} total</span>
                 </div>
 
                 <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" /></svg>
-                  <span className="text-sm text-gray-600">Pass grade: <strong>{credential.passGrade}%</strong></span>
+                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" /></svg>
+                  <span className="text-sm text-brand-muted">Pass grade: <strong>{credential.passGrade}%</strong></span>
                 </div>
 
                 {credential.developedBy && (
                   <div className="flex items-start gap-3">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="var(--bms-green)" className="flex-shrink-0 mt-0.5"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
-                    <span className="text-sm text-gray-600">By {credential.developedBy}</span>
+                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845" className="flex-shrink-0 mt-0.5"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
+                    <span className="text-sm text-brand-muted">By {credential.developedBy}</span>
                   </div>
                 )}
               </div>
 
               {/* Credential Record */}
               <div>
-                <h3 className="text-lg font-bold mb-3" style={{ color: "var(--bms-green)" }}>Credential Record</h3>
-                <hr className="border-[var(--bms-green-light)] border-t-2 mb-4" />
-                <p className="text-sm text-gray-600 leading-relaxed">
+                <h3 className="text-lg font-bold mb-3 text-brand-green">Credential Record</h3>
+                <hr className="border-t border-brand-pale mb-4" />
+                <p className="text-sm text-brand-muted leading-relaxed">
                   Once you meet all requirements for this micro-credential, you will receive a credential record.
                   This record can be used to demonstrate your skills and continue your learning journey.
                 </p>

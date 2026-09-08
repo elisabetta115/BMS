@@ -144,7 +144,7 @@ export default function ProgrammeDetailPage() {
                 </div>
                 <div className="space-y-4">
                   {[1, 2, 3].map(i => (
-                    <div key={i} className="border border-gray-200 rounded-xl p-5">
+                    <div key={i} className="rounded-2xl border border-brand-line p-5">
                       <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse mb-2" />
                       <div className="h-3 w-1/3 bg-gray-200 rounded animate-pulse" />
                     </div>
@@ -231,16 +231,16 @@ export default function ProgrammeDetailPage() {
               )}
 
               {/* Journey / passed box */}
-              <div className={`rounded-2xl p-6 mb-10 ${hasPassed ? "bg-green-50 border border-green-200" : "bg-[var(--bms-green-light)]"}`}>
+              <div className={`rounded-2xl p-6 mb-10 ${hasPassed ? "border border-brand-line bg-brand-pale" : "bg-brand-pale"}`}>
                 {hasPassed ? (
                   <div className="flex items-center gap-3 mb-2">
-                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="var(--bms-green)" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
-                    <h3 className="font-bold text-lg" style={{ color: "var(--bms-green)" }}>Programme Complete!</h3>
+                    <svg width="28" height="28" viewBox="0 0 24 24" fill="none" stroke="#079845" strokeWidth="2.5"><circle cx="12" cy="12" r="10"/><path d="M9 12l2 2 4-4"/></svg>
+                    <h3 className="font-bold text-lg text-brand-green">Programme Complete!</h3>
                   </div>
                 ) : (
-                  <h3 className="font-bold text-lg mb-2" style={{ color: "var(--bms-green)" }}>Your Programme Journey</h3>
+                  <h3 className="font-bold text-lg mb-2 text-brand-green">Your Programme Journey</h3>
                 )}
-                <p className="text-sm text-gray-700">
+                <p className="text-sm text-brand-dark">
                   {hasPassed
                     ? `You have passed all ${totalCourses} credential${totalCourses !== 1 ? "s" : ""} in this programme.`
                     : `Track and plan your progress through the ${totalCourses} courses in this programme. To complete the programme, you must earn a verified certificate for each course.`}
@@ -250,31 +250,31 @@ export default function ProgrammeDetailPage() {
               {/* Remaining */}
               <div className="mb-8">
                 <div className="flex items-center gap-2 mb-1">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
-                  <h2 className="text-2xl font-bold" style={{ color: "var(--bms-green)" }}>Remaining Courses</h2>
-                  <span className="text-2xl font-bold text-gray-700">{remainingCourses.length}</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+                  <h2 className="text-2xl font-bold text-brand-green">Remaining Courses</h2>
+                  <span className="text-2xl font-bold text-brand-dark">{remainingCourses.length}</span>
                 </div>
-                <hr className="border-[var(--bms-green-light)] border-t-2 mb-6" />
+                <hr className="border-t border-brand-pale mb-6" />
 
                 {remainingCourses.length === 0 ? (
-                  <p className="text-gray-500 text-sm py-4">All courses complete!</p>
+                  <p className="text-brand-muted text-sm py-4">All courses complete!</p>
                 ) : (
                   <div className="space-y-4">
                     {remainingCourses.map(c => {
                       const prog = credProgress[c.id];
                       return (
-                        <div key={c.id} className="border border-gray-200 rounded-xl p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+                        <div key={c.id} className="rounded-2xl border border-brand-line border border-brand-line p-5 flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
                           <div>
                             <h4 className="font-bold text-lg mb-1" style={{ color: "var(--bms-dark)" }}>{c.title}</h4>
-                            <p className="text-sm text-gray-500">{c.code} | {c.project}</p>
+                            <p className="text-sm text-brand-muted">{c.code} | {c.project}</p>
                             {prog && prog.currentGrade > 0 && (
-                              <p className="text-xs text-blue-600 mt-1">Current grade: <strong>{prog.currentGrade}%</strong> / pass at {c.passGrade}%</p>
+                              <p className="text-xs text-brand-green mt-1">Current grade: <strong>{prog.currentGrade}%</strong> / pass at {c.passGrade}%</p>
                             )}
                           </div>
                           <Link
                             href={`/dashboard/credentials/${c.id}`}
-                            className="self-start sm:self-center px-6 py-2.5 rounded-md text-white text-sm font-medium whitespace-nowrap"
-                            style={{ background: "var(--bms-blue)" }}
+                            className="self-start sm:self-center inline-flex items-center justify-center gap-2 whitespace-nowrap rounded-full bg-brand-green px-6 py-2.5 text-sm font-bold text-white transition-colors hover:bg-brand-green-dark"
+                            style={{ background: "#079845" }}
                           >
                             {prog && prog.currentGrade > 0 ? "Continue" : "View Details"}
                           </Link>
@@ -288,31 +288,31 @@ export default function ProgrammeDetailPage() {
               {/* Completed */}
               <div>
                 <div className="flex items-center gap-2 mb-1">
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="var(--bms-green)"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
-                  <h2 className="text-2xl font-bold" style={{ color: "var(--bms-green)" }}>Completed courses</h2>
-                  <span className="text-2xl font-bold text-gray-700">{completedCount}</span>
+                  <svg width="20" height="20" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z"/></svg>
+                  <h2 className="text-2xl font-bold text-brand-green">Completed courses</h2>
+                  <span className="text-2xl font-bold text-brand-dark">{completedCount}</span>
                 </div>
-                <hr className="border-[var(--bms-green-light)] border-t-2 mb-6" />
+                <hr className="border-t border-brand-pale mb-6" />
 
                 {completedCredentials.length === 0 ? (
                   <div>
-                    <p className="font-semibold text-gray-700 mb-1">As you complete courses, you will see them listed here.</p>
-                    <p className="text-sm text-gray-500">Complete courses on your schedule to ensure you stand out in your field!</p>
+                    <p className="font-semibold text-brand-dark mb-1">As you complete courses, you will see them listed here.</p>
+                    <p className="text-sm text-brand-muted">Complete courses on your schedule to ensure you stand out in your field!</p>
                   </div>
                 ) : (
                   <div className="space-y-4">
                     {completedCredentials.map(c => (
-                      <div key={c.id} className="border border-green-200 bg-green-50 rounded-xl p-5 flex items-center justify-between">
+                      <div key={c.id} className="border border-brand-line bg-brand-pale rounded-2xl border border-brand-line p-5 flex items-center justify-between">
                         <div>
                           <div className="flex items-center gap-2 mb-1">
-                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="var(--bms-green)" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
+                            <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#079845" strokeWidth="2.5"><path d="M20 6L9 17l-5-5"/></svg>
                             <h4 className="font-bold" style={{ color: "var(--bms-dark)" }}>{c.title}</h4>
                           </div>
-                          <p className="text-sm text-gray-500 ml-6">{c.code} | {c.project}</p>
+                          <p className="text-sm text-brand-muted ml-6">{c.code} | {c.project}</p>
                         </div>
                         <Link
                           href={`/dashboard/credentials/${c.id}`}
-                          className="px-4 py-2 rounded-md text-sm font-medium text-[var(--bms-green)] border border-[var(--bms-green)] hover:bg-[var(--bms-green-light)] transition-colors whitespace-nowrap"
+                          className="inline-flex items-center justify-center whitespace-nowrap rounded-full border border-brand-green px-5 py-2 text-sm font-bold text-brand-green transition-colors hover:bg-brand-pale"
                         >
                           Review
                         </Link>
@@ -327,8 +327,8 @@ export default function ProgrammeDetailPage() {
             <aside className="space-y-8">
               {/* Enroll card */}
               {!enrolled && (
-                <div className="border-2 border-[var(--bms-green)] rounded-2xl p-6 text-center">
-                  <p className="text-sm text-gray-600 mb-4">
+                <div className="border border-brand-green rounded-2xl p-6 text-center">
+                  <p className="text-sm text-brand-muted mb-4">
                     {user
                       ? "Enroll to start tracking your progress through this programme."
                       : "Log in to enroll and track your progress."}
@@ -345,8 +345,8 @@ export default function ProgrammeDetailPage() {
               )}
 
               {/* Progress card */}
-              <div className={`border-2 rounded-2xl p-8 text-center ${hasPassed ? "border-green-300 bg-green-50" : "border-[var(--bms-green-light)]"}`}>
-                <h3 className="text-xl font-bold mb-6" style={{ color: "var(--bms-green)" }}>
+              <div className={`border-2 rounded-2xl p-8 text-center ${hasPassed ? "border-brand-green bg-brand-pale" : "border-brand-pale"}`}>
+                <h3 className="text-xl font-bold mb-6 text-brand-green">
                   {hasPassed ? "Complete!" : "Programme Progress"}
                 </h3>
                 <div className="relative flex justify-center">
@@ -356,7 +356,7 @@ export default function ProgrammeDetailPage() {
                       cy={ringSize / 2}
                       r={ringRadius}
                       fill="none"
-                      stroke="var(--bms-green-light)"
+                      stroke="#eaf3e7"
                       strokeWidth={ringStroke}
                     />
                     <circle
@@ -364,7 +364,7 @@ export default function ProgrammeDetailPage() {
                       cy={ringSize / 2}
                       r={ringRadius}
                       fill="none"
-                      stroke="var(--bms-green)"
+                      stroke="#079845"
                       strokeWidth={ringStroke}
                       strokeDasharray={`${ringCircumference * progressFraction} ${ringCircumference}`}
                       strokeLinecap="round"
@@ -374,29 +374,29 @@ export default function ProgrammeDetailPage() {
                     <p className="text-4xl font-bold" style={{ color: hasPassed ? "var(--bms-green)" : "var(--bms-dark)" }}>
                       {progressPercent}%
                     </p>
-                    <p className="text-xs text-gray-500">{completedCount} / {totalCourses} passed</p>
+                    <p className="text-xs text-brand-muted">{completedCount} / {totalCourses} passed</p>
                   </div>
                 </div>
               </div>
 
               {/* Programme Record */}
               <div>
-                <h3 className="text-lg font-bold mb-3" style={{ color: "var(--bms-green)" }}>Programme Record</h3>
-                <hr className="border-[var(--bms-green-light)] border-t-2 mb-4" />
+                <h3 className="text-lg font-bold mb-3 text-brand-green">Programme Record</h3>
+                <hr className="border-t border-brand-pale mb-4" />
                 {hasPassed ? (
-                  <div className="rounded-xl bg-green-50 border border-green-200 p-4 text-sm text-green-800 space-y-3">
+                  <div className="rounded-xl border border-brand-line bg-brand-pale p-4 text-sm text-brand-green space-y-3">
                     <p className="font-semibold">You have completed this programme.</p>
-                    <p className="text-green-700">All {totalCourses} credentials have been passed.</p>
+                    <p className="text-brand-green">All {totalCourses} credentials have been passed.</p>
                     <button
                       onClick={() => downloadCertificate(programmeId)}
-                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-full font-medium text-sm border-2 border-[var(--bms-green)] text-[var(--bms-green)] bg-white hover:bg-[var(--bms-green-light)] transition-colors"
+                      className="inline-flex items-center justify-center gap-2 w-full px-5 py-2.5 rounded-full font-medium text-sm border border-brand-green text-brand-green bg-white hover:bg-brand-pale transition-colors"
                     >
                       <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
                       Download Certificate
                     </button>
                   </div>
                 ) : (
-                  <p className="text-sm text-gray-600 leading-relaxed">
+                  <p className="text-sm text-brand-muted leading-relaxed">
                     Once you complete one of the programme requirements you have a programme record.
                     This record is marked complete once you meet all programme requirements.
                   </p>
