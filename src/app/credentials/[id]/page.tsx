@@ -198,10 +198,12 @@ export default function CredentialDetailPage() {
     return (
       <>
         <Header />
-        <main className="py-20">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-500 mb-4">{error || "Micro-credential not found."}</p>
-            <Link href="/courses" className="text-[var(--bms-green)] hover:underline">← Back to micro-credentials</Link>
+        <main id="main" className="py-20">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <p className="mb-4 text-brand-muted">{error || "Micro-credential not found."}</p>
+            <Link href="/courses" className="font-semibold text-brand-green hover:underline">
+              ← Back to micro-credentials
+            </Link>
           </div>
         </main>
         <Footer />
@@ -217,33 +219,35 @@ export default function CredentialDetailPage() {
   return (
     <>
       <Header />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main id="main">
+        <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-8">
           <Link
             href={enrolled ? "/dashboard/my-credentials" : "/courses"}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block"
+            className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green"
           >
             ← {enrolled ? "Back to my micro-credentials" : "Back to micro-credentials"}
           </Link>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
           )}
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-10 lg:grid-cols-3">
             {/* Left: content */}
             <div className="lg:col-span-2">
-              <p className="text-sm text-gray-500 mb-2">{credential.code} | {credential.project}</p>
-              <h1 className="text-4xl font-bold mb-4 leading-tight" style={{ color: "var(--bms-dark)" }}>
+              <p className="mb-3 text-lg font-bold text-brand-green">{credential.code} | {credential.project}</p>
+              <h1 className="mb-4 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
                 {credential.title}
               </h1>
 
               {credential.developedBy && (
-                <p className="text-sm text-gray-500 mb-6">Developed by: <span className="font-semibold text-gray-700">{credential.developedBy}</span></p>
+                <p className="mb-6 text-sm text-brand-muted">
+                  Developed by: <span className="font-semibold text-brand-dark">{credential.developedBy}</span>
+                </p>
               )}
 
               {credential.description && (
-                <p className="text-gray-600 mb-8 text-base leading-relaxed">{credential.description}</p>
+                <p className="mb-8 text-lg leading-8 text-brand-muted">{credential.description}</p>
               )}
 
               {/* Journey box */}

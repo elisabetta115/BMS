@@ -9,22 +9,19 @@ export default function CookiePolicyPage() {
   return (
     <>
       <Header />
-      <main id="main" className="py-16 md:py-24">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1
-            className="text-3xl md:text-4xl font-bold mb-10"
-            style={{ color: "var(--bms-dark)" }}
-          >
+      <main id="main">
+        <section className="bms-legal">
+          <h1 className="bms-legal-title">
             Cookie Policy
           </h1>
 
-          <div className="space-y-8 text-gray-600 leading-relaxed">
+          <div className="bms-legal-body">
             {/* Section 1: Introduction */}
             <section>
-              <h2 className="text-xl font-bold mb-3" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 1. Introduction
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 This document informs Users about the technologies that help this Website to achieve
                 the purposes described below. Such technologies allow BoostMySkills to access and
                 store information (for example by using a Cookie) or use resources (for example by
@@ -36,7 +33,7 @@ export default function CookiePolicyPage() {
                 this document, the term Cookies is only used where it is specifically meant to
                 indicate that particular type of Tracker.
               </p>
-              <p className="mt-3">
+              <p className="bms-legal-paragraph">
                 Some of the purposes for which Trackers are used may also require the User's
                 consent. Whenever consent is given, it can be freely withdrawn at any time
                 following the instructions provided in this document. This Website uses Trackers
@@ -49,10 +46,10 @@ export default function CookiePolicyPage() {
 
             {/* Section 2: Types and purposes of cookies */}
             <section>
-              <h2 className="text-xl font-bold mb-3" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 2. What type of cookies are used on this Website and for what purpose?
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 This Website uses its own and third party cookies.
                 <br />
                 <strong>Own cookies:</strong> are those that are sent to the user's terminal equipment from a
@@ -63,10 +60,10 @@ export default function CookiePolicyPage() {
                 from a computer or domain that is not managed by the publisher, but by another entity
                 that processes the data obtained through cookies.
               </p>
-              <p className="mt-3">
+              <p className="bms-legal-paragraph">
                 This Website uses the following cookies for the purposes described below:
               </p>
-              <ul className="list-disc pl-5 space-y-1 mt-2">
+              <ul className="bms-legal-list">
                 <li>
                   <strong>Technical:</strong> cookies used on this Website by BoostMySkills and, where
                   appropriate, by third parties, which allow the user to browse the Site and use the
@@ -95,11 +92,11 @@ export default function CookiePolicyPage() {
 
             {/* Section 3: Who uses cookies on this Website? */}
             <section>
-              <h2 className="text-xl font-bold mb-3" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 3. Who uses cookies on this Website?
               </h2>
-              <p>The following entities use the cookies described below for these purposes:</p>
-              <ul className="list-disc pl-5 space-y-1 mt-2">
+              <p className="bms-legal-paragraph">The following entities use the cookies described below for these purposes:</p>
+              <ul className="bms-legal-list">
                 <li>
                   <strong>BoostMySkills</strong>
                   <br />
@@ -125,16 +122,16 @@ export default function CookiePolicyPage() {
 
             {/* Section 4: How are the cookies on this Website accepted, rejected, revoked, or limited? */}
             <section>
-              <h2 className="text-xl font-bold mb-3" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 4. How are the cookies on this Website accepted, rejected, revoked, or limited?
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 Through the different options included in the notice of the use of cookies that is
                 displayed when accessing this Website for the first time, the user can accept or
                 reject the use of cookies on this Site and the international transfer of their data.
                 For these purposes:
               </p>
-              <ul className="list-disc pl-5 space-y-1 mt-2">
+              <ul className="bms-legal-list">
                 <li>
                   <strong>To accept all cookies:</strong> you must click on the ACCEPT COOKIES button.
                 </li>
@@ -153,11 +150,11 @@ export default function CookiePolicyPage() {
                   below.
                 </li>
               </ul>
-              <p className="mt-3">
+              <p className="bms-legal-paragraph">
                 Locating Tracker Settings - users can, for example, find information about how to
                 manage Cookies in the most commonly used browsers at the websites of the following:
               </p>
-              <ul className="list-disc pl-5 space-y-1 mt-2">
+              <ul className="bms-legal-list">
                 <li>Google Chrome</li>
                 <li>Mozilla Firefox</li>
                 <li>Apple Safari</li>
@@ -169,10 +166,10 @@ export default function CookiePolicyPage() {
 
             {/* Section 5: International data transfers */}
             <section>
-              <h2 className="text-xl font-bold mb-3" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 5. Are international data transfers made from this Website?
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 Yes. The following third-party publisher carries out international transfers of data
                 derived from cookies from this Website: Google, Inc. transfers data to the United
                 States based on this adequacy, guarantee or exception decision:
@@ -192,7 +189,7 @@ export default function CookiePolicyPage() {
               </p>
             </section>
           </div>
-        </div>
+      </section>
       </main>
       <Footer />
     </>

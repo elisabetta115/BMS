@@ -9,21 +9,18 @@ export default function TosPage() {
   return (
     <>
       <Header />
-      <main id="main" className="py-16 md:py-24">
-        <div className="max-w-3xl mx-auto px-4 sm:px-6 lg:px-8">
-          <h1
-            className="text-3xl md:text-4xl font-bold mb-10"
-            style={{ color: "var(--bms-dark)" }}
-          >
+      <main id="main">
+        <section className="bms-legal">
+          <h1 className="bms-legal-title">
             Website Terms and Conditions
           </h1>
 
-          <div className="space-y-8 text-gray-600 leading-relaxed">
+          <div className="bms-legal-body">
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 1. Introduction
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 Welcome to BoostMySkills (&ldquo;the Website&rdquo;). These
                 Terms and Conditions govern your use of the Website and the
                 services provided by BoostMySkills (&ldquo;we,&rdquo;
@@ -36,10 +33,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 2. Eligibility
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 By using this Website, you represent and warrant that you are at
                 least 18 years old or are accessing the Website under the
                 supervision of a parent or guardian. You agree to comply with
@@ -49,10 +46,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 3. Account Registration
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 To access certain features of the Website, you will be required
                 to register for an account. You agree to provide accurate,
                 current, and complete information during the registration
@@ -63,14 +60,14 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 4. Use of the Website
               </h2>
-              <p className="mb-3">
+              <p className="bms-legal-paragraph">
                 You agree to use the Website only for lawful purposes. You must
                 not use the Website in any way that:
               </p>
-              <p>
+              <p className="bms-legal-paragraph">
                 Violates any applicable local, national, or international law or
                 regulation. Is unlawful or fraudulent, or has any unlawful or
                 fraudulent purpose or effect. Attempts to gain unauthorized
@@ -81,10 +78,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 5. Intellectual Property Rights
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 All content included on the Website, such as text, graphics,
                 logos, images, audio clips, digital downloads, data
                 compilations, and software, is the property of
@@ -101,10 +98,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 6. Course Enrollment and Access
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 When you access a course from the Website, you are granted a
                 limited, non-exclusive, non-transferable, and revocable license
                 to access and use the course for your personal, non-commercial
@@ -118,17 +115,17 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 7. Payment and Refunds
               </h2>
-              <p>Courses are offered free-of-charge.</p>
+              <p className="bms-legal-paragraph">Courses are offered free-of-charge.</p>
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 8. User-Generated Content
               </h2>
-              <p className="mb-3">
+              <p className="bms-legal-paragraph">
                 Where users can post content on the Website, such as comments,
                 reviews, or forum posts. By posting content, you grant
                 BoostMySkills a worldwide, perpetual, irrevocable, royalty-free,
@@ -136,7 +133,7 @@ export default function TosPage() {
                 derivative works of, display, and perform that content in
                 connection with the Website and our business.
               </p>
-              <p>
+              <p className="bms-legal-paragraph">
                 You represent and warrant that: You own or have the necessary
                 rights to use and authorize us to use all intellectual property
                 rights in any content that you post. Your content does not
@@ -148,10 +145,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 9. Termination
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 We reserve the right to terminate or suspend your account and
                 access to the Website, with or without notice, for any reason,
                 including but not limited to breach of these Terms and
@@ -160,10 +157,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 10. Disclaimers and Limitation of Liability
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 The Website and the services provided are provided on an
                 &ldquo;as is&rdquo; and &ldquo;as available&rdquo; basis. We do
                 not warrant that the Website will be uninterrupted, secure, or
@@ -181,10 +178,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 11. Indemnification
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 You agree to defend, indemnify, and hold harmless
                 BoostMySkills&apos; affiliates, officers, employees, and agents
                 from and against any and all claims, damages, obligations,
@@ -198,10 +195,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 12. Governing Law and Jurisdiction
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 These Terms and Conditions shall be governed by and construed in
                 accordance with the laws of Ireland, without regard to its
                 conflict of law provisions. You agree to submit to the personal
@@ -211,10 +208,10 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 13. Changes to the Terms and Conditions
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 We reserve the right, at our sole discretion, to modify or
                 replace these Terms and Conditions at any time. Any changes will
                 be effective immediately upon posting on the Website. It is your
@@ -225,16 +222,16 @@ export default function TosPage() {
             </section>
 
             <section>
-              <h2 className="text-lg font-semibold mb-2" style={{ color: "var(--bms-dark)" }}>
+              <h2 className="bms-legal-heading">
                 14. Contact Information
               </h2>
-              <p>
+              <p className="bms-legal-paragraph">
                 If you have any questions about these Terms and Conditions,
                 please contact us.
               </p>
             </section>
           </div>
-        </div>
+      </section>
       </main>
       <Footer />
     </>

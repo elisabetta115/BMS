@@ -1,10 +1,30 @@
 @import "tailwindcss";
 
+/* ==========================================================================
+   Design tokens — boostmyskills2 ("b2") palette, registered for Tailwind v4
+   so `bg-brand-green`, `text-brand-dark`, `shadow-soft`, `font-sans` resolve.
+   ========================================================================== */
+@theme {
+  --color-brand-green: #079845;
+  --color-brand-green-dark: #057d38;
+  --color-brand-dark: #1a1a1a;
+  --color-brand-muted: #767676;
+  --color-brand-pale: #eaf3e7;
+  --color-brand-wash: #f6f7f9;
+  --color-brand-line: #eeeeee;
+
+  --shadow-soft: 0 12px 30px rgba(0, 0, 0, 0.08);
+
+  --font-sans: var(--font-urbanist), Inter, ui-sans-serif, system-ui, sans-serif;
+}
+
 :root {
-  --bms-green: #1a8a5c;
-  --bms-green-dark: #146b47;
-  --bms-green-light: #e6f5ee;
-  --bms-dark: #1a1a2e;
+  /* Legacy --bms-* vars kept so not-yet-restyled pages inherit the new palette.
+     Green/dark now point at the b2 brand colours. */
+  --bms-green: #079845;
+  --bms-green-dark: #057d38;
+  --bms-green-light: #eaf3e7;
+  --bms-dark: #1a1a1a;
   --bms-navy: #16213e;
   --bms-blue: #0f3460;
   --bms-yellow: #f5c518;
@@ -14,40 +34,64 @@
   --bms-gray-800: #333;
   --bms-white: #ffffff;
   --bms-black: #000000;
+
+  color-scheme: light;
 }
 
-* { box-sizing: border-box; }
-a, button, select, [role="button"] { cursor: pointer; }
-html { scroll-behavior: smooth; }
+* {
+  box-sizing: border-box;
+}
+
+a,
+button,
+select,
+[role="button"] {
+  cursor: pointer;
+}
+
+html {
+  scroll-behavior: smooth;
+}
 
 body {
-  font-family: "DM Sans", "Segoe UI", Tahoma, Geneva, Verdana, sans-serif;
-  color: var(--bms-gray-800);
+  margin: 0;
+  font-family: var(--font-urbanist), Inter, ui-sans-serif, system-ui, sans-serif;
+  color: #1a1a1a;
   background: var(--bms-white);
 }
 
-::-webkit-scrollbar { width: 6px; }
-::-webkit-scrollbar-track { background: var(--bms-gray-100); }
-::-webkit-scrollbar-thumb { background: var(--bms-green); border-radius: 3px; }
-
-.programme-carousel {
-  display: flex;
-  gap: 24px;
-  overflow-x: auto;
-  scroll-snap-type: x mandatory;
-  -webkit-overflow-scrolling: touch;
-  padding-bottom: 16px;
-  scrollbar-width: none;
-}
-.programme-carousel::-webkit-scrollbar { display: none; }
-.programme-card {
-  flex: 0 0 340px;
-  scroll-snap-align: start;
+img {
+  max-width: 100%;
 }
 
+::selection {
+  background: #d5e7d0;
+}
+
+::-webkit-scrollbar {
+  width: 6px;
+}
+::-webkit-scrollbar-track {
+  background: var(--bms-gray-100);
+}
+::-webkit-scrollbar-thumb {
+  background: var(--bms-green);
+  border-radius: 3px;
+}
+
+/* ==========================================================================
+   BMS legacy helpers — still used by /admin (form inputs). Everything else has
+   moved to the .bms-* system.
+   ========================================================================== */
 input[type="number"].no-spin::-webkit-inner-spin-button,
-input[type="number"].no-spin::-webkit-outer-spin-button { -webkit-appearance: none; margin: 0; }
-input[type="number"].no-spin { -moz-appearance: textfield; appearance: textfield; }
+input[type="number"].no-spin::-webkit-outer-spin-button {
+  -webkit-appearance: none;
+  margin: 0;
+}
+input[type="number"].no-spin {
+  -moz-appearance: textfield;
+  appearance: textfield;
+}
 
 .auth-input {
   width: 100%;
@@ -61,9 +105,11 @@ input[type="number"].no-spin { -moz-appearance: textfield; appearance: textfield
 }
 .auth-input:focus {
   border-color: var(--bms-green);
-  box-shadow: 0 0 0 3px rgba(26, 138, 92, 0.12);
+  box-shadow: 0 0 0 3px rgba(7, 152, 69, 0.12);
 }
-.auth-input.error { border-color: #e53e3e; }
+.auth-input.error {
+  border-color: #e53e3e;
+}
 
 .auth-btn {
   width: 100%;
@@ -77,5 +123,3497 @@ input[type="number"].no-spin { -moz-appearance: textfield; appearance: textfield
   cursor: pointer;
   transition: background 0.2s;
 }
-.auth-btn:hover { background: var(--bms-green-dark); }
-.auth-btn:disabled { opacity: 0.6; cursor: not-allowed; }
+.auth-btn:hover {
+  background: var(--bms-green-dark);
+}
+.auth-btn:disabled {
+  opacity: 0.6;
+  cursor: not-allowed;
+}
+
+/* ==========================================================================
+   boostmyskills2 design system — ported verbatim from b2/src/app/globals.css
+   (self-contained plain CSS; the .bms-* namespace). Do not hand-edit; re-port
+   from b2 if it changes upstream.
+   ========================================================================== */
+.bms-page {
+  margin: 0 auto;
+  max-width: 1440px;
+  padding-left: 2rem;
+  padding-right: 2rem;
+}
+
+.bms-hero {
+  display: grid;
+  gap: 2rem;
+  margin-top: 5.5rem;
+  padding-left: 0.75rem;
+  padding-right: 0.75rem;
+  width: calc(100% - 40px);
+}
+
+.bms-hero-eyebrow,
+.bms-section-eyebrow {
+  color: #079845;
+  display: inline-block;
+  font-size: 1.5rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin-bottom: 2rem;
+}
+
+.bms-hero-title {
+  color: #1a1a1a;
+  display: block;
+  font-size: 2.2rem;
+  font-weight: 700;
+  line-height: 2.5rem;
+  margin-bottom: 2.5rem;
+  max-width: 34rem;
+  text-align: left;
+}
+
+.bms-hero-text {
+  color: #767676;
+  font-size: 1.2rem;
+  line-height: 1.6;
+  margin-bottom: 2.5rem;
+  max-width: 37rem;
+}
+
+.bms-hero-actions {
+  gap: 0;
+}
+
+.bms-hero-cta {
+  border-radius: 2.7rem;
+  flex: 1 1 auto;
+  font-size: 1rem;
+  font-weight: 600;
+  gap: 0;
+  line-height: 28px;
+  margin-right: 1rem;
+  margin-top: 20px;
+  max-width: 320px;
+  min-height: 60px;
+  padding: 1rem 1.5rem;
+}
+
+.bms-hero-cta svg {
+  height: 22px;
+  margin-left: 0.8rem;
+  width: 25px;
+}
+
+.bms-hero-eyebrow {
+  line-height: 1.25;
+  margin-bottom: 2.85rem;
+}
+
+.bms-section {
+  margin: 6rem auto 0;
+  max-width: 1440px;
+  width: 95%;
+}
+
+.bms-section-title {
+  color: #1a1a1a;
+  font-size: 2.5rem;
+  font-weight: 600;
+  line-height: 1.1;
+  margin-bottom: 4rem;
+}
+
+.bms-program-grid {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fit, minmax(250px, 500px));
+  justify-content: center;
+  margin-bottom: 0;
+}
+
+.bms-program-card {
+  display: flex;
+  flex-direction: column;
+  position: relative;
+}
+
+.bms-carousel-wrap {
+  position: relative;
+}
+
+.bms-carousel-btn {
+  align-items: center;
+  background: #079845;
+  border: 0;
+  border-radius: 50%;
+  color: #fff;
+  cursor: pointer;
+  display: none;
+  height: 4rem;
+  justify-content: center;
+  opacity: 0.92;
+  position: absolute;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: opacity 0.15s ease;
+  width: 4rem;
+  z-index: 10;
+}
+
+.bms-carousel-btn:hover {
+  opacity: 1;
+}
+
+.bms-carousel-btn:focus-visible {
+  outline: 2px solid #1a1a1a;
+  outline-offset: 2px;
+}
+
+.bms-carousel-prev {
+  left: 0;
+}
+
+.bms-carousel-next {
+  right: 0;
+}
+
+@media screen and (min-width: 800px) {
+  .bms-carousel-btn {
+    display: inline-flex;
+  }
+}
+
+.bms-home-programmes .bms-program-carousel {
+  align-content: stretch;
+  display: flex;
+  max-width: 100%;
+  overflow-x: auto;
+  scrollbar-width: none;
+}
+
+.bms-home-programmes .bms-program-carousel::-webkit-scrollbar {
+  display: none;
+}
+
+.bms-home-programmes .bms-program-card {
+  border: 1px solid #eeeeee;
+  border-radius: 1.5rem;
+  flex: 0 0 45%;
+  margin-bottom: 0;
+  margin-right: 52px;
+  max-width: 500px;
+  min-width: 300px;
+  overflow: hidden;
+}
+
+.bms-home-programmes {
+  margin-top: 4.65rem;
+  width: 92%;
+}
+
+.bms-home-programmes .bms-section-title {
+  font-size: 2.2rem;
+  letter-spacing: -1.16px;
+  line-height: 2.5rem;
+  margin-bottom: 4rem;
+}
+
+.bms-home-programmes .bms-card-image {
+  aspect-ratio: 16 / 9;
+}
+
+.bms-home-programmes .bms-card-body {
+  padding: 1rem 1.5rem 0;
+}
+
+.bms-home-programmes .bms-card-title {
+  font-size: 1.2rem;
+  line-height: 1.6rem;
+  margin-bottom: 1.2rem;
+  padding: 0;
+}
+
+.bms-home-programmes .bms-card-meta,
+.bms-home-programmes .bms-card-list-title {
+  font-size: 1rem;
+  line-height: 1.4rem;
+}
+
+.bms-home-programmes .bms-card-meta {
+  margin-bottom: 0.5rem;
+}
+
+.bms-home-programmes .bms-card-list {
+  margin-bottom: 2rem;
+}
+
+.bms-home-programmes .bms-card-list li {
+  font-size: 1rem;
+  line-height: 1.5rem;
+}
+
+.bms-home-programmes .bms-pill {
+  font-size: 1.1rem;
+  font-weight: 600;
+  padding: 1rem 2.5rem;
+}
+
+.bms-home-programmes .bms-card-actions {
+  margin-bottom: 1rem;
+}
+
+.bms-card-image {
+  aspect-ratio: 16 / 10;
+  background: #eaf3e7;
+  border-radius: 1.5rem 1.5rem 0 0;
+  overflow: hidden;
+  position: relative;
+  width: 100%;
+}
+
+.bms-card-body {
+  border-radius: 0 0 1.5rem 1.5rem;
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1rem 1.5rem 0;
+}
+
+.bms-card-title {
+  color: #1a1a1a;
+  font-size: 1.2rem;
+  font-weight: 600;
+  line-height: 1.6rem;
+  margin-bottom: 1.2rem;
+}
+
+.bms-card-meta,
+.bms-card-list-title {
+  color: #767676;
+  font-size: 1.1rem;
+  font-weight: 600;
+  line-height: 1.4rem;
+}
+
+.bms-card-list {
+  display: inline-block;
+  flex: 1;
+  list-style: none;
+  margin: 0 0 3rem;
+  padding: 0;
+}
+
+.bms-card-list li {
+  color: #767676;
+  font-size: 1rem;
+  font-weight: 600;
+  line-height: 1.5rem;
+  padding-left: 20px;
+  position: relative;
+}
+
+.bms-card-list li::before {
+  content: "•";
+  left: 0;
+  position: absolute;
+  top: 0;
+}
+
+.bms-card-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: flex-start;
+  margin-bottom: 1.5rem;
+}
+
+.bms-pill {
+  align-items: center;
+  background: #079845;
+  border-radius: 2.7rem;
+  color: white;
+  display: inline-flex;
+  font-weight: 700;
+  justify-content: center;
+  min-height: 46px;
+  padding: 0.75rem 1.5rem;
+  text-decoration: none;
+}
+
+/* Catalogue / Micro-programmes listing page (/programs) — scoped so it never affects
+   the homepage carousel or the micro-credentials catalogue, which reuse these classes. */
+.bms-catalogue {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding-bottom: 5rem;
+  padding-top: 4.75rem;
+  width: 90%;
+}
+
+.bms-catalogue .bms-section-eyebrow {
+  margin-bottom: 0.75rem;
+}
+
+.bms-catalogue .bms-section-title {
+  font-size: 4rem;
+  letter-spacing: -1px;
+  line-height: 1.1;
+  margin-bottom: 4rem;
+}
+
+.bms-catalogue .bms-program-grid {
+  gap: 2rem;
+  grid-template-columns: repeat(2, minmax(0, 500px));
+  justify-content: center;
+  margin-top: 0;
+}
+
+.bms-catalogue .bms-program-card {
+  border: 1px solid #eeeeee;
+  border-radius: 1.5rem;
+  max-width: 500px;
+  overflow: hidden;
+  width: 100%;
+}
+
+.bms-catalogue .bms-card-image {
+  aspect-ratio: auto;
+  border-radius: 0;
+  height: 17.5rem;
+}
+
+.bms-catalogue .bms-card-body {
+  padding: 2.25rem 2.75rem 0;
+}
+
+.bms-catalogue .bms-card-title {
+  color: #313131;
+  font-size: 1.5625rem;
+  font-weight: 700;
+  line-height: 1.18;
+  margin-bottom: 1.2rem;
+  padding: 0;
+}
+
+.bms-catalogue .bms-card-meta,
+.bms-catalogue .bms-card-list-title {
+  font-size: 1rem;
+  line-height: 1.4;
+}
+
+.bms-catalogue .bms-card-meta {
+  margin-bottom: 1.25rem;
+}
+
+.bms-catalogue .bms-card-list li {
+  font-size: 1rem;
+  line-height: 1.5;
+}
+
+.bms-catalogue .bms-card-actions {
+  margin-bottom: 2.5rem;
+  margin-top: 2.25rem;
+}
+
+.bms-catalogue .bms-pill {
+  border-radius: 9999px;
+  font-size: 1.3rem;
+  font-weight: 600;
+  line-height: 1.1;
+  min-height: 0;
+  padding: 1rem 2.5rem;
+}
+
+@media screen and (max-width: 768px) {
+  .bms-catalogue {
+    padding-top: 2.75rem;
+    width: 88%;
+  }
+
+  .bms-catalogue .bms-section-title {
+    font-size: 2.5rem;
+    margin-bottom: 2.5rem;
+  }
+
+  .bms-catalogue .bms-program-grid {
+    grid-template-columns: 1fr;
+  }
+
+  .bms-catalogue .bms-card-body {
+    padding: 1.75rem 1.75rem 0;
+  }
+
+  .bms-catalogue .bms-card-image {
+    height: 13rem;
+  }
+}
+
+/* Courses / Micro-credentials discovery page (/courses) */
+.bms-courses {
+  margin: 0 auto;
+  max-width: 2000px;
+  padding: 7rem 10px 5rem;
+  width: 92.8%;
+}
+
+.bms-courses-heading {
+  color: #1a1a1a;
+  font-size: 2.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin: 0 0 3rem;
+}
+
+.bms-courses-layout {
+  align-items: start;
+  column-gap: 2.4%;
+  display: grid;
+  grid-template-columns: minmax(0, 1fr) 23.2%;
+  row-gap: 2rem;
+}
+
+.bms-courses-grid {
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+}
+
+.bms-courses-empty {
+  color: #767676;
+  font-size: 1.1rem;
+  grid-column: 1 / -1;
+}
+
+.bms-course-card {
+  background: #fff;
+  border-radius: 2rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.bms-course-image {
+  aspect-ratio: 37 / 32;
+  display: block;
+  overflow: hidden;
+}
+
+.bms-course-image img {
+  display: block;
+  height: 100%;
+  object-fit: cover;
+  transition: transform 0.3s ease;
+  width: 100%;
+}
+
+.bms-course-image:hover img {
+  transform: scale(1.03);
+}
+
+.bms-course-body {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  padding: 1.5rem 1.75rem 1.75rem;
+}
+
+.bms-course-org {
+  color: #555;
+  font-size: 0.95rem;
+  font-weight: 400;
+}
+
+.bms-course-code {
+  color: #000;
+  font-size: 1.05rem;
+  font-weight: 400;
+  margin-top: 0.35rem;
+}
+
+.bms-course-title {
+  color: #000;
+  font-size: 1.35rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0.55rem 0 0;
+}
+
+.bms-course-actions {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: auto;
+  padding-top: 1.75rem;
+}
+
+.bms-course-enrol {
+  align-items: center;
+  background: #079845;
+  border-radius: 9999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.4rem;
+  padding: 0.55rem 1.2rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.bms-course-enrol:hover {
+  background: #057a38;
+}
+
+.bms-course-more {
+  align-items: center;
+  color: #1a1a1a;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 600;
+  gap: 0.3rem;
+  text-decoration: none;
+}
+
+.bms-course-more:hover {
+  color: #079845;
+}
+
+/* Sidebar */
+.bms-courses-sidebar {
+  align-self: start;
+  background: #f9f9f9;
+  border-radius: 12px;
+  display: flex;
+  flex-direction: column;
+  padding: 1rem 0.875rem 1.25rem;
+}
+
+.bms-courses-search {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #bdbdbd;
+  border-radius: 10px;
+  color: #079845;
+  display: flex;
+  gap: 0.75rem;
+  min-height: 3.25rem;
+  padding: 0 1rem;
+}
+
+.bms-courses-search input {
+  background: transparent;
+  border: 0;
+  color: #252525;
+  flex: 1;
+  font-size: 1.05rem;
+  outline: none;
+}
+
+.bms-courses-search input::placeholder {
+  color: #b5b5b5;
+}
+
+.bms-courses-refine {
+  color: #252525;
+  font-size: 1.5625rem;
+  font-weight: 500;
+  margin: 2.5rem 0 1.25rem;
+}
+
+.bms-course-filter {
+  margin-bottom: 1.25rem;
+  position: relative;
+}
+
+.bms-course-dropbtn {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #b5b5b5;
+  border-radius: 8px;
+  cursor: pointer;
+  display: flex;
+  gap: 0.5rem;
+  min-height: 56px;
+  padding: 0 0.875rem;
+  position: relative;
+  width: 100%;
+}
+
+.bms-course-dropbtn-label {
+  background: #f9f9f9;
+  color: #4caf50;
+  font-size: 0.875rem;
+  font-weight: 300;
+  left: 0.625rem;
+  padding: 0 5px;
+  position: absolute;
+  top: -0.6rem;
+}
+
+.bms-course-dropbtn-value {
+  color: #252525;
+  flex: 1;
+  font-size: 1.25rem;
+  font-weight: 300;
+  text-align: left;
+}
+
+.bms-course-dropbtn-arrow {
+  color: #252525;
+  flex-shrink: 0;
+}
+
+.bms-course-dropdown {
+  background: #fff;
+  border: 1px solid #e0e0e0;
+  border-radius: 8px;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  list-style: none;
+  margin: 0.4rem 0 0;
+  max-height: 320px;
+  overflow: auto;
+  padding: 0.4rem;
+  position: absolute;
+  width: 100%;
+  z-index: 20;
+}
+
+.bms-course-dropdown li button {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.95rem;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0.55rem 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.bms-course-dropdown li button:hover:not(:disabled) {
+  background: #f2f7f2;
+}
+
+.bms-course-dropdown li button.is-selected {
+  background: #e7f3e9;
+  color: #079845;
+}
+
+.bms-course-dropdown li button:disabled {
+  cursor: default;
+  opacity: 0.5;
+}
+
+.bms-course-dropdown-count {
+  color: #999;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+}
+
+/* Course detail page (/courses/[slug]) */
+/* Learner dashboard header */
+.bms-lh {
+  background: #fff;
+  border-bottom: 1px solid #eee;
+}
+
+.bms-lh-inner {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 0.85rem 1.25rem;
+  width: 100%;
+}
+
+.bms-lh-left {
+  align-items: center;
+  display: flex;
+  gap: 2rem;
+}
+
+.bms-lh-logo {
+  display: inline-flex;
+}
+
+.bms-lh-item {
+  position: relative;
+}
+
+.bms-lh-trigger,
+.bms-lh-user-btn {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  padding: 0.25rem 0;
+}
+
+.bms-lh-trigger-open {
+  color: #079845;
+}
+
+.bms-lh-trigger-open .bms-lh-chev {
+  color: #079845;
+}
+
+.bms-lh-chev {
+  transition: transform 0.2s ease;
+}
+
+.bms-lh-chev-open {
+  transform: rotate(180deg);
+}
+
+.bms-lh-menu {
+  background: #fff;
+  border: 1px solid #dcdcdc;
+  border-radius: 8px;
+  box-shadow: 0 6px 18px rgba(0, 0, 0, 0.06);
+  left: 0;
+  min-width: 21rem;
+  padding: 0.5rem 0;
+  position: absolute;
+  top: 2.8rem;
+  z-index: 60;
+}
+
+.bms-lh-menu-right {
+  left: auto;
+  right: 0;
+}
+
+.bms-lh-menu-link {
+  background: none;
+  border: 0;
+  border-radius: 0;
+  color: #111;
+  cursor: pointer;
+  display: block;
+  font: inherit;
+  font-size: 1.25rem;
+  font-weight: 400;
+  padding: 0.8rem 1.5rem;
+  text-align: left;
+  text-decoration: none;
+  width: 100%;
+}
+
+.bms-lh-menu-link:hover {
+  background: #eef5ee;
+  color: #079845;
+}
+
+.bms-lh-user-btn span {
+  color: #1a1a1a;
+}
+
+/* User dropdown — compact, plain black rows like the live learner dashboard */
+.bms-lh-usermenu {
+  min-width: 21rem;
+  padding: 0.5rem 0;
+}
+
+.bms-lh-usermenu .bms-lh-menu-link {
+  font-size: 1.375rem;
+  padding: 0.65rem 1.5rem;
+}
+
+.bms-lh-usermenu .bms-lh-menu-link:hover {
+  background: #f4f4f4;
+  color: #111;
+}
+
+/* Learner dashboard (/dashboard) */
+.bms-dash-banner {
+  align-items: center;
+  background: #29c2e8;
+  color: #0a2a33;
+  display: flex;
+  font-size: 0.95rem;
+  gap: 1rem;
+  justify-content: center;
+  padding: 0.55rem 3rem 0.55rem 1rem;
+  position: relative;
+  text-align: center;
+}
+
+.bms-dash-banner p {
+  margin: 0;
+}
+
+.bms-dash-banner-link {
+  background: none;
+  border: 0;
+  color: #0a2a33;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.bms-dash-banner-close {
+  background: none;
+  border: 0;
+  color: #0a2a33;
+  cursor: pointer;
+  line-height: 0;
+  padding: 0.25rem;
+  position: absolute;
+  right: 1rem;
+  top: 50%;
+  transform: translateY(-50%);
+}
+
+.bms-dash {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 3.5rem 1.25rem 4rem;
+  width: 92%;
+}
+
+.bms-dash-title {
+  color: #111;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 2.5rem;
+}
+
+.bms-dash-note {
+  color: #555;
+  font-size: 1.1rem;
+}
+
+.bms-dash-empty {
+  align-items: center;
+  background: #eef5ee;
+  border-radius: 1.5rem;
+  display: grid;
+  gap: 2rem;
+  grid-template-columns: minmax(0, 400px) minmax(0, 1fr);
+  min-height: 440px;
+  padding: 3.25rem;
+}
+
+.bms-dash-empty-art {
+  margin: 0 auto;
+  max-width: 400px;
+  width: 100%;
+}
+
+.bms-dash-empty-art img {
+  display: block;
+  height: auto;
+  object-fit: contain;
+  width: 100%;
+}
+
+.bms-dash-empty-title {
+  color: #111;
+  font-size: 2.6rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin: 0 0 2.25rem;
+  max-width: 520px;
+}
+
+.bms-dash-empty-actions {
+  display: flex;
+  flex-wrap: nowrap;
+  gap: 1rem;
+}
+
+.bms-dash-cta {
+  align-items: center;
+  background: #079845;
+  border-radius: 9999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  padding: 0.8rem 1.4rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+  white-space: nowrap;
+}
+
+.bms-dash-cta:hover {
+  background: #057a38;
+}
+
+.bms-dash-list {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(300px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-dash-list-item {
+  background: #f9f9f9;
+  border: 1px solid #eee;
+  border-radius: 1rem;
+  padding: 1.5rem;
+}
+
+.bms-dash-list-type {
+  color: #079845;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.4rem;
+  text-transform: uppercase;
+}
+
+.bms-dash-list-title {
+  color: #111;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bms-dash-list-link {
+  color: #079845;
+  display: inline-block;
+  font-weight: 600;
+  margin-top: 0.75rem;
+  text-decoration: none;
+}
+
+/* Dashboard enrolment cards (micro-programmes + micro-credentials) */
+.bms-dash-block {
+  margin-bottom: 3.5rem;
+}
+
+.bms-dash-block:last-child {
+  margin-bottom: 0;
+}
+
+.bms-dash-block .bms-dash-title {
+  font-size: 2rem;
+  margin: 0 0 1.5rem;
+}
+
+.bms-dash-cards {
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-dash-card {
+  background: #fff;
+  border: 1px solid #e8e8e8;
+  border-radius: 1rem;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+  transition: box-shadow 0.2s ease, transform 0.2s ease;
+}
+
+.bms-dash-card:hover {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.08);
+  transform: translateY(-2px);
+}
+
+.bms-dash-card-media {
+  aspect-ratio: 16 / 9;
+  background: #f2f2f2;
+  overflow: hidden;
+}
+
+.bms-dash-card-media img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.bms-dash-card-body {
+  display: flex;
+  flex-direction: column;
+  flex: 1;
+  gap: 0.55rem;
+  padding: 1.25rem 1.4rem 1.4rem;
+}
+
+.bms-dash-card-meta {
+  color: #079845;
+  font-size: 0.75rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0;
+  text-transform: uppercase;
+}
+
+.bms-dash-card-title {
+  color: #111;
+  font-size: 1.15rem;
+  font-weight: 700;
+  line-height: 1.3;
+  margin: 0;
+}
+
+.bms-dash-card-sub {
+  color: #555;
+  font-size: 0.9rem;
+  margin: 0;
+}
+
+.bms-dash-progress {
+  align-items: center;
+  display: flex;
+  gap: 0.6rem;
+  margin-top: 0.2rem;
+}
+
+.bms-dash-progress-bar {
+  background: #ececec;
+  border-radius: 9999px;
+  flex: 1;
+  height: 7px;
+  overflow: hidden;
+}
+
+.bms-dash-progress-bar span {
+  background: #079845;
+  border-radius: 9999px;
+  display: block;
+  height: 100%;
+  transition: width 0.3s ease;
+}
+
+.bms-dash-progress-label {
+  color: #777;
+  font-size: 0.78rem;
+  font-weight: 600;
+  white-space: nowrap;
+}
+
+.bms-dash-card-link {
+  align-items: center;
+  color: #079845;
+  display: inline-flex;
+  font-weight: 700;
+  gap: 0.35rem;
+  margin-top: auto;
+  padding-top: 0.5rem;
+  text-decoration: none;
+}
+
+.bms-dash-card-link:hover {
+  color: #057a38;
+}
+
+.bms-dash-cert-status {
+  border-radius: 9999px;
+  display: inline-block;
+  font-size: 0.78rem;
+  font-weight: 700;
+  margin: 0.2rem 0;
+  padding: 0.25rem 0.7rem;
+}
+
+.bms-dash-cert-status.is-pending {
+  background: #f2f2f2;
+  color: #888;
+}
+
+.bms-dash-cert-status.is-eligible,
+.bms-dash-cert-status.is-issued {
+  background: #e9f7ee;
+  color: #0a7a39;
+}
+
+.bms-dash-card-actions-row {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+  margin-top: auto;
+}
+
+.bms-dash-cert-btn {
+  align-items: center;
+  background: #079845;
+  border-radius: 0.5rem;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.82rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  padding: 0.45rem 0.85rem;
+  text-decoration: none;
+}
+
+.bms-dash-cert-btn:hover {
+  background: #057a38;
+}
+
+/* Enrol button wrapper (inline error under the button) */
+.bms-enrol-wrap {
+  display: inline-flex;
+  flex-direction: column;
+  gap: 0.4rem;
+}
+
+.bms-enrol-error {
+  color: #b91c1c;
+  font-size: 0.8rem;
+  font-weight: 600;
+}
+
+/* Account settings page (/account) */
+.bms-account {
+  margin: 0 auto;
+  max-width: 1200px;
+  padding: 2.5rem 2rem 5rem;
+  width: 100%;
+}
+
+.bms-account-title {
+  color: #111;
+  font-size: 2.75rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  margin: 0 0 2.5rem;
+}
+
+.bms-account-grid {
+  align-items: start;
+  display: grid;
+  gap: 4.5rem;
+  grid-template-columns: 240px minmax(0, 880px);
+}
+
+.bms-account-nav {
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  position: sticky;
+  top: 6rem;
+}
+
+.bms-account-nav button {
+  background: none;
+  border: 0;
+  color: #1f6feb;
+  cursor: pointer;
+  font-size: 1.05rem;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.bms-account-nav button.is-active {
+  color: #1a4fb4;
+  font-weight: 700;
+}
+
+.bms-account-section {
+  border-bottom: 1px solid #eee;
+  margin-bottom: 2.5rem;
+  padding-bottom: 2.5rem;
+  scroll-margin-top: 6rem;
+}
+
+.bms-account-section:last-child {
+  border-bottom: 0;
+}
+
+.bms-account-heading {
+  color: #111;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 0.75rem;
+}
+
+.bms-account-desc {
+  color: #444;
+  font-size: 1rem;
+  line-height: 1.5;
+  margin: 0 0 1.5rem;
+}
+
+.bms-account-field {
+  margin-bottom: 1.75rem;
+}
+
+.bms-account-label {
+  align-items: center;
+  color: #111;
+  display: flex;
+  font-size: 0.85rem;
+  font-weight: 700;
+  gap: 0.75rem;
+  margin: 0 0 0.4rem;
+}
+
+.bms-account-edit {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: #1f6feb;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.95rem;
+  gap: 0.25rem;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.bms-account-value {
+  color: #1a1a1a;
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+}
+
+.bms-account-add {
+  background: none;
+  border: 0;
+  color: #1f6feb;
+  cursor: pointer;
+  font-size: 1.05rem;
+  margin: 0 0 0.35rem;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.bms-account-helper {
+  color: #707070;
+  font-size: 0.9rem;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.bms-account-warning {
+  color: #b3261e;
+  font-size: 0.9rem;
+  font-weight: 700;
+  line-height: 1.5;
+  margin: 1.25rem 0;
+}
+
+.bms-account-changeinstead {
+  background: none;
+  border: 0;
+  color: #1f6feb;
+  cursor: pointer;
+  display: block;
+  font-size: 1.05rem;
+  margin-bottom: 1.5rem;
+  padding: 0;
+  text-align: left;
+  text-decoration: underline;
+}
+
+.bms-account-delete-btn {
+  background: #fff;
+  border: 1px solid #c0392b;
+  border-radius: 4px;
+  color: #c0392b;
+  cursor: pointer;
+  font-size: 1rem;
+  font-weight: 600;
+  padding: 0.7rem 1.25rem;
+}
+
+.bms-account-delete-btn:hover {
+  background: #fdecea;
+}
+
+.bms-account-delete-btn:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.bms-account-status {
+  background: #eef5ee;
+  border-radius: 0.5rem;
+  color: #1a1a1a;
+  font-weight: 600;
+  margin: 0 0 1.5rem;
+  padding: 0.75rem 1rem;
+}
+
+/* Edit / delete modals */
+.bms-modal-overlay {
+  align-items: center;
+  background: rgba(0, 0, 0, 0.45);
+  display: flex;
+  inset: 0;
+  justify-content: center;
+  padding: 1.5rem;
+  position: fixed;
+  z-index: 100;
+}
+
+.bms-modal {
+  background: #fff;
+  border-radius: 0.75rem;
+  max-width: 460px;
+  padding: 1.5rem;
+  width: 100%;
+}
+
+.bms-modal-head {
+  align-items: center;
+  display: flex;
+  justify-content: space-between;
+  margin-bottom: 1.25rem;
+}
+
+.bms-modal-head h2 {
+  color: #111;
+  font-size: 1.25rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bms-modal-close {
+  background: none;
+  border: 0;
+  color: #555;
+  cursor: pointer;
+  line-height: 0;
+  padding: 0.25rem;
+}
+
+.bms-modal-label {
+  color: #111;
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-top: 1rem;
+}
+
+.bms-modal-input {
+  border: 1px solid #c8c8c8;
+  border-radius: 6px;
+  font-size: 1rem;
+  margin-top: 0.5rem;
+  padding: 0.6rem 0.75rem;
+  width: 100%;
+}
+
+.bms-modal-input:disabled {
+  background: #f4f4f4;
+  color: #767676;
+}
+
+.bms-modal-success {
+  background: #eef5ee;
+  border-radius: 0.5rem;
+  color: #1a1a1a;
+  font-weight: 600;
+  margin: 0.5rem 0 0;
+  padding: 0.75rem 1rem;
+}
+
+.bms-modal-error {
+  color: #b3261e;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 0.75rem 0 0;
+}
+
+.bms-modal-actions {
+  display: flex;
+  gap: 0.75rem;
+  justify-content: flex-end;
+  margin-top: 1.5rem;
+}
+
+.bms-modal-cancel {
+  background: none;
+  border: 1px solid #d0d0d0;
+  border-radius: 9999px;
+  color: #1a1a1a;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.55rem 1.4rem;
+}
+
+.bms-modal-save {
+  background: #079845;
+  border: 0;
+  border-radius: 9999px;
+  color: #fff;
+  cursor: pointer;
+  font-weight: 600;
+  padding: 0.55rem 1.5rem;
+}
+
+.bms-modal-save:disabled {
+  opacity: 0.6;
+}
+
+@media screen and (max-width: 860px) {
+  .bms-account-grid {
+    gap: 2rem;
+    grid-template-columns: 1fr;
+  }
+
+  .bms-account-nav {
+    flex-flow: row wrap;
+    gap: 1rem 1.5rem;
+    position: static;
+  }
+
+  .bms-account-title {
+    font-size: 2rem;
+  }
+}
+
+@media screen and (max-width: 768px) {
+  .bms-dash-empty {
+    grid-template-columns: 1fr;
+    padding: 2rem;
+    text-align: center;
+  }
+
+  .bms-dash-empty-art {
+    margin: 0 auto;
+    max-width: 240px;
+  }
+
+  .bms-dash-empty-title {
+    font-size: 1.75rem;
+  }
+
+  .bms-dash-empty-actions {
+    flex-direction: column;
+    justify-content: center;
+  }
+
+  .bms-dash-title {
+    font-size: 2rem;
+  }
+}
+
+/* Enrol button (course detail / not-enrolled) */
+.bms-enrol-wrap {
+  align-items: center;
+  display: inline-flex;
+  flex-wrap: wrap;
+  gap: 0.5rem 1rem;
+}
+
+.bms-enrol-error {
+  color: #b3261e;
+  font-size: 0.9rem;
+  font-weight: 600;
+}
+
+/* Course player (/learn/[slug]) */
+.bms-learn {
+  display: grid;
+  gap: 2.5rem;
+  grid-template-columns: 320px minmax(0, 1fr);
+  margin: 0 auto;
+  max-width: 1240px;
+  padding: 2.5rem 1.5rem 4rem;
+  width: 94%;
+}
+
+.bms-learn-sidebar {
+  align-self: start;
+  position: sticky;
+  top: 6rem;
+}
+
+.bms-learn-back {
+  align-items: center;
+  color: #1f6feb;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
+.bms-learn-eyebrow {
+  color: #767676;
+  font-size: 0.9rem;
+  font-weight: 600;
+  margin: 1.25rem 0 0.35rem;
+}
+
+.bms-learn-course-title {
+  color: #111;
+  font-size: 1.5rem;
+  font-weight: 700;
+  line-height: 1.2;
+  margin: 0 0 0.75rem;
+}
+
+.bms-learn-progress {
+  color: #079845;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+
+.bms-learn-units {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-learn-units button {
+  align-items: center;
+  background: none;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.98rem;
+  gap: 0.6rem;
+  padding: 0.6rem 0.65rem;
+  text-align: left;
+  width: 100%;
+}
+
+.bms-learn-units button:hover {
+  background: #f2f7f2;
+}
+
+.bms-learn-units button.is-active {
+  background: #eef5ee;
+  color: #079845;
+  font-weight: 600;
+}
+
+.bms-learn-tick {
+  color: #079845;
+  flex-shrink: 0;
+}
+
+.bms-learn-dot {
+  background: #d4d4d4;
+  border-radius: 9999px;
+  flex-shrink: 0;
+  height: 12px;
+  margin: 3px;
+  width: 12px;
+}
+
+.bms-learn-main {
+  max-width: 760px;
+}
+
+.bms-learn-section-eyebrow {
+  color: #079845;
+  font-size: 0.9rem;
+  font-weight: 700;
+  letter-spacing: 0.02em;
+  margin: 0 0 0.3rem;
+  text-transform: uppercase;
+}
+
+.bms-learn-unit-title {
+  color: #111;
+  font-size: 1.85rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+
+.bms-learn-exercise {
+  background: #f6f9f6;
+  border: 1px solid #e0ece2;
+  border-radius: 0.75rem;
+  padding: 1.5rem;
+}
+
+.bms-learn-exercise-tag {
+  color: #079845;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  margin: 0 0 0.5rem;
+  text-transform: uppercase;
+}
+
+.bms-learn-text {
+  color: #444;
+  font-size: 1.08rem;
+  line-height: 1.65;
+  margin: 0 0 1rem;
+}
+
+.bms-learn-bullets {
+  color: #444;
+  font-size: 1.08rem;
+  line-height: 1.6;
+  list-style: disc outside;
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+}
+
+.bms-learn-bullets li {
+  margin-bottom: 0.5rem;
+}
+
+.bms-learn-outline {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-learn-outline li {
+  align-items: flex-start;
+  color: #333;
+  display: flex;
+  gap: 0.85rem;
+  margin-bottom: 1rem;
+}
+
+.bms-learn-outline-num {
+  align-items: center;
+  background: #e7f3e9;
+  border-radius: 9999px;
+  color: #079845;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.bms-learn-video {
+  aspect-ratio: 16 / 9;
+  border-radius: 0.75rem;
+  margin-bottom: 1.25rem;
+  overflow: hidden;
+}
+
+.bms-learn-video iframe {
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
+.bms-learn-question {
+  border: 1px solid #eee;
+  border-radius: 0.75rem;
+  margin: 0 0 1.25rem;
+  padding: 1.25rem 1.5rem;
+}
+
+.bms-learn-question legend {
+  align-items: baseline;
+  display: flex;
+  gap: 0.75rem;
+  justify-content: space-between;
+  padding: 0;
+  width: 100%;
+}
+
+.bms-learn-qnum {
+  color: #079845;
+  font-size: 0.8rem;
+  font-weight: 700;
+  letter-spacing: 0.04em;
+  text-transform: uppercase;
+}
+
+.bms-learn-qhint {
+  color: #888;
+  font-size: 0.78rem;
+  font-weight: 600;
+  text-transform: uppercase;
+}
+
+.bms-learn-qprompt {
+  color: #111;
+  font-size: 1.05rem;
+  font-weight: 700;
+  margin: 0.5rem 0 1rem;
+}
+
+.bms-learn-option {
+  align-items: center;
+  border: 1px solid transparent;
+  border-radius: 0.5rem;
+  color: #333;
+  cursor: pointer;
+  display: flex;
+  gap: 0.7rem;
+  margin-bottom: 0.3rem;
+  padding: 0.6rem 0.75rem;
+}
+
+.bms-learn-option.is-chosen {
+  background: #eef5ee;
+}
+
+.bms-learn-option.is-answer {
+  background: #e6f6ec;
+  border-color: #079845;
+}
+
+.bms-learn-option.is-wrong {
+  background: #fdecec;
+  border-color: #d23b3b;
+}
+
+.bms-learn-feedback {
+  border-radius: 0.5rem;
+  font-size: 0.92rem;
+  font-weight: 600;
+  margin: 0.9rem 0 0;
+  padding: 0.7rem 0.9rem;
+}
+
+.bms-learn-feedback-correct {
+  background: #e6f6ec;
+  color: #0a7a39;
+}
+
+.bms-learn-feedback-incorrect {
+  background: #fdecec;
+  color: #b32626;
+}
+
+.bms-learn-feedback-neutral {
+  background: #f4f4f4;
+  color: #555;
+  font-weight: 500;
+}
+
+/* Interactive activity card (e.g. Serious Game) */
+.bms-learn-activity {
+  border: 1px solid #e8e8e8;
+  border-radius: 0.9rem;
+  display: flex;
+  flex-direction: column;
+  gap: 1rem;
+  padding: 1.75rem;
+}
+
+.bms-learn-activity-title {
+  color: #111;
+  font-size: 1.6rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bms-learn-play {
+  align-items: center;
+  align-self: flex-start;
+  background: #079845;
+  border: 0;
+  border-radius: 0.5rem;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 700;
+  gap: 0.5rem;
+  padding: 0.7rem 1.5rem;
+  text-decoration: none;
+}
+
+.bms-learn-play:hover {
+  background: #057a38;
+}
+
+.bms-learn-play:disabled {
+  cursor: not-allowed;
+  opacity: 0.6;
+}
+
+.bms-learn-status {
+  align-self: flex-start;
+  background: #f6c343;
+  border-radius: 9999px;
+  color: #5a4a00;
+  font-size: 0.9rem;
+  font-weight: 700;
+  padding: 0.4rem 1.1rem;
+}
+
+.bms-learn-activity-help {
+  color: #888;
+  font-size: 0.95rem;
+  font-style: italic;
+  margin: 0;
+}
+
+.bms-learn-activity-frame {
+  aspect-ratio: 16 / 9;
+  border-radius: 0.6rem;
+  overflow: hidden;
+  width: 100%;
+}
+
+.bms-learn-activity-frame iframe {
+  border: 0;
+  height: 100%;
+  width: 100%;
+}
+
+/* Video completion hint */
+.bms-learn-video-hint {
+  color: #777;
+  font-size: 0.85rem;
+  margin: 0.6rem 0 0;
+}
+
+/* One-attempt MCQ */
+.bms-learn-quiz-warn {
+  background: #fff7e6;
+  border: 1px solid #f6c343;
+  border-radius: 0.5rem;
+  color: #7a5a00;
+  font-size: 0.9rem;
+  margin: 0 0 1.25rem;
+  padding: 0.6rem 0.9rem;
+}
+
+.bms-learn-option.is-locked {
+  cursor: default;
+}
+
+.bms-learn-locked {
+  align-items: center;
+  color: #888;
+  display: flex;
+  font-size: 0.82rem;
+  font-weight: 600;
+  gap: 0.35rem;
+  margin: 0.5rem 0 0;
+}
+
+.bms-learn-quiz-progress {
+  color: #777;
+  font-size: 0.85rem;
+  font-weight: 600;
+}
+
+/* Certificate eligibility panel (sidebar) */
+.bms-learn-cert {
+  background: #f7f7f7;
+  border: 1px solid #e6e6e6;
+  border-radius: 0.75rem;
+  margin-top: 1.5rem;
+  padding: 1rem 1.1rem;
+}
+
+.bms-learn-cert.is-eligible {
+  background: #e9f7ee;
+  border-color: #079845;
+}
+
+.bms-learn-cert-head {
+  align-items: center;
+  color: #0a2a33;
+  display: flex;
+  gap: 0.5rem;
+}
+
+.bms-learn-cert-head h3 {
+  font-size: 1rem;
+  font-weight: 700;
+  margin: 0;
+}
+
+.bms-learn-cert-score {
+  background: #fff;
+  border-radius: 9999px;
+  color: #079845;
+  font-size: 0.75rem;
+  font-weight: 700;
+  margin-left: auto;
+  padding: 0.2rem 0.6rem;
+}
+
+.bms-learn-cert-msg {
+  color: #0a7a39;
+  font-size: 0.85rem;
+  font-weight: 600;
+  margin: 0.6rem 0 0.8rem;
+}
+
+.bms-learn-cert-btn {
+  align-items: center;
+  background: #079845;
+  border-radius: 0.5rem;
+  color: #fff;
+  display: inline-flex;
+  font-size: 0.9rem;
+  font-weight: 700;
+  gap: 0.4rem;
+  justify-content: center;
+  padding: 0.6rem 1rem;
+  text-decoration: none;
+  width: 100%;
+}
+
+.bms-learn-cert-btn:hover {
+  background: #057a38;
+}
+
+.bms-learn-cert-reasons {
+  color: #555;
+  font-size: 0.82rem;
+  list-style: none;
+  margin: 0.6rem 0 0;
+  padding: 0;
+}
+
+.bms-learn-cert-reasons li {
+  margin-bottom: 0.35rem;
+  padding-left: 1rem;
+  position: relative;
+}
+
+.bms-learn-cert-reasons li::before {
+  color: #079845;
+  content: "•";
+  left: 0;
+  position: absolute;
+}
+
+/* Certificate verification page */
+.bms-verify {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  min-height: 70vh;
+  padding: 3rem 1.25rem;
+}
+
+.bms-verify-card {
+  background: #fff;
+  border: 1px solid #e6e6e6;
+  border-radius: 1rem;
+  box-shadow: 0 16px 40px rgba(0, 0, 0, 0.06);
+  max-width: 560px;
+  padding: 2.5rem;
+  text-align: center;
+  width: 100%;
+}
+
+.bms-verify-badge {
+  border-radius: 9999px;
+  display: inline-block;
+  font-size: 0.8rem;
+  font-weight: 700;
+  margin-bottom: 1rem;
+  padding: 0.35rem 1rem;
+}
+
+.bms-verify-valid {
+  background: #e9f7ee;
+  color: #0a7a39;
+}
+
+.bms-verify-invalid {
+  background: #fdecec;
+  color: #b32626;
+}
+
+.bms-verify-name {
+  color: #0a2a33;
+  font-size: 2rem;
+  font-weight: 700;
+  margin: 0.5rem 0 0.25rem;
+}
+
+.bms-verify-line {
+  color: #666;
+  margin: 0.25rem 0;
+}
+
+.bms-verify-course {
+  color: #079845;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin: 0.25rem 0 1.5rem;
+}
+
+.bms-verify-meta {
+  display: grid;
+  gap: 1rem;
+  grid-template-columns: 1fr 1fr;
+  margin: 0 0 1.5rem;
+  text-align: left;
+}
+
+.bms-verify-meta dt {
+  color: #888;
+  font-size: 0.75rem;
+  font-weight: 700;
+  text-transform: uppercase;
+}
+
+.bms-verify-meta dd {
+  color: #0a2a33;
+  font-weight: 600;
+  margin: 0.2rem 0 0;
+}
+
+.bms-verify-home {
+  color: #079845;
+  font-weight: 700;
+  text-decoration: none;
+}
+
+.bms-learn-check {
+  background: #fff;
+  border: 1px solid #079845;
+  border-radius: 9999px;
+  color: #079845;
+  cursor: pointer;
+  font-size: 0.95rem;
+  font-weight: 600;
+  margin-top: 1rem;
+  padding: 0.5rem 1.25rem;
+}
+
+.bms-learn-check:disabled {
+  cursor: not-allowed;
+  opacity: 0.5;
+}
+
+.bms-learn-quiz-note {
+  color: #555;
+  font-size: 0.95rem;
+  margin-top: 0.75rem;
+}
+
+.bms-learn-actions {
+  align-items: center;
+  border-top: 1px solid #eee;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: space-between;
+  margin-top: 2.5rem;
+  padding-top: 1.5rem;
+}
+
+.bms-learn-nav,
+.bms-learn-complete {
+  align-items: center;
+  border-radius: 9999px;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 0.95rem;
+  font-weight: 600;
+  gap: 0.4rem;
+  padding: 0.6rem 1.25rem;
+}
+
+.bms-learn-nav {
+  background: #fff;
+  border: 1px solid #d0d0d0;
+  color: #1a1a1a;
+}
+
+.bms-learn-nav:disabled {
+  cursor: not-allowed;
+  opacity: 0.45;
+}
+
+.bms-learn-complete {
+  background: #079845;
+  border: 0;
+  color: #fff;
+}
+
+.bms-learn-complete:disabled {
+  background: #8bc6a4;
+  cursor: default;
+}
+
+.bms-learn-locked {
+  margin: 0 auto;
+  max-width: 720px;
+  padding: 4rem 1.5rem;
+  text-align: center;
+  width: 92%;
+}
+
+.bms-learn-locked-title {
+  color: #111;
+  font-size: 2.25rem;
+  font-weight: 700;
+  margin: 0.35rem 0 1rem;
+}
+
+.bms-learn-locked-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem;
+  justify-content: center;
+  margin-top: 1.5rem;
+}
+
+@media screen and (max-width: 860px) {
+  .bms-learn {
+    grid-template-columns: 1fr;
+  }
+
+  .bms-learn-sidebar {
+    position: static;
+  }
+}
+
+.bms-cd {
+  margin: 0 auto;
+  max-width: 1180px;
+  padding: 4rem 1.25rem 5rem;
+  width: 92%;
+}
+
+.bms-cd-hero {
+  align-items: center;
+  display: grid;
+  gap: 3rem;
+  grid-template-columns: 360px minmax(0, 1fr);
+  margin-bottom: 3.5rem;
+}
+
+.bms-cd-hero-image {
+  aspect-ratio: 4 / 3;
+  border-radius: 1.25rem;
+  overflow: hidden;
+}
+
+.bms-cd-hero-image img {
+  height: 100%;
+  object-fit: cover;
+  width: 100%;
+}
+
+.bms-cd-title {
+  color: #111;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+  margin: 0 0 0.5rem;
+}
+
+.bms-cd-by {
+  color: #767676;
+  font-size: 1.1rem;
+  margin-bottom: 2rem;
+}
+
+.bms-cd-hero-actions {
+  align-items: center;
+  display: flex;
+  gap: 1.5rem;
+}
+
+.bms-cd-enrol {
+  align-items: center;
+  background: #079845;
+  border-radius: 9999px;
+  color: #fff;
+  display: inline-flex;
+  font-size: 1.05rem;
+  font-weight: 600;
+  gap: 0.5rem;
+  padding: 0.7rem 1.6rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease;
+}
+
+.bms-cd-enrol:hover {
+  background: #057a38;
+}
+
+.bms-cd-social {
+  color: #1a1a1a;
+  display: flex;
+  gap: 0.6rem;
+}
+
+.bms-cd-body {
+  align-items: start;
+  display: grid;
+  gap: 3rem;
+  grid-template-columns: minmax(0, 1fr) 340px;
+}
+
+.bms-cd-heading {
+  color: #079845;
+  font-size: 1.6rem;
+  font-weight: 600;
+  margin: 0 0 1rem;
+}
+
+.bms-cd-main section + section {
+  margin-top: 2.5rem;
+}
+
+.bms-cd-text {
+  color: #555;
+  font-size: 1.05rem;
+  line-height: 1.65;
+  margin: 0 0 1rem;
+}
+
+.bms-cd-bullets {
+  color: #555;
+  font-size: 1.05rem;
+  line-height: 1.6;
+  list-style: disc outside;
+  margin: 0 0 1rem;
+  padding-left: 1.4rem;
+}
+
+.bms-cd-bullets li {
+  margin-bottom: 0.6rem;
+  padding-left: 0.25rem;
+}
+
+.bms-cd-meta {
+  background: #f6f6f6;
+  border-radius: 0.75rem;
+  margin-bottom: 1.75rem;
+  padding: 1.1rem 1.25rem;
+}
+
+.bms-cd-meta p {
+  align-items: flex-start;
+  color: #333;
+  display: flex;
+  font-size: 0.95rem;
+  gap: 0.5rem;
+  margin: 0;
+}
+
+.bms-cd-meta p + p {
+  margin-top: 0.75rem;
+}
+
+.bms-cd-meta span {
+  color: #079845;
+}
+
+.bms-cd-meta strong {
+  color: #111;
+  font-weight: 700;
+}
+
+.bms-cd-sections {
+  border: 1px solid #ececec;
+  border-radius: 1rem;
+  padding: 1.5rem 1.5rem 1.75rem;
+}
+
+.bms-cd-sections-title {
+  color: #111;
+  font-size: 1.5rem;
+  font-weight: 700;
+  margin: 0 0 1.25rem;
+}
+
+.bms-cd-sections-list {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-cd-sections-list li {
+  align-items: flex-start;
+  color: #333;
+  display: flex;
+  font-size: 0.95rem;
+  gap: 0.85rem;
+  line-height: 1.4;
+  margin-bottom: 1rem;
+}
+
+.bms-cd-section-num {
+  align-items: center;
+  background: #e7f3e9;
+  border-radius: 9999px;
+  color: #079845;
+  display: inline-flex;
+  flex-shrink: 0;
+  font-size: 0.85rem;
+  font-weight: 700;
+  height: 1.75rem;
+  justify-content: center;
+  width: 1.75rem;
+}
+
+.bms-cd-createdby {
+  color: #079845;
+  font-size: 0.95rem;
+  font-weight: 700;
+  margin: 1.25rem 0 0;
+}
+
+.bms-cd-createdby span {
+  color: #767676;
+  display: block;
+  font-weight: 400;
+  margin-top: 0.25rem;
+}
+
+@media screen and (max-width: 900px) {
+  .bms-cd-hero {
+    gap: 2rem;
+    grid-template-columns: 1fr;
+  }
+
+  .bms-cd-hero-image {
+    max-width: 360px;
+  }
+
+  .bms-cd-body {
+    grid-template-columns: 1fr;
+  }
+
+  .bms-cd-title {
+    font-size: 2rem;
+  }
+}
+
+@media screen and (max-width: 1024px) {
+  .bms-courses {
+    padding-top: 4rem;
+  }
+
+  .bms-courses-layout {
+    grid-template-columns: 1fr;
+  }
+
+  .bms-courses-sidebar {
+    order: -1;
+  }
+}
+
+@media screen and (max-width: 600px) {
+  .bms-courses {
+    padding: 3rem 1.25rem 4rem;
+  }
+
+  .bms-courses-heading {
+    font-size: 1.75rem;
+  }
+}
+
+.bms-more {
+  align-items: center;
+  color: #079845;
+  display: inline-flex;
+  font-size: 1.1rem;
+  font-weight: 700;
+  gap: 0.35rem;
+  text-decoration: none;
+}
+
+.bms-view-all {
+  align-items: center;
+  color: #000;
+  display: inline-flex;
+  font-size: 1rem;
+  font-weight: 400;
+  gap: 0.35rem;
+  margin-top: 0.5rem;
+  text-decoration: none;
+}
+
+.bms-card-list li::before {
+  content: "\2022";
+}
+
+.bms-text {
+  color: #767676;
+  font-size: 1.2rem;
+  font-weight: 500;
+  line-height: 2rem;
+}
+
+.bms-certificate,
+.bms-options,
+.bms-steps,
+.bms-benefits {
+  margin: 6rem auto 0;
+  max-width: 1440px;
+  width: 87.2%;
+}
+
+.bms-testimonials,
+.bms-partners {
+  margin: 6rem auto 0;
+  max-width: 1440px;
+  width: 91.9%;
+}
+
+.bms-certificate-content {
+  display: flex;
+  flex-direction: column;
+  justify-content: space-between;
+}
+
+.bms-certificate-title {
+  color: #000;
+  font-size: 2.2rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin-bottom: 1.5rem;
+}
+
+.bms-certificate-text {
+  color: #716d6b;
+  font-size: 1.2rem;
+  line-height: 2rem;
+  margin-bottom: 1.5rem;
+  max-width: 29rem;
+}
+
+.bms-certified {
+  align-items: flex-start;
+  display: flex;
+}
+
+.bms-certified img {
+  flex: 0 0 auto;
+  margin-top: 0.15rem;
+}
+
+.bms-certified p {
+  color: #000;
+  font-size: 1.5rem;
+  font-weight: 500;
+  line-height: 1.45;
+  margin-left: 0.8rem;
+}
+
+.bms-certificate-image {
+  display: grid;
+  margin-top: 2rem;
+  place-content: center;
+}
+
+.bms-certificate-image img {
+  width: 100%;
+}
+
+.bms-options-heading {
+  text-align: center;
+}
+
+.bms-options {
+  margin-top: 7.8rem;
+}
+
+.bms-options-title {
+  color: #000;
+  font-size: 2.2rem;
+  font-weight: 800;
+  line-height: 1.2;
+  margin-bottom: 2.2rem;
+}
+
+.bms-options-heading .bms-text {
+  margin: auto;
+}
+
+.bms-options-grid {
+  margin-top: 3rem;
+}
+
+.bms-option-card {
+  border: 0.2rem solid #d2d2d2;
+  border-radius: 1.3rem;
+  margin-bottom: 2rem;
+  padding: 2rem;
+  text-align: center;
+  width: 100%;
+}
+
+.bms-option-featured {
+  border-color: #079845;
+}
+
+.bms-option-icon {
+  display: block;
+  margin: 0 auto 2.2rem;
+}
+
+.bms-option-card h3 {
+  color: #1a1a1a;
+  font-size: 2rem;
+  font-weight: 600;
+  line-height: 3.5rem;
+  margin-bottom: 1.5rem;
+}
+
+.bms-option-card p {
+  color: #767676;
+  font-size: 1.1rem;
+  font-weight: 500;
+  line-height: 2rem;
+  margin-bottom: 1.7rem;
+}
+
+.bms-option-button {
+  align-items: center;
+  background: #079845;
+  border-radius: 2.7rem;
+  color: #fff;
+  display: flex;
+  font-size: 1.1rem;
+  font-weight: 700;
+  justify-content: center;
+  line-height: 2.2rem;
+  margin: auto;
+  padding: 0.4rem 2rem;
+  text-decoration: none;
+  width: fit-content;
+}
+
+.bms-steps {
+  display: grid;
+  gap: 3rem;
+}
+
+.bms-steps-copy h2,
+.bms-benefits-content h2,
+.bms-testimonials h2,
+.bms-partners h2 {
+  color: #1a1a1a;
+  font-size: 2.2rem;
+  font-weight: 600;
+  letter-spacing: -1.16px;
+  line-height: 1.15;
+  margin-bottom: 3rem;
+}
+
+.bms-steps-copy h2 {
+  max-width: 27rem;
+}
+
+.bms-steps-list {
+  display: grid;
+  gap: 1.7rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-steps-list li {
+  align-items: flex-start;
+  display: grid;
+  gap: 1.2rem;
+  grid-template-columns: auto 1fr;
+}
+
+.bms-steps-list > li > span {
+  align-items: center;
+  background: rgba(213, 231, 208, 0.5);
+  border-radius: 50%;
+  color: #079845;
+  display: inline-flex;
+  font-size: 1.2rem;
+  font-weight: 400;
+  height: 2.5rem;
+  justify-content: center;
+  width: 2.5rem;
+}
+
+.bms-steps-list h3 {
+  color: #1a1a1a;
+  font-size: 1.4rem;
+  font-weight: 700;
+  margin-bottom: 0.45rem;
+}
+
+.bms-steps-list p {
+  color: #767676;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 1.75rem;
+}
+
+.bms-benefits {
+  display: flex;
+}
+
+.bms-benefits-image {
+  display: none;
+}
+
+.bms-benefits-content {
+  width: 100%;
+}
+
+.bms-benefits-grid {
+  display: grid;
+  gap: 2rem;
+}
+
+.bms-benefit img {
+  height: 2rem;
+  margin-bottom: 1rem;
+  width: 2rem;
+}
+
+.bms-benefit p {
+  color: #767676;
+  font-size: 1rem;
+  font-weight: 500;
+  line-height: 2rem;
+}
+
+.bms-testimonials h2 {
+  letter-spacing: -1.6px;
+  line-height: 1.333;
+  text-align: left;
+}
+
+.bms-testimonials-grid {
+  display: grid;
+  gap: 1.5rem;
+}
+
+.bms-testimonial {
+  border: 1px solid #eeeeee;
+  border-radius: 1.5rem;
+  display: flex;
+  flex-direction: column;
+  padding: 2rem;
+}
+
+.bms-testimonial > p {
+  color: #767676;
+  flex: 1;
+  font-size: 1.05rem;
+  font-weight: 500;
+  line-height: 2rem;
+  margin-bottom: 2rem;
+}
+
+.bms-client {
+  align-items: center;
+  display: flex;
+  gap: 1rem;
+}
+
+.bms-client-avatar {
+  align-items: center;
+  background: rgba(213, 231, 208, 0.5);
+  border-radius: 50%;
+  display: inline-flex;
+  flex: 0 0 auto;
+  height: 48px;
+  justify-content: center;
+  width: 48px;
+}
+
+.bms-client strong,
+.bms-client span {
+  display: block;
+}
+
+.bms-client strong {
+  color: #1a1a1a;
+  font-size: 1.05rem;
+  font-weight: 700;
+}
+
+.bms-client span {
+  color: #767676;
+  font-size: 1rem;
+  font-weight: 500;
+}
+
+.bms-partners {
+  margin-bottom: 6rem;
+  padding: 0;
+}
+
+.bms-partners h2 {
+  letter-spacing: normal;
+  line-height: 6.2rem;
+}
+
+.bms-partners img {
+  display: block;
+}
+
+.bms-extra-partners {
+  background: rgba(213, 231, 208, 0.5);
+  border-radius: 0.75rem;
+  margin-top: 2rem;
+  padding: 15px;
+}
+
+.bms-extra-partners img {
+  display: block;
+}
+
+.bms-legal {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding-bottom: 5rem;
+  padding-top: 6rem;
+  width: 90%;
+}
+
+.bms-legal-title {
+  color: #000;
+  font-size: 4.375rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin-bottom: 3.75rem;
+}
+
+.bms-legal-heading {
+  color: #079845;
+  font-size: 2.5rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 1.875rem;
+  margin-top: 3rem;
+}
+
+.bms-legal-paragraph {
+  color: #767676;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.45;
+  margin-bottom: 1.8rem;
+  white-space: pre-line;
+}
+
+.bms-legal-strong {
+  color: #767676;
+  font-weight: 700;
+}
+
+.bms-legal--privacy,
+.bms-legal--cookie_policy {
+  padding-top: 3.5rem;
+}
+
+.bms-legal-list {
+  color: #767676;
+  font-size: 1.25rem;
+  line-height: 1.45;
+  list-style: disc outside;
+  margin-bottom: 1.8rem;
+  padding-left: 1.6rem;
+}
+
+.bms-legal-list-item {
+  margin-bottom: 0.45rem;
+  padding-left: 0.25rem;
+}
+
+.bms-legal-list-item:last-child {
+  margin-bottom: 0;
+}
+
+.bms-about {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding-bottom: 5rem;
+  padding-top: 5rem;
+  width: 90%;
+}
+
+.bms-about-title {
+  color: #000;
+  font-size: 4.375rem;
+  font-weight: 700;
+  letter-spacing: -1px;
+  line-height: 1.2;
+  margin-bottom: 3.75rem;
+}
+
+.bms-about-paragraph {
+  color: #767676;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.45;
+  margin: 0;
+}
+
+.bms-about-paragraph + .bms-about-paragraph {
+  margin-top: 1.25rem;
+}
+
+@media screen and (max-width: 768px) {
+  .bms-legal {
+    padding-top: 3rem;
+    width: 88%;
+  }
+
+  .bms-legal-title {
+    font-size: 2.75rem;
+    margin-bottom: 2rem;
+  }
+
+  .bms-legal-heading {
+    font-size: 1.75rem;
+    margin-top: 2.25rem;
+  }
+
+  .bms-legal-paragraph,
+  .bms-legal-list {
+    font-size: 1.125rem;
+  }
+
+  .bms-about {
+    padding-top: 2.75rem;
+    width: 88%;
+  }
+
+  .bms-about-title {
+    font-size: 2.875rem;
+    margin-bottom: 2rem;
+  }
+
+  .bms-about-paragraph {
+    font-size: 1.125rem;
+  }
+}
+
+.bms-auth-page {
+  align-items: start;
+  background: #d5e7d0;
+  display: grid;
+  gap: 5rem;
+  grid-template-columns: minmax(260px, 540px) minmax(320px, 566px);
+  justify-content: center;
+  min-height: 100vh;
+  padding: 9rem 2rem 2rem;
+}
+
+.bms-auth-logo {
+  cursor: pointer;
+  display: block;
+  margin-bottom: 5.3rem;
+  width: 122px;
+}
+
+.bms-auth-logo img {
+  display: block;
+  height: auto;
+  width: 100%;
+}
+
+.bms-auth-logo:focus-visible {
+  border-radius: 6px;
+  outline: 2px solid #079845;
+  outline-offset: 4px;
+}
+
+.bms-auth-intro h1 {
+  color: #079845;
+  font-size: 3.6rem;
+  font-weight: 600;
+  line-height: 1.25;
+  margin: 0 0 1.5rem;
+  max-width: 28rem;
+}
+
+.bms-auth-intro p {
+  color: #767676;
+  font-size: 1.3rem;
+  margin: 0;
+}
+
+.bms-auth-card {
+  background: #fff;
+  border-radius: 16px;
+  padding: 3rem 3.2rem;
+  width: 100%;
+}
+
+.bms-auth-tabs {
+  border: 2px solid #079845;
+  border-radius: 999px;
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  margin-bottom: 2.5rem;
+  overflow: hidden;
+  position: relative;
+}
+
+.bms-auth-tabs-pill {
+  background: #079845;
+  bottom: 0;
+  left: 0;
+  position: absolute;
+  top: 0;
+  transition: transform 300ms ease-in-out;
+  width: 50%;
+  z-index: 0;
+}
+
+.bms-auth-tabs-pill.is-right {
+  transform: translateX(100%);
+}
+
+.bms-auth-tab {
+  color: #079845;
+  font-size: 1.2rem;
+  padding: 0.75rem 1rem;
+  position: relative;
+  text-align: center;
+  text-decoration: none;
+  transition: color 300ms ease-in-out;
+  z-index: 1;
+}
+
+.bms-auth-tab.active {
+  color: #1a1a1a;
+}
+
+@keyframes authFadeIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.bms-auth-form-anim {
+  animation: authFadeIn 240ms ease-out;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .bms-auth-tabs-pill,
+  .bms-auth-tab {
+    transition: none;
+  }
+
+  .bms-auth-form-anim {
+    animation: none;
+  }
+}
+
+.bms-auth-label {
+  color: #000;
+  display: block;
+  font-size: 0.9rem;
+  font-weight: 700;
+  margin-bottom: 1.65rem;
+  text-transform: uppercase;
+}
+
+.bms-auth-input-wrap {
+  align-items: center;
+  border: 1px solid #767676;
+  border-radius: 6px;
+  display: flex;
+  margin-top: 0.55rem;
+  min-height: 44px;
+  padding-right: 0.75rem;
+}
+
+.bms-auth-field {
+  background: #fff;
+  border: 1px solid #767676;
+  border-radius: 6px;
+  color: #1a1a1a;
+  display: block;
+  font-size: 0.875rem;
+  height: 44px;
+  margin-top: 0.55rem;
+  width: 100%;
+}
+
+.bms-auth-input-wrap .bms-auth-field {
+  border: 0;
+  margin-top: 0;
+}
+
+.bms-auth-input-wrap svg {
+  color: #666;
+  flex: 0 0 auto;
+}
+
+.bms-auth-select {
+  margin-bottom: 1.65rem;
+  position: relative;
+}
+
+.bms-auth-select .bms-auth-label {
+  margin-bottom: 0.55rem;
+}
+
+.bms-auth-select-trigger {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #767676;
+  border-radius: 6px;
+  color: #1a1a1a;
+  cursor: pointer;
+  display: flex;
+  font-size: 0.875rem;
+  height: 44px;
+  justify-content: space-between;
+  padding: 0 0.75rem;
+  text-align: left;
+  width: 100%;
+}
+
+.bms-auth-select-trigger:focus-visible {
+  outline: 2px solid #079845;
+  outline-offset: 2px;
+}
+
+.bms-auth-select-placeholder {
+  color: #767676;
+}
+
+.bms-auth-select-chevron {
+  color: #666;
+  flex: 0 0 auto;
+  transition: transform 0.15s ease;
+}
+
+.bms-auth-select-menu {
+  background: #fff;
+  border: 1px solid #d6d6d6;
+  border-radius: 6px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  left: 0;
+  list-style: none;
+  margin: 4px 0 0;
+  max-height: 260px;
+  overflow-y: auto;
+  padding: 0;
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 60;
+}
+
+.bms-auth-select-option {
+  color: #1a1a1a;
+  cursor: pointer;
+  font-size: 0.875rem;
+  font-weight: 400;
+  line-height: 1.4;
+  padding: 0.65rem 1rem;
+}
+
+.bms-auth-select-option.is-active,
+.bms-auth-select-option.is-selected {
+  background: #f0f0f0;
+}
+
+.bms-auth-help {
+  color: #1a1a1a;
+  font-size: 1.05rem;
+  margin: -0.8rem 0 1.85rem;
+}
+
+.bms-auth-terms {
+  align-items: center;
+  color: #1a1a1a;
+  display: flex;
+  gap: 0.75rem;
+  margin: 1.7rem 0;
+}
+
+.bms-auth-terms input {
+  height: 20px;
+  width: 20px;
+}
+
+.bms-auth-terms a,
+.bms-auth-forgot {
+  color: #767676;
+  text-decoration: underline;
+}
+
+.bms-auth-submit {
+  background: #079845;
+  border: 0;
+  border-radius: 8px;
+  color: #fff;
+  font-size: 1.3rem;
+  font-weight: 600;
+  min-height: 50px;
+  width: 100%;
+}
+
+.bms-auth-submit-login {
+  margin-top: 3.25rem;
+}
+
+.bms-auth-forgot {
+  display: inline-block;
+  font-size: 1.1rem;
+  margin-top: 2.8rem;
+}
+
+.bms-auth-error {
+  color: #9f1d1d;
+  display: block;
+  font-size: 0.9rem;
+  margin-top: 0.35rem;
+  text-transform: none;
+}
+
+.bms-auth-status {
+  background: #eaf3e7;
+  border-radius: 8px;
+  color: #1a1a1a;
+  font-weight: 600;
+  margin-top: 1.5rem;
+  padding: 1rem;
+}
+
+.bms-contact {
+  display: grid;
+  gap: 3rem;
+  grid-template-columns: 1fr;
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 2.75rem 0 4rem;
+  width: 88%;
+}
+
+.bms-contact h1 {
+  color: #000;
+  font-size: 2.875rem;
+  font-weight: 700;
+  line-height: 1.15;
+  margin: 0;
+}
+
+.bms-contact-intro p {
+  color: #000;
+  font-size: 1.25rem;
+  line-height: 1.35;
+  margin: 2.5rem 0 0;
+  max-width: 27.5rem;
+}
+
+.bms-contact-follow {
+  margin-top: 2.5rem;
+}
+
+.bms-contact-follow h2 {
+  color: #1a1a1a;
+  font-size: 1.25rem;
+  font-weight: 400;
+  line-height: 1.2;
+  margin-bottom: 1.25rem;
+}
+
+.bms-contact-follow a {
+  display: inline-flex;
+}
+
+.bms-contact label {
+  color: #767676;
+  display: block;
+  font-size: 1.25rem;
+  font-weight: 700;
+  line-height: 1.28;
+  margin-bottom: 1rem;
+}
+
+.bms-contact input,
+.bms-contact textarea {
+  border: 1px solid #c8c8c8;
+  border-radius: 3px;
+  color: #222;
+  font-size: 1rem;
+  padding: 0.3rem 0.75rem;
+  width: 100%;
+}
+
+.bms-contact textarea {
+  height: 7.2rem;
+  line-height: 1.6;
+  resize: vertical;
+}
+
+.bms-contact input::placeholder,
+.bms-contact textarea::placeholder {
+  color: #757575;
+  font-family: Georgia, Cambria, "Times New Roman", Times, serif;
+  font-style: italic;
+}
+
+.bms-contact input:focus,
+.bms-contact textarea:focus {
+  border-color: #079845;
+  outline: none;
+}
+
+.bms-contact-name {
+  display: grid;
+  gap: 1.6rem;
+  grid-template-columns: 1fr 1fr;
+}
+
+.bms-contact button {
+  align-items: center;
+  background: #079845;
+  border: 0;
+  border-radius: 9999px;
+  color: #fff;
+  cursor: pointer;
+  display: inline-flex;
+  font-size: 1.125rem;
+  font-weight: 500;
+  gap: 0.5rem;
+  justify-content: center;
+  margin-top: 2.5rem;
+  min-width: 8.25rem;
+  padding: 0.6rem 1.4rem;
+  transition: background-color 0.2s ease;
+}
+
+.bms-contact button:hover {
+  background: #057a38;
+}
+
+.bms-contact button:focus-visible {
+  outline: 2px solid #079845;
+  outline-offset: 3px;
+}
+
+.bms-contact button:disabled {
+  cursor: not-allowed;
+  opacity: 0.7;
+}
+
+@media screen and (min-width: 800px) {
+  .bms-hero {
+    align-items: start;
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .bms-hero-visual {
+    justify-self: start;
+    margin-left: -1rem;
+    margin-top: 0;
+    transform: translateY(2.9rem);
+  }
+
+  .bms-hero-title {
+    font-size: 4rem;
+    line-height: 4rem;
+  }
+
+  .bms-hero-text {
+    font-size: 1.5rem;
+    line-height: 1.9rem;
+  }
+
+  .bms-home-programmes .bms-program-card {
+    flex: 0 0 45%;
+  }
+
+  .bms-certificate {
+    display: flex;
+    justify-content: space-between;
+  }
+
+  .bms-certificate-content {
+    flex-basis: 50%;
+  }
+
+  .bms-certificate-image {
+    flex-basis: 40%;
+    margin-top: 0;
+    max-width: 40rem;
+  }
+
+  .bms-options-heading .bms-text {
+    max-width: 70%;
+  }
+
+  .bms-options-grid {
+    display: flex;
+  }
+
+  .bms-option-card:not(:last-child) {
+    margin-right: 2rem;
+  }
+
+  .bms-steps {
+    grid-template-columns: 0.9fr 1.1fr;
+  }
+
+  .bms-benefits {
+    margin-top: 6rem;
+  }
+
+  .bms-benefits-grid {
+    column-gap: 0;
+    grid-template-columns: 45% 45%;
+    justify-content: space-between;
+    row-gap: 2rem;
+  }
+
+  .bms-testimonials-grid {
+    grid-template-columns: repeat(3, minmax(0, 1fr));
+  }
+}
+
+@media screen and (min-width: 900px) {
+  .bms-card-title {
+    font-size: 1.56rem;
+    line-height: 1.8rem;
+    padding: 0 1rem;
+  }
+
+  .bms-card-body {
+    padding: 2rem 3rem 0;
+  }
+
+  .bms-section-title {
+    font-size: 3.5rem;
+  }
+
+  .bms-home-programmes .bms-section-title {
+    font-size: 4rem;
+  }
+
+  .bms-partners h2 {
+    font-size: 2.2rem;
+  }
+
+  .bms-steps-copy h2,
+  .bms-benefits-content h2 {
+    font-size: 2.2rem;
+    line-height: 1.2;
+  }
+
+  .bms-contact {
+    align-items: start;
+    column-gap: 0;
+    grid-template-columns: 1fr 1fr;
+    padding-bottom: 5rem;
+    padding-top: 5rem;
+    width: 90%;
+  }
+
+  .bms-contact h1 {
+    font-size: 4.3rem;
+    line-height: 1.2;
+    max-width: 18.75rem;
+  }
+
+  .bms-contact-intro p {
+    font-size: 1.5rem;
+    line-height: 1.3;
+    margin-top: 6rem;
+  }
+
+  .bms-contact-follow {
+    margin-top: 4rem;
+  }
+
+  .bms-contact form {
+    padding-top: 3.5rem;
+  }
+
+  .bms-contact button {
+    margin-top: 4.5rem;
+  }
+}
+
+@media screen and (min-width: 1200px) {
+  .bms-benefits-image {
+    display: block;
+    flex-basis: 50%;
+  }
+
+  .bms-benefits-image img {
+    width: 80%;
+  }
+
+  .bms-benefits-content {
+    flex-basis: 50%;
+  }
+
+  .bms-benefits-content .bms-section-eyebrow {
+    font-size: 1.5rem;
+    line-height: 1rem;
+  }
+
+  .bms-partners {
+    margin-bottom: 10rem;
+    margin-top: 10.25rem;
+  }
+
+  .bms-partners > img:not(.bms-extra-partners) {
+    max-width: 100rem;
+    width: 100%;
+  }
+}
+
+@media screen and (min-width: 1400px) {
+  .bms-hero {
+    margin-top: 5.5rem;
+  }
+}
+
+@media screen and (min-width: 1495px) {
+  .bms-hero-actions {
+    margin-left: -20px;
+  }
+}
+
+@media screen and (max-width: 860px) {
+  .bms-auth-page {
+    grid-template-columns: 1fr;
+    padding: 2rem 1rem;
+  }
+
+  .bms-auth-logo {
+    margin-bottom: 2rem;
+  }
+
+  .bms-auth-intro h1 {
+    font-size: 3rem;
+  }
+
+  .bms-auth-card {
+    padding: 2rem 1.5rem;
+  }
+
+  .bms-contact-name {
+    grid-template-columns: 1fr;
+  }
+}

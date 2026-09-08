@@ -174,10 +174,12 @@ export default function ProgrammeDetailPage() {
     return (
       <>
         <Header />
-        <main className="py-20">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-500 mb-4">{error || "Programme not found."}</p>
-            <Link href="/programs" className="text-[var(--bms-green)] hover:underline">← Back to programmes</Link>
+        <main id="main" className="py-20">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <p className="mb-4 text-brand-muted">{error || "Programme not found."}</p>
+            <Link href="/programs" className="font-semibold text-brand-green hover:underline">
+              ← Back to programmes
+            </Link>
           </div>
         </main>
         <Footer />
@@ -203,29 +205,29 @@ export default function ProgrammeDetailPage() {
   return (
     <>
       <Header />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main id="main">
+        <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-8">
           <Link
             href={enrolled ? "/dashboard/my-programmes" : "/programs"}
-            className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block"
+            className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green"
           >
             ← {enrolled ? "Back to my programmes" : "Back to programmes"}
           </Link>
 
           {error && (
-            <div className="mb-6 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
+            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
           )}
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-10 lg:grid-cols-3">
             {/* Left: Title + courses */}
             <div className="lg:col-span-2">
-              <p className="text-sm text-gray-500 mb-2">{programme.code} | {programme.project}</p>
-              <h1 className="text-4xl font-bold mb-6 leading-tight" style={{ color: "var(--bms-dark)" }}>
+              <p className="mb-3 text-lg font-bold text-brand-green">{programme.code} | {programme.project}</p>
+              <h1 className="mb-6 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
                 {programme.title}
               </h1>
 
               {programme.description && (
-                <p className="text-gray-600 mb-8">{programme.description}</p>
+                <p className="mb-8 text-lg leading-8 text-brand-muted">{programme.description}</p>
               )}
 
               {/* Journey / passed box */}

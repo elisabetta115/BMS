@@ -3,9 +3,11 @@
 import Link from "next/link";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
+import { Eye, EyeOff, Mail, User } from "lucide-react";
+import { AuthShell, AuthField } from "@/components/auth/AuthShell";
 
 const COUNTRIES = [
-  "", "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia",
+  "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia",
   "Austria", "Azerbaijan", "Bahamas", "Bahrain", "Bangladesh", "Barbados", "Belarus", "Belgium",
   "Belize", "Benin", "Bhutan", "Bolivia", "Bosnia and Herzegovina", "Botswana", "Brazil", "Brunei",
   "Bulgaria", "Burkina Faso", "Burundi", "Cambodia", "Cameroon", "Canada", "Chad", "Chile", "China",
@@ -63,15 +65,12 @@ export default function RegisterPage() {
           country: form.country || undefined,
         }),
       });
-
       const data = await res.json();
-
       if (!res.ok) {
         setError(data.error || "Registration failed.");
         setLoading(false);
         return;
       }
-
       router.push("/dashboard");
     } catch {
       setError("Network error. Please try again.");
@@ -81,83 +80,110 @@ export default function RegisterPage() {
 
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
-    if (fieldErrors[field]) setFieldErrors((prev) => { const n = { ...prev }; delete n[field]; return n; });
+    if (fieldErrors[field]) {
+      setFieldErrors((prev) => {
+        const n = { ...prev };
+        delete n[field];
+        return n;
+      });
+    }
   }
 
   return (
-    <div
-      className="min-h-screen flex flex-col items-center justify-center px-4 py-12"
-      style={{ background: "linear-gradient(135deg, #f0faf5 0%, #e6f5ee 50%, #dff0e8 100%)" }}
-    >
-      <div className="mb-8">
-        <Link href="/" className="inline-flex items-center gap-2">
-          <img
-            src="/images/logo.png"
-            alt="BoostMySkills"
-            className="h-10"
-            onError={(e) => {
-              const target = e.target as HTMLImageElement;
-              target.style.display = "none";
-              if (target.parentElement) {
-                target.parentElement.innerHTML =
-                  '<span style="color:#1a8a5c;font-weight:700;font-size:1.5rem;">BoostMySkills</span>';
-              }
-            }}
-          />
-        </Link>
-      </div>
+    <AuthShell active="register">
+      <form className="bms-auth-form-anim" onSubmit={handleSubmit} noValidate>
+        <AuthField
+          label="Full name"
+          type="text"
+          placeholder="Your full name"
+          value={form.name}
+          onChange={(e) => update("name", e.target.value)}
+          autoComplete="name"
+          required
+          error={fieldErrors.name}
+          icon={<User aria-hidden="true" size={22} />}
+        />
+        <p className="bms-auth-help">This is the name that will appear on your certificate.</p>
 
-      <div className="w-full max-w-md bg-white rounded-2xl shadow-lg p-8 sm:p-10">
-        <h1 className="text-2xl font-bold mb-1" style={{ color: "var(--bms-dark)" }}>Register</h1>
-        <p className="text-gray-500 text-sm mb-6">
-          Already have an account?{" "}
-          <Link href="/login" className="font-semibold" style={{ color: "var(--bms-green)" }}>Sign in</Link>
-        </p>
+        <AuthField
+          label="Email"
+          type="email"
+          placeholder="you@example.com"
+          value={form.email}
+          onChange={(e) => update("email", e.target.value)}
+          autoComplete="email"
+          required
+          error={fieldErrors.email}
+          icon={<Mail aria-hidden="true" size={22} />}
+        />
 
-        {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{error}</div>
-        )}
+        <AuthField
+          label="Password"
+          type={showPassword ? "text" : "password"}
+          placeholder="Min 8 chars, upper, lower, number"
+          value={form.password}
+          onChange={(e) => update("password", e.target.value)}
+          autoComplete="new-password"
+          required
+          error={fieldErrors.password}
+          icon={
+            <button
+              type="button"
+              onClick={() => setShowPassword((v) => !v)}
+              aria-label={showPassword ? "Hide password" : "Show password"}
+              style={{ background: "none", border: 0, display: "inline-flex", color: "#666", cursor: "pointer" }}
+            >
+              {showPassword ? <EyeOff aria-hidden="true" size={22} /> : <Eye aria-hidden="true" size={22} />}
+            </button>
+          }
+        />
 
-        <form onSubmit={handleSubmit} className="space-y-4" noValidate>
-          <div>
-            <label htmlFor="name" className="block text-sm font-medium text-gray-700 mb-1.5">Full name</label>
-            <input id="name" type="text" className={`auth-input ${fieldErrors.name ? "error" : ""}`} placeholder="Your full name" value={form.name} onChange={(e) => update("name", e.target.value)} autoComplete="name" required />
-            {fieldErrors.name && <p className="text-red-500 text-xs mt-1">{fieldErrors.name}</p>}
-          </div>
-          <div>
-            <label htmlFor="reg-email" className="block text-sm font-medium text-gray-700 mb-1.5">Email</label>
-            <input id="reg-email" type="email" className={`auth-input ${fieldErrors.email ? "error" : ""}`} placeholder="you@example.com" value={form.email} onChange={(e) => update("email", e.target.value)} autoComplete="email" required />
-            {fieldErrors.email && <p className="text-red-500 text-xs mt-1">{fieldErrors.email}</p>}
-          </div>
-          <div>
-            <label htmlFor="reg-password" className="block text-sm font-medium text-gray-700 mb-1.5">Password</label>
-            <div className="relative">
-              <input id="reg-password" type={showPassword ? "text" : "password"} className={`auth-input pr-12 ${fieldErrors.password ? "error" : ""}`} placeholder="Min 8 chars, upper, lower, number" value={form.password} onChange={(e) => update("password", e.target.value)} autoComplete="new-password" required />
-              <button type="button" onClick={() => setShowPassword(!showPassword)} className="absolute right-3 top-1/2 -translate-y-1/2 text-gray-400 hover:text-gray-600 text-xs font-medium">{showPassword ? "Hide" : "Show"}</button>
-            </div>
-            {fieldErrors.password && <p className="text-red-500 text-xs mt-1">{fieldErrors.password}</p>}
-          </div>
-          <div>
-            <label htmlFor="confirm-password" className="block text-sm font-medium text-gray-700 mb-1.5">Confirm password</label>
-            <input id="confirm-password" type="password" className={`auth-input ${fieldErrors.confirmPassword ? "error" : ""}`} placeholder="Repeat your password" value={form.confirmPassword} onChange={(e) => update("confirmPassword", e.target.value)} autoComplete="new-password" required />
-            {fieldErrors.confirmPassword && <p className="text-red-500 text-xs mt-1">{fieldErrors.confirmPassword}</p>}
-          </div>
-          <div>
-            <label htmlFor="country" className="block text-sm font-medium text-gray-700 mb-1.5">Country / Region <span className="text-gray-400">(optional)</span></label>
-            <select id="country" className="auth-input" value={form.country} onChange={(e) => update("country", e.target.value)}>
+        <AuthField
+          label="Confirm password"
+          type="password"
+          placeholder="Repeat your password"
+          value={form.confirmPassword}
+          onChange={(e) => update("confirmPassword", e.target.value)}
+          autoComplete="new-password"
+          required
+          error={fieldErrors.confirmPassword}
+        />
+
+        <label className="bms-auth-label">
+          Country / Region (optional)
+          <span className="bms-auth-input-wrap">
+            <select
+              className="bms-auth-field"
+              value={form.country}
+              onChange={(e) => update("country", e.target.value)}
+            >
               <option value="">Select your country</option>
-              {COUNTRIES.filter(Boolean).map((c) => (<option key={c} value={c}>{c}</option>))}
+              {COUNTRIES.map((c) => (
+                <option key={c} value={c}>
+                  {c}
+                </option>
+              ))}
             </select>
-          </div>
-          <button type="submit" className="auth-btn" disabled={loading}>{loading ? "Creating account…" : "Create account"}</button>
-        </form>
+          </span>
+        </label>
 
-        <p className="text-center text-xs text-gray-400 mt-6">
-          By registering, you agree to our{" "}
-          <Link href="/tos" className="underline">Terms</Link> and{" "}
-          <Link href="/privacy" className="underline">Privacy Policy</Link>.
-        </p>
-      </div>
-    </div>
+        <label className="bms-auth-terms">
+          <span>
+            By creating an account you agree to our{" "}
+            <Link href="/tos">Terms and Conditions</Link> and <Link href="/privacy">Privacy Policy</Link>.
+          </span>
+        </label>
+
+        {error && <span className="bms-auth-error">{error}</span>}
+
+        <button type="submit" className="bms-auth-submit" disabled={loading}>
+          {loading ? "Creating account…" : "Create an account for free"}
+        </button>
+
+        <Link className="bms-auth-forgot" href="/login">
+          Already have an account? Sign in
+        </Link>
+      </form>
+    </AuthShell>
   );
 }

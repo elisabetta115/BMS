@@ -140,9 +140,9 @@ export default function DashboardCredentialPage() {
     return (
       <>
         <Header />
-        <main className="py-20">
+        <main id="main" className="py-20">
           <div className="flex justify-center">
-            <div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
+            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" />
           </div>
         </main>
       </>
@@ -153,10 +153,10 @@ export default function DashboardCredentialPage() {
     return (
       <>
         <Header />
-        <main className="py-20">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-500 mb-4">{error || "Micro-credential not found."}</p>
-            <Link href="/dashboard/my-credentials" className="text-[var(--bms-green)] hover:underline">← Back to my micro-credentials</Link>
+        <main id="main" className="py-20">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <p className="mb-4 text-brand-muted">{error || "Micro-credential not found."}</p>
+            <Link href="/dashboard/my-credentials" className="font-semibold text-brand-green hover:underline">← Back to my micro-credentials</Link>
           </div>
         </main>
       </>
@@ -167,9 +167,9 @@ export default function DashboardCredentialPage() {
     return (
       <>
         <Header />
-        <main className="py-12">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/courses" className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block">← Back to micro-credentials</Link>
+        <main id="main">
+          <div className="mx-auto max-w-3xl px-6 py-12 lg:px-8">
+            <Link href="/courses" className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green">← Back to micro-credentials</Link>
             <div className="bg-white rounded-2xl border border-gray-200 p-8 text-center">
               <p className="text-gray-600 mb-4">You are not enrolled in this micro-credential.</p>
               <Link
@@ -201,22 +201,22 @@ export default function DashboardCredentialPage() {
   return (
     <>
       <Header />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Link href="/dashboard/my-credentials" className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block">
+      <main id="main">
+        <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-8">
+          <Link href="/dashboard/my-credentials" className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green">
             ← Back to my micro-credentials
           </Link>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-10 lg:grid-cols-3">
             {/* Left: content */}
             <div className="lg:col-span-2">
-              <p className="text-sm text-gray-500 mb-2">{credential.code} | {credential.project}</p>
-              <h1 className="text-4xl font-bold mb-6 leading-tight" style={{ color: "var(--bms-dark)" }}>
+              <p className="mb-3 text-lg font-bold text-brand-green">{credential.code} | {credential.project}</p>
+              <h1 className="mb-6 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
                 {credential.title}
               </h1>
 
               {credential.description && (
-                <p className="text-gray-600 mb-8">{credential.description}</p>
+                <p className="mb-8 text-lg leading-8 text-brand-muted">{credential.description}</p>
               )}
 
               {/* Journey box */}

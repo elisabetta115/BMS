@@ -3,8 +3,10 @@
 import Link from "next/link";
 import { useState, useEffect, useRef } from "react";
 import { useRouter } from "next/navigation";
+import { ChevronDown, Menu, X, User } from "lucide-react";
+import { cn } from "@/lib/utils/cn";
 
-interface User {
+interface SessionUser {
   userId: string;
   name: string;
   email: string;
@@ -13,7 +15,7 @@ interface User {
 
 export default function Header() {
   const router = useRouter();
-  const [user, setUser] = useState<User | null>(null);
+  const [user, setUser] = useState<SessionUser | null>(null);
   const [catalogueOpen, setCatalogueOpen] = useState(false);
   const [myCoursesOpen, setMyCoursesOpen] = useState(false);
   const [userMenuOpen, setUserMenuOpen] = useState(false);
@@ -40,8 +42,19 @@ export default function Header() {
       if (myCoursesRef.current && !myCoursesRef.current.contains(e.target as Node)) setMyCoursesOpen(false);
       if (userMenuRef.current && !userMenuRef.current.contains(e.target as Node)) setUserMenuOpen(false);
     }
+    function handleKey(e: KeyboardEvent) {
+      if (e.key === "Escape") {
+        setCatalogueOpen(false);
+        setMyCoursesOpen(false);
+        setUserMenuOpen(false);
+      }
+    }
     document.addEventListener("mousedown", handleClickOutside);
-    return () => document.removeEventListener("mousedown", handleClickOutside);
+    document.addEventListener("keydown", handleKey);
+    return () => {
+      document.removeEventListener("mousedown", handleClickOutside);
+      document.removeEventListener("keydown", handleKey);
+    };
   }, []);
 
   async function handleLogout() {
@@ -51,234 +64,224 @@ export default function Header() {
     router.push("/");
   }
 
-  const chevron = (open: boolean) => (
-    <svg
-      width="10"
-      height="6"
-      viewBox="0 0 10 6"
-      fill="none"
-      className={`transition-transform ${open ? "rotate-180" : ""}`}
-    >
-      <path d="M1 1l4 4 4-4" stroke="currentColor" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round" />
-    </svg>
-  );
+  const triggerClass =
+    "inline-flex items-center gap-1.5 text-base font-semibold leading-[1.2] text-brand-dark transition-colors hover:text-brand-green";
+  const menuPanelClass =
+    "absolute left-0 top-full mt-3 z-50 min-w-56 rounded-lg bg-white py-3 shadow-soft border border-brand-line";
+  const menuLinkClass =
+    "block px-5 py-3 text-sm font-medium text-brand-dark transition-colors hover:bg-brand-pale hover:text-brand-green";
 
   return (
-    <header className="sticky top-0 z-50 bg-white border-b border-gray-200">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-center justify-between h-16">
-          {/* Left side: Logo + Nav */}
-          <div className="flex items-center gap-6">
-            <Link href={user ? "/dashboard" : "/"} className="flex items-center">
-              <img
-                src="/images/logo.png"
-                alt="BoostMySkills"
-                className="h-8"
-                onError={(e) => {
-                  const target = e.target as HTMLImageElement;
-                  target.style.display = "none";
-                  target.parentElement!.innerHTML =
-                    '<span style="color:#1a8a5c;font-weight:700;font-size:1.15rem;">BoostMySkills</span>';
-                }}
-              />
-            </Link>
+    <header className="sticky top-0 z-50 border-b border-brand-line bg-white">
+      <div className="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-4 lg:px-8">
+        {/* Left: logo + desktop nav */}
+        <div className="flex items-center gap-10">
+          <Link href={user ? "/dashboard" : "/"} aria-label="BoostMySkills home" className="shrink-0">
+            <img
+              src="/logos/boostmyskills-logo.png"
+              alt="BoostMySkills"
+              className="h-12 w-auto"
+              onError={(e) => {
+                const target = e.target as HTMLImageElement;
+                target.style.display = "none";
+                if (target.parentElement) {
+                  target.parentElement.innerHTML =
+                    '<span style="color:#079845;font-weight:800;font-size:1.15rem;">BoostMySkills</span>';
+                }
+              }}
+            />
+          </Link>
 
-            <nav className="hidden md:flex items-center gap-5">
-              {/* My courses dropdown — only for logged-in users */}
-              {user && (
-                <div className="relative" ref={myCoursesRef}>
-                  <button
-                    onClick={() => { setMyCoursesOpen(!myCoursesOpen); setCatalogueOpen(false); }}
-                    className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] transition-colors"
-                  >
-                    My courses
-                    {chevron(myCoursesOpen)}
-                  </button>
-                  {myCoursesOpen && (
-                    <div className="absolute top-full left-0 mt-3 bg-white rounded-lg shadow-xl border py-1 min-w-[220px]">
-                      <Link
-                        href="/dashboard/my-programmes"
-                        className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setMyCoursesOpen(false)}
-                      >
-                        My Micro-programmes
-                      </Link>
-                      <Link
-                        href="/dashboard/my-credentials"
-                        className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setMyCoursesOpen(false)}
-                      >
-                        My Micro-credentials
-                      </Link>
-                    </div>
-                  )}
+          <nav className="hidden items-center gap-7 lg:flex">
+            {user && (
+              <div className="relative" ref={myCoursesRef}>
+                <button
+                  type="button"
+                  onClick={() => {
+                    setMyCoursesOpen((v) => !v);
+                    setCatalogueOpen(false);
+                  }}
+                  className={triggerClass}
+                  aria-expanded={myCoursesOpen}
+                  aria-haspopup="menu"
+                >
+                  My courses
+                  <ChevronDown size={18} strokeWidth={2.5} className={cn("transition-transform", myCoursesOpen && "rotate-180")} />
+                </button>
+                {myCoursesOpen && (
+                  <div className={menuPanelClass} role="menu">
+                    <Link href="/dashboard/my-programmes" className={menuLinkClass} onClick={() => setMyCoursesOpen(false)}>
+                      My Micro-programmes
+                    </Link>
+                    <Link href="/dashboard/my-credentials" className={menuLinkClass} onClick={() => setMyCoursesOpen(false)}>
+                      My Micro-credentials
+                    </Link>
+                  </div>
+                )}
+              </div>
+            )}
+
+            <div className="relative" ref={catalogueRef}>
+              <button
+                type="button"
+                onClick={() => {
+                  setCatalogueOpen((v) => !v);
+                  setMyCoursesOpen(false);
+                }}
+                className={triggerClass}
+                aria-expanded={catalogueOpen}
+                aria-haspopup="menu"
+              >
+                Catalogue
+                <ChevronDown size={18} strokeWidth={2.5} className={cn("transition-transform", catalogueOpen && "rotate-180")} />
+              </button>
+              {catalogueOpen && (
+                <div className={menuPanelClass} role="menu">
+                  <Link href="/programs" className={menuLinkClass} onClick={() => setCatalogueOpen(false)}>
+                    Micro-programmes
+                  </Link>
+                  <Link href="/courses" className={menuLinkClass} onClick={() => setCatalogueOpen(false)}>
+                    Micro-credentials
+                  </Link>
                 </div>
               )}
+            </div>
 
-              {/* Catalogue dropdown */}
-              <div className="relative" ref={catalogueRef}>
-                <button
-                  onClick={() => { setCatalogueOpen(!catalogueOpen); setMyCoursesOpen(false); }}
-                  className="flex items-center gap-1.5 text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] transition-colors"
-                >
-                  Catalogue
-                  {chevron(catalogueOpen)}
-                </button>
-                {catalogueOpen && (
-                  <div className="absolute top-full left-0 mt-3 bg-white rounded-lg shadow-xl border py-1 min-w-[200px]">
-                    <Link
-                      href="/programs"
-                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      onClick={() => setCatalogueOpen(false)}
-                    >
-                      Micro-programmes
-                    </Link>
-                    <Link
-                      href="/courses"
-                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      onClick={() => setCatalogueOpen(false)}
-                    >
-                      Micro-credentials
-                    </Link>
-                  </div>
-                )}
-              </div>
-            </nav>
-          </div>
-
-          {/* Right side */}
-          <div className="hidden md:flex items-center gap-4">
-            {loading ? (
-              <div className="w-20 h-8" />
-            ) : user ? (
-              <div className="relative" ref={userMenuRef}>
-                <button
-                  onClick={() => setUserMenuOpen(!userMenuOpen)}
-                  className="flex items-center gap-2 text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] transition-colors"
-                >
-                  <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor">
-                    <path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" />
-                  </svg>
-                  {user.name}
-                  {chevron(userMenuOpen)}
-                </button>
-                {userMenuOpen && (
-                  <div className="absolute top-full right-0 mt-3 bg-white rounded-lg shadow-xl border py-1 min-w-[180px]">
-                    <Link
-                      href="/dashboard"
-                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      Dashboard
-                    </Link>
-                    <Link
-                      href="/dashboard/profile"
-                      className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                      onClick={() => setUserMenuOpen(false)}
-                    >
-                      My Profile
-                    </Link>
-                    {user.role === "ADMIN" && (
-                      <Link
-                        href="/admin"
-                        className="block px-4 py-2.5 text-sm text-gray-700 hover:bg-gray-50 transition-colors"
-                        onClick={() => setUserMenuOpen(false)}
-                      >
-                        Admin Panel
-                      </Link>
-                    )}
-                    <hr className="my-1 border-gray-100" />
-                    <button
-                      onClick={handleLogout}
-                      className="block w-full text-left px-4 py-2.5 text-sm text-red-600 hover:bg-gray-50 transition-colors"
-                    >
-                      Sign out
-                    </button>
-                  </div>
-                )}
-              </div>
-            ) : (
-              <>
-                <Link
-                  href="/register"
-                  className="text-sm font-medium px-5 py-2 rounded-full border transition-colors"
-                  style={{ borderColor: "var(--bms-green)", color: "var(--bms-green)" }}
-                >
-                  Register for free
-                </Link>
-                <Link
-                  href="/login"
-                  className="text-sm font-medium px-5 py-2 rounded-full text-white transition-colors"
-                  style={{ background: "var(--bms-green)" }}
-                >
-                  Sign in
-                </Link>
-              </>
-            )}
-          </div>
-
-          {/* Mobile hamburger */}
-          <button className="md:hidden p-2 text-gray-700" onClick={() => setMobileOpen(!mobileOpen)}>
-            <svg width="24" height="24" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2">
-              {mobileOpen ? <path d="M6 6l12 12M6 18L18 6" /> : <path d="M3 6h18M3 12h18M3 18h18" />}
-            </svg>
-          </button>
+            <Link href="/about" className={triggerClass}>
+              About us
+            </Link>
+          </nav>
         </div>
 
-        {/* Mobile menu */}
-        {mobileOpen && (
-          <div className="md:hidden border-t py-4 space-y-1">
-            {user && (
-              <>
-                <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">My courses</p>
-                <Link href="/dashboard/my-programmes" className="block text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] py-2.5 px-2" onClick={() => setMobileOpen(false)}>
-                  My Micro-programmes
-                </Link>
-                <Link href="/dashboard/my-credentials" className="block text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] py-2.5 px-2" onClick={() => setMobileOpen(false)}>
-                  My Micro-credentials
-                </Link>
-                <div className="border-t my-2" />
-              </>
-            )}
-            <p className="text-xs font-semibold text-gray-400 uppercase tracking-wider px-2 mb-2">Catalogue</p>
-            <Link href="/programs" className="block text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] py-2.5 px-2" onClick={() => setMobileOpen(false)}>
-              Micro-programmes
-            </Link>
-            <Link href="/courses" className="block text-sm font-medium text-gray-700 hover:text-[var(--bms-green)] py-2.5 px-2" onClick={() => setMobileOpen(false)}>
-              Micro-credentials
-            </Link>
-            <div className="pt-3 mt-3 border-t space-y-2">
-              {user ? (
-                <>
-                  <Link href="/dashboard" className="block text-sm font-medium py-2.5 px-2 text-gray-700" onClick={() => setMobileOpen(false)}>
+        {/* Right: auth actions */}
+        <div className="hidden items-center gap-4 lg:flex">
+          {loading ? (
+            <div className="h-9 w-40" />
+          ) : user ? (
+            <div className="relative" ref={userMenuRef}>
+              <button
+                type="button"
+                onClick={() => setUserMenuOpen((v) => !v)}
+                className={cn(triggerClass, "gap-2")}
+                aria-expanded={userMenuOpen}
+                aria-haspopup="menu"
+              >
+                <User size={20} />
+                {user.name}
+                <ChevronDown size={18} strokeWidth={2.5} className={cn("transition-transform", userMenuOpen && "rotate-180")} />
+              </button>
+              {userMenuOpen && (
+                <div className="absolute right-0 top-full mt-3 z-50 min-w-52 rounded-lg border border-brand-line bg-white py-3 shadow-soft" role="menu">
+                  <Link href="/dashboard" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
                     Dashboard
                   </Link>
-                  <Link href="/dashboard/profile" className="block text-sm font-medium py-2.5 px-2 text-gray-700" onClick={() => setMobileOpen(false)}>
+                  <Link href="/dashboard/profile" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
                     My Profile
                   </Link>
                   {user.role === "ADMIN" && (
-                    <Link href="/admin" className="block text-sm font-medium py-2.5 px-2 text-gray-700" onClick={() => setMobileOpen(false)}>
+                    <Link href="/admin" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
                       Admin Panel
                     </Link>
                   )}
-                  <button onClick={handleLogout} className="block text-sm font-medium py-2.5 px-2 text-red-600">
+                  <hr className="my-2 border-brand-line" />
+                  <button
+                    type="button"
+                    onClick={handleLogout}
+                    className="block w-full px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-brand-pale"
+                  >
+                    Sign out
+                  </button>
+                </div>
+              )}
+            </div>
+          ) : (
+            <>
+              <Link
+                href="/register"
+                className="inline-flex items-center justify-center rounded-full border border-brand-green px-8 py-2 text-base font-bold leading-[30px] text-brand-dark transition-colors hover:bg-brand-pale"
+              >
+                Register for free
+              </Link>
+              <Link
+                href="/login"
+                className="inline-flex items-center justify-center rounded-full border border-brand-green bg-brand-green px-8 py-2 text-base font-bold leading-[30px] text-white transition-colors hover:bg-white hover:text-brand-green"
+              >
+                Sign in
+              </Link>
+            </>
+          )}
+        </div>
+
+        {/* Mobile toggle */}
+        <button
+          type="button"
+          className="inline-flex h-11 w-11 items-center justify-center rounded-full border border-brand-line text-brand-dark lg:hidden"
+          onClick={() => setMobileOpen((v) => !v)}
+          aria-label="Toggle menu"
+        >
+          {mobileOpen ? <X size={22} /> : <Menu size={22} />}
+        </button>
+      </div>
+
+      {/* Mobile menu */}
+      {mobileOpen && (
+        <div className="border-t border-brand-line bg-white px-4 py-5 lg:hidden">
+          <nav className="mx-auto flex max-w-[1440px] flex-col gap-1">
+            {user && (
+              <>
+                <p className="px-2 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-brand-muted">My courses</p>
+                <Link href="/dashboard/my-programmes" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+                  My Micro-programmes
+                </Link>
+                <Link href="/dashboard/my-credentials" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+                  My Micro-credentials
+                </Link>
+                <hr className="my-2 border-brand-line" />
+              </>
+            )}
+            <p className="px-2 pb-1 pt-2 text-xs font-bold uppercase tracking-wider text-brand-muted">Catalogue</p>
+            <Link href="/programs" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+              Micro-programmes
+            </Link>
+            <Link href="/courses" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+              Micro-credentials
+            </Link>
+            <Link href="/about" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+              About us
+            </Link>
+
+            <div className="mt-4 grid gap-3 border-t border-brand-line pt-4">
+              {user ? (
+                <>
+                  <Link href="/dashboard" className="rounded-full bg-brand-green px-6 py-3 text-center font-bold text-white" onClick={() => setMobileOpen(false)}>
+                    Dashboard
+                  </Link>
+                  <Link href="/dashboard/profile" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+                    My Profile
+                  </Link>
+                  {user.role === "ADMIN" && (
+                    <Link href="/admin" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
+                      Admin Panel
+                    </Link>
+                  )}
+                  <button type="button" onClick={handleLogout} className="rounded-full px-6 py-3 text-center font-bold text-red-600">
                     Sign out
                   </button>
                 </>
               ) : (
                 <>
-                  <Link href="/register" className="block text-sm font-medium py-2.5 px-2" style={{ color: "var(--bms-green)" }} onClick={() => setMobileOpen(false)}>
+                  <Link href="/register" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
                     Register for free
                   </Link>
-                  <Link href="/login" className="block text-sm font-medium py-2.5 px-2" style={{ color: "var(--bms-green)" }} onClick={() => setMobileOpen(false)}>
+                  <Link href="/login" className="rounded-full bg-brand-green px-6 py-3 text-center font-bold text-white" onClick={() => setMobileOpen(false)}>
                     Sign in
                   </Link>
                 </>
               )}
             </div>
-          </div>
-        )}
-      </div>
+          </nav>
+        </div>
+      )}
     </header>
   );
 }

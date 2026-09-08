@@ -1,50 +1,50 @@
 import { Programme } from "@/lib/data";
 import Link from "next/link";
+import { ArrowRight } from "lucide-react";
 
 export default function ProgrammeCard({ programme }: { programme: Programme }) {
+  const detailHref = `/programs/${programme.id}`;
+
   return (
-    <div className="programme-card bg-white rounded-2xl shadow-md overflow-hidden flex flex-col">
-      <div className="h-48 relative overflow-hidden bg-gradient-to-br from-[var(--bms-green)] to-[var(--bms-blue)] flex items-center justify-center">
-        {programme.image ? (
-          <img
-            src={programme.image}
-            alt={programme.title}
-            className="w-full h-full object-cover"
-            onError={(e) => { (e.target as HTMLImageElement).style.display = "none"; }}
-          />
-        ) : (
-          <span className="text-white/40 text-6xl font-bold">{programme.code}</span>
-        )}
-      </div>
-
-      <div className="p-5 flex flex-col flex-1">
-        <h4 className="font-semibold text-base leading-snug mb-1">{programme.title}</h4>
-        <p className="text-xs text-gray-500 mb-3">
-          {programme.code} | {programme.project}
-        </p>
-
-        <p className="text-xs font-medium text-gray-600 mb-2">
-          Includes the following micro-credentials:
-        </p>
-        <ul className="text-xs text-gray-500 space-y-0.5 mb-4 flex-1">
+    <article className="bms-program-card">
+      <Link aria-label={programme.title} href={detailHref}>
+        <div className="bms-card-image flex items-center justify-center">
+          {programme.image ? (
+            <img
+              src={programme.image}
+              alt={programme.title}
+              className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]"
+              onError={(e) => {
+                (e.target as HTMLImageElement).style.display = "none";
+              }}
+            />
+          ) : (
+            <span className="text-4xl font-bold text-brand-green/30">{programme.code}</span>
+          )}
+        </div>
+      </Link>
+      <div className="bms-card-body">
+        <h3 className="bms-card-title">
+          <Link href={detailHref}>{programme.title}</Link>
+        </h3>
+        <div className="mb-8">
+          <p className="bms-card-meta">
+            {programme.code} | {programme.project}
+          </p>
+          <p className="bms-card-list-title">Includes the following micro-credentials:</p>
+        </div>
+        <ul className="bms-card-list">
           {programme.credentials.map((c, i) => (
-            <li key={i} className="flex gap-1">
-              <span className="text-[var(--bms-green)]">•</span> {c}
-            </li>
+            <li key={i}>{c}</li>
           ))}
         </ul>
-
-        <Link
-          href={`/programs/${programme.id}`}
-          className="inline-flex items-center gap-2 text-sm font-semibold text-white px-5 py-2.5 rounded-full self-start transition-colors"
-          style={{ background: "var(--bms-green)" }}
-        >
-          Enrol
-          <svg width="16" height="16" viewBox="0 0 24 24" fill="white">
-            <path d="M12 4l-1.41 1.41L16.17 11H4v2h12.17l-5.58 5.59L12 20l8-8z" />
-          </svg>
-        </Link>
+        <div className="bms-card-actions">
+          <Link className="bms-pill" href={detailHref}>
+            Enrol
+            <ArrowRight aria-hidden="true" size={18} strokeWidth={2.5} style={{ marginLeft: "0.5rem" }} />
+          </Link>
+        </div>
       </div>
-    </div>
+    </article>
   );
 }

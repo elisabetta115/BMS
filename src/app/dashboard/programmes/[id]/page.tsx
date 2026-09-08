@@ -118,7 +118,7 @@ export default function ProgrammeDetailPage() {
     return (
       <>
         <Header />
-        <main className="py-20"><div className="flex justify-center"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div></main>
+        <main id="main" className="py-20"><div className="flex justify-center"><div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" /></div></main>
       </>
     );
   }
@@ -127,10 +127,10 @@ export default function ProgrammeDetailPage() {
     return (
       <>
         <Header />
-        <main className="py-20">
-          <div className="max-w-4xl mx-auto px-4 text-center">
-            <p className="text-gray-500 mb-4">{error || "Programme not found."}</p>
-            <Link href="/programs" className="text-[var(--bms-green)] hover:underline">← Back to programmes</Link>
+        <main id="main" className="py-20">
+          <div className="mx-auto max-w-3xl px-4 text-center">
+            <p className="mb-4 text-brand-muted">{error || "Programme not found."}</p>
+            <Link href="/programs" className="font-semibold text-brand-green hover:underline">← Back to programmes</Link>
           </div>
         </main>
       </>
@@ -141,9 +141,9 @@ export default function ProgrammeDetailPage() {
     return (
       <>
         <Header />
-        <main className="py-12">
-          <div className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8">
-            <Link href="/programs" className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block">← Back to programmes</Link>
+        <main id="main">
+          <div className="mx-auto max-w-3xl px-6 py-12 lg:px-8">
+            <Link href="/programs" className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green">← Back to programmes</Link>
             <div className="bg-white rounded-2xl border border-gray-200 overflow-hidden">
               <div className="h-48 bg-gradient-to-br from-[var(--bms-green)] to-[var(--bms-blue)] flex items-center justify-center">
                 {programme.hasImage ? (
@@ -186,19 +186,19 @@ export default function ProgrammeDetailPage() {
   return (
     <>
       <Header />
-      <main className="py-10">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <Link href="/dashboard/my-programmes" className="text-sm text-gray-500 hover:text-gray-700 mb-6 inline-block">
+      <main id="main">
+        <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-8">
+          <Link href="/dashboard/my-programmes" className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green">
             ← Back to my programmes
           </Link>
 
-          <div className="grid lg:grid-cols-3 gap-8">
+          <div className="grid gap-10 lg:grid-cols-3">
             <div className="lg:col-span-2">
-              <p className="text-sm text-gray-500 mb-2">{programme.code} | {programme.project}</p>
-              <h1 className="text-4xl font-bold mb-6 leading-tight" style={{ color: "var(--bms-dark)" }}>
+              <p className="mb-3 text-lg font-bold text-brand-green">{programme.code} | {programme.project}</p>
+              <h1 className="mb-6 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
                 {programme.title}
               </h1>
-              {programme.description && <p className="text-gray-600 mb-8">{programme.description}</p>}
+              {programme.description && <p className="mb-8 text-lg leading-8 text-brand-muted">{programme.description}</p>}
 
               <div className={`rounded-2xl p-6 mb-10 ${hasPassed ? "bg-green-50 border border-green-200" : "bg-[var(--bms-green-light)]"}`}>
                 {hasPassed ? (
