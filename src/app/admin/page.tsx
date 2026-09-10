@@ -131,7 +131,7 @@ function UnitTypePicker({ onSelect }: { onSelect: (type: "VIDEO" | "QUIZ" | "PRE
         + Add Unit
       </button>
       {open && (
-        <div className="absolute left-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[160px] z-10">
+        <div className="absolute left-0 top-full mt-1 bg-white rounded-xl shadow-soft border border-brand-line py-1 min-w-[160px] z-10">
           <button type="button" onClick={() => { onSelect("VIDEO"); setOpen(false); }} className="w-full text-left px-4 py-2 text-sm hover:bg-gray-50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-blue-500" /> Video
           </button>
@@ -410,7 +410,7 @@ function AddPicker({ onProg, onCred, onCert }: { onProg: () => void; onCred: () 
         Add
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[200px] z-10">
+        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-soft border border-brand-line py-1 min-w-[200px] z-10">
           <button onClick={() => { onProg(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
             <span className="w-2 h-2 rounded-full bg-[var(--bms-green)]" /> Micro-programme
           </button>
@@ -1043,7 +1043,7 @@ export default function AdminPage() {
     <>
       <Header />
       <main id="main">
-        <div className="mx-auto max-w-5xl px-4 py-12 sm:px-6 lg:px-8">
+        <div className="bms-admin">
 
           {view === "list" && (
             <>
@@ -1244,7 +1244,7 @@ export default function AdminPage() {
                 {renderProgForm()}
                 <div className="mt-4 flex gap-3">
                   <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingProg ? "Save" : "Create & Add Credentials"}</button>
-                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
                 </div>
               </form>
 
@@ -1263,7 +1263,7 @@ export default function AdminPage() {
                         <svg width="10" height="6" viewBox="0 0 10 6" fill="none"><path d="M1 1l4 4 4-4" stroke="white" strokeWidth="1.5" strokeLinecap="round" strokeLinejoin="round"/></svg>
                       </button>
                       {addCredDropOpen && (
-                        <div className="absolute right-0 top-full mt-1 bg-white rounded-lg shadow-lg border py-1 min-w-[200px] z-10">
+                        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-soft border border-brand-line py-1 min-w-[200px] z-10">
                           <button
                             onClick={() => { setAddCredDropOpen(false); setCredPickerOpen(true); setCredPickerSearch(""); }}
                             className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2"
@@ -1371,8 +1371,8 @@ export default function AdminPage() {
                   >
                     {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
                   </button>
-                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
-                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
+                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-full text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                 </div>
               </form>
             </>
@@ -1569,8 +1569,8 @@ export default function AdminPage() {
                     <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>
                       {formLoading ? "Saving…" : editingCert ? "Update" : "Create"}
                     </button>
-                    <button type="button" onClick={goList} className="px-5 py-2.5 rounded-lg text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
-                    {editingCert && <button type="button" onClick={() => delCert(editingCert.id)} className="px-5 py-2.5 rounded-lg text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
+                    <button type="button" onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                    {editingCert && <button type="button" onClick={() => delCert(editingCert.id)} className="px-5 py-2.5 rounded-full text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
                   </div>
                 </form>
               </>

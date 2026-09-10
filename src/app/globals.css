@@ -3617,3 +3617,66 @@ input[type="number"].no-spin {
     grid-template-columns: 1fr;
   }
 }
+
+/* ==========================================================================
+   Admin panel — align /admin with the .bms-* design system.
+   The page markup is Tailwind-based; these scoped rules pull its shell,
+   headings, buttons and neutral palette onto the b2 brand system so it no
+   longer reads as a separate site. Scoped to .bms-admin so nothing else moves.
+   ========================================================================== */
+.bms-admin {
+  margin: 0 auto;
+  max-width: 1120px;
+  padding: 3.5rem 1.25rem 4rem;
+  width: 92%;
+}
+
+.bms-admin h1 {
+  color: #111;
+  font-size: 2.5rem;
+  font-weight: 700;
+  letter-spacing: -0.5px;
+  line-height: 1.15;
+}
+
+.bms-admin h2 {
+  letter-spacing: -0.3px;
+}
+
+/* Primary actions → brand-green pill (matches .bms-dash-cta) */
+.bms-admin .auth-btn {
+  width: auto;
+  border-radius: 9999px;
+  padding: 0.8rem 1.6rem;
+  font-size: 0.95rem;
+}
+
+/* Neutral greys → brand line / wash / pale, scoped to the admin subtree */
+.bms-admin .border-gray-200,
+.bms-admin .border-gray-300 {
+  border-color: #eeeeee;
+}
+.bms-admin .bg-gray-50,
+.bms-admin .bg-gray-100 {
+  background-color: #f6f7f9;
+}
+.bms-admin .hover\:bg-gray-50:hover {
+  background-color: #eaf3e7;
+}
+.bms-admin .hover\:border-gray-400:hover {
+  border-color: #079845;
+}
+
+/* Stray off-brand accent → brand green */
+.bms-admin .text-blue-500 {
+  color: #079845;
+}
+
+@media (max-width: 640px) {
+  .bms-admin {
+    padding-top: 2.25rem;
+  }
+  .bms-admin h1 {
+    font-size: 2rem;
+  }
+}
