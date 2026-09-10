@@ -6,8 +6,8 @@ A Next.js platform for managing and delivering micro-credentials and micro-progr
 
 - **Framework**: Next.js 15 (App Router, TypeScript)
 - **Styling**: Tailwind CSS v4
-- **Database**: Supabase PostgreSQL
-- **ORM**: Prisma
+- **Database**: Amazon RDS for PostgreSQL (eu-north-1)
+- **ORM**: Prisma (via `@prisma/adapter-pg`)
 - **Auth**: Custom JWT sessions (httpOnly cookies, bcrypt hashing)
 - **PDF generation**: pdf-lib (certificate stamping)
 - **Deployment**: AWS Amplify (eu-north-1)
@@ -84,36 +84,38 @@ src/
 │   └── Footer.tsx                # Public pages footer
 └── lib/
     ├── auth.ts                   # JWT, bcrypt, session helpers
-    ├── db.ts                     # Database access layer (Prisma + Supabase fallback)
-    └── prisma.ts                 # Prisma client singleton
+    ├── db.ts                     # Database access layer (Prisma)
+    └── prisma.ts                 # Prisma client singleton (pg adapter)
 ```
 
 ## Setup
 
-### 1. Supabase
+### 1. Database — Amazon RDS for PostgreSQL
 
-1. Create a project at [supabase.com](https://supabase.com)
-2. Run `supabase-migration.sql` in the SQL Editor
-3. Copy your project URL and keys
+1. RDS console → Create database → **PostgreSQL**, Free tier / `db.t4g.micro`, single-AZ,
+   20 GiB gp3, **Public access: Yes**, initial database name `bms`.
+2. Security group inbound: allow port `5432` from your IP (and `0.0.0.0/0` for Amplify).
+3. Note the endpoint (`*.rds.amazonaws.com`) and master password.
 
 ### 2. Environment variables
 
 Create a `.env` file in the project root:
 
 ```env
-DATABASE_URL="postgresql://postgres:PASSWORD@db.REF.supabase.co:6543/postgres?pgbouncer=true"
-DIRECT_URL="postgresql://postgres:PASSWORD@db.REF.supabase.co:5432/postgres"
-NEXT_PUBLIC_SUPABASE_URL="https://REF.supabase.co"
-NEXT_PUBLIC_SUPABASE_ANON_KEY="your-anon-key"
-SUPABASE_SERVICE_ROLE_KEY="your-service-role-key"
+DATABASE_URL="postgresql://postgres:PASSWORD@YOUR-ENDPOINT.eu-north-1.rds.amazonaws.com:5432/bms"
+DIRECT_URL="postgresql://postgres:PASSWORD@YOUR-ENDPOINT.eu-north-1.rds.amazonaws.com:5432/bms"
 NEXTAUTH_SECRET="run: openssl rand -base64 32"
 ```
+
+RDS has no separate pooled port, so `DATABASE_URL` and `DIRECT_URL` are identical.
+TLS is handled in code (`src/lib/prisma.ts`, `prisma/seed.mjs`) — don't add `?sslmode=`,
+it conflicts with the driver's SSL config.
 
 ### 3. Prisma
 
 ```bash
 npx prisma generate
-npx prisma db push
+npx prisma db push          # creates the 12 tables (or: psql "$DATABASE_URL" -f prisma/init.sql)
 ```
 
 ### 4. Run locally
@@ -127,7 +129,11 @@ Open [http://localhost:3000](http://localhost:3000).
 
 ### 5. Create the first admin user
 
-Register a normal account, then run this in the Supabase SQL Editor (or psql):
+```bash
+ADMIN_EMAIL=you@example.com ADMIN_PASSWORD='YourStrongPass1' ADMIN_NAME='You' npx prisma db seed
+```
+
+Or register a normal account, then promote it:
 
 ```sql
 UPDATE users SET role = 'ADMIN' WHERE email = 'your@email.com';

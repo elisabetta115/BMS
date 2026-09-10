@@ -13,7 +13,13 @@ const pool =
   globalForPrisma.pool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
-    ssl: process.env.NODE_ENV === "production" ? { rejectUnauthorized: false } : false,
+    // RDS requires TLS. rejectUnauthorized:false = encrypt without verifying the
+    // Amazon RDS CA chain (swap in `ca:` with the RDS bundle to verify fully).
+    ssl: { rejectUnauthorized: false },
+    // Amplify SSR runs on short-lived serverless instances; keep each pool small
+    // so many concurrent instances don't exhaust the db.t4g.micro connection cap.
+    max: 5,
+    idleTimeoutMillis: 10_000,
   });
 
 if (process.env.NODE_ENV !== "production") {
