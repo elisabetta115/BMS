@@ -255,7 +255,10 @@ export default function Home() {
           <h2>Our Partners</h2>
           <img alt="partner image" src="/images/partners.jpeg" style={{ height: "auto" }} width={1440} />
           <div className="bms-extra-partners">
-            <img alt="extra partners image" src="/images/extra-partners.png" style={{ height: "auto", width: "100%" }} width={1346} />
+            <img alt="RES4CITY - Funded by the European Union" src="/images/funding-res4city.png" />
+            <img alt="SHERLOCK - Funded by the European Union" src="/images/funding-sherlock.png" />
+            <img alt="RESSKILL - Co-funded by the European Union" src="/images/funding-resskill.png" />
+            <img alt="STREACS - Funded by the European Union" src="/images/funding-streacs.png" />
           </div>
         </section>
       </main>

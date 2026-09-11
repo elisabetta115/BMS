@@ -95,7 +95,6 @@ export default function RegisterPage() {
         <AuthField
           label="Full name"
           type="text"
-          placeholder="Your full name"
           value={form.name}
           onChange={(e) => update("name", e.target.value)}
           autoComplete="name"
@@ -108,7 +107,6 @@ export default function RegisterPage() {
         <AuthField
           label="Email"
           type="email"
-          placeholder="you@example.com"
           value={form.email}
           onChange={(e) => update("email", e.target.value)}
           autoComplete="email"
@@ -120,7 +118,6 @@ export default function RegisterPage() {
         <AuthField
           label="Password"
           type={showPassword ? "text" : "password"}
-          placeholder="Min 8 chars, upper, lower, number"
           value={form.password}
           onChange={(e) => update("password", e.target.value)}
           autoComplete="new-password"
@@ -141,7 +138,6 @@ export default function RegisterPage() {
         <AuthField
           label="Confirm password"
           type="password"
-          placeholder="Repeat your password"
           value={form.confirmPassword}
           onChange={(e) => update("confirmPassword", e.target.value)}
           autoComplete="new-password"

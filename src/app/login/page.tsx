@@ -44,7 +44,6 @@ export default function LoginPage() {
         <AuthField
           label="Username or email"
           type="text"
-          placeholder="you@example.com or your full name"
           value={email}
           onChange={(e) => setEmail(e.target.value)}
           autoComplete="username"
@@ -55,7 +54,6 @@ export default function LoginPage() {
         <AuthField
           label="Password"
           type={showPassword ? "text" : "password"}
-          placeholder="Enter your password"
           value={password}
           onChange={(e) => setPassword(e.target.value)}
           autoComplete="current-password"

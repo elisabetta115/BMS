@@ -426,6 +426,43 @@ function AddPicker({ onProg, onCred, onCert }: { onProg: () => void; onCred: () 
   );
 }
 
+function VideoUnitPreview({ url }: { url: string }) {
+  const [playing, setPlaying] = useState(false);
+  const videoId = url.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || "";
+
+  // Reset to the thumbnail if the URL is edited to point at a different video.
+  useEffect(() => { setPlaying(false); }, [videoId]);
+
+  if (!videoId) return null;
+
+  return (
+    <div className="mt-2 aspect-video max-w-xs rounded-lg overflow-hidden bg-black relative">
+      {playing ? (
+        <iframe
+          className="w-full h-full"
+          src={`https://www.youtube-nocookie.com/embed/${videoId}?autoplay=1`}
+          allow="autoplay; encrypted-media"
+          allowFullScreen
+        />
+      ) : (
+        <button
+          type="button"
+          onClick={() => setPlaying(true)}
+          className="w-full h-full relative block group"
+          aria-label="Play video preview"
+        >
+          <img src={`https://img.youtube.com/vi/${videoId}/hqdefault.jpg`} alt="" className="w-full h-full object-cover" />
+          <span className="absolute inset-0 flex items-center justify-center bg-black/30 group-hover:bg-black/45 transition-colors">
+            <span className="w-10 h-10 rounded-full bg-white/90 flex items-center justify-center">
+              <svg width="16" height="16" viewBox="0 0 24 24" fill="#111"><path d="M8 5v14l11-7z" /></svg>
+            </span>
+          </span>
+        </button>
+      )}
+    </div>
+  );
+}
+
 function PdfPreview({ unit }: { unit: CredentialUnit }) {
   const [open, setOpen] = useState(false);
 
@@ -479,7 +516,7 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
 }
 
 type Tab = "programmes" | "credentials" | "certificates";
-type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred" | "new-cert" | "edit-cert";
+type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred" | "new-cert" | "edit-cert" | "import";
 
 function imageUrlFor(type: "programme" | "credential", id: string, version: number, fallback: string | null) {
   if (version === 0) return fallback || "";
@@ -513,6 +550,33 @@ export default function AdminPage() {
   const [addCredDropOpen, setAddCredDropOpen] = useState(false);
   const addCredDropRef = useRef<HTMLDivElement>(null);
 
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; resolve: (ok: boolean) => void } | null>(null);
+
+  /** Site-styled replacement for window.confirm(). Resolves true/false. */
+  function askConfirm(message: string): Promise<boolean> {
+    return new Promise((resolve) => setConfirmDialog({ message, resolve }));
+  }
+
+  useEffect(() => {
+    if (!confirmDialog) return;
+    function onKey(e: KeyboardEvent) {
+      if (e.key === "Escape") { confirmDialog!.resolve(false); setConfirmDialog(null); }
+    }
+    document.addEventListener("keydown", onKey);
+    return () => document.removeEventListener("keydown", onKey);
+  }, [confirmDialog]);
+
+  const [importFile, setImportFile] = useState<File | null>(null);
+  const [importPreview, setImportPreview] = useState<any>(null);
+  const [importExisting, setImportExisting] = useState<{ credential: any } | null>(null);
+  const [importBusy, setImportBusy] = useState(false);
+  const [importError, setImportError] = useState("");
+  const [importResult, setImportResult] = useState<any>(null);
+  const [credConflictChoice, setCredConflictChoice] = useState<"replace" | "skip">("skip");
+  // Programme attachment is always an explicit choice — the importer never
+  // creates or auto-picks one. "" means "don't attach to any programme".
+  const [importProgrammeId, setImportProgrammeId] = useState<string>("");
+
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
   const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
@@ -538,6 +602,9 @@ export default function AdminPage() {
         setEditingCert(null);
         setParentProgId(null);
         setFormError("");
+        setImportPreview(null);
+        setImportResult(null);
+        setImportError("");
         setTab(returnTab);
       }
     }
@@ -625,7 +692,58 @@ export default function AdminPage() {
     setFormError("");
     setCredPickerOpen(false);
     setAddCredDropOpen(false);
+    setImportFile(null);
+    setImportPreview(null);
+    setImportExisting(null);
+    setImportError("");
+    setImportResult(null);
     setTab(returnTab);
+  }
+
+  /* ─── Import from Open edX (OLX .tar.gz) ─────────────────── */
+
+  function openImport() {
+    pushAdminHistory("import");
+    setImportFile(null); setImportPreview(null); setImportExisting(null);
+    setImportError(""); setImportResult(null); setCredConflictChoice("skip"); setImportProgrammeId("");
+    setReturnTab("credentials"); setView("import");
+  }
+
+  async function analyseImport(f: File) {
+    setImportFile(f);
+    setImportBusy(true); setImportError(""); setImportPreview(null); setImportExisting(null); setImportResult(null); setImportProgrammeId("");
+    try {
+      const fd = new FormData();
+      fd.append("file", f);
+      fd.append("mode", "preview");
+      const r = await fetch("/api/admin/import-olx", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) { setImportError(d.error || "Could not read the archive."); setImportBusy(false); return; }
+      setImportPreview(d.summary);
+      setImportExisting(d.existing);
+      if (d.existing?.credential) setCredConflictChoice("skip");
+    } catch { setImportError("Upload failed."); }
+    setImportBusy(false);
+  }
+
+  async function runImport() {
+    if (!importFile) return;
+    setImportBusy(true); setImportError("");
+    try {
+      const fd = new FormData();
+      fd.append("file", importFile);
+      fd.append("mode", "commit");
+      // Programme attachment is opt-in — the importer never creates or
+      // auto-links a micro-programme on its own.
+      if (importProgrammeId) fd.append("programmeId", importProgrammeId);
+      if (importExisting?.credential) fd.append("onExistingCredential", credConflictChoice);
+      const r = await fetch("/api/admin/import-olx", { method: "POST", body: fd });
+      const d = await r.json();
+      if (!r.ok) { setImportError(d.error || d.message || "Import failed."); setImportBusy(false); return; }
+      setImportResult(d);
+      await loadData();
+    } catch { setImportError("Import failed."); }
+    setImportBusy(false);
   }
 
   async function refreshProg(id: string) {
@@ -686,7 +804,7 @@ export default function AdminPage() {
     setFormLoading(false);
   }
 
-  async function delProg(id: string) { if (!confirm("Delete this programme?")) return; await fetch(`/api/micro-programmes/${id}`, { method: "DELETE" }); await loadData(); goList(); }
+  async function delProg(id: string) { if (!(await askConfirm("Delete this programme?"))) return; await fetch(`/api/micro-programmes/${id}`, { method: "DELETE" }); await loadData(); goList(); }
 
   async function addCredToProg(credId: string) {
     if (!editingProg) return;
@@ -697,7 +815,7 @@ export default function AdminPage() {
   }
 
   async function removeCredFromProg(credId: string) {
-    if (!editingProg || !confirm("Remove credential from programme?")) return;
+    if (!editingProg || !(await askConfirm("Remove credential from programme?"))) return;
     const ids = (editingProg.credentials || []).filter(c => c.id !== credId).map(c => c.id);
     await fetch(`/api/micro-programmes/${editingProg.id}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: ids }) });
     await refreshProg(editingProg.id);
@@ -755,7 +873,7 @@ export default function AdminPage() {
   }
 
   async function delCred(id: string) {
-    if (!confirm("Delete credential permanently from all programmes?")) return;
+    if (!(await askConfirm("Delete credential permanently from all programmes?"))) return;
     await fetch(`/api/micro-credentials/${id}`, { method: "DELETE" }); await loadData();
     if (editingProg) await refreshProg(editingProg.id); else goList();
   }
@@ -806,7 +924,7 @@ export default function AdminPage() {
   }
 
   async function delCert(id: string) {
-    if (!confirm("Delete this certificate template?")) return;
+    if (!(await askConfirm("Delete this certificate template?"))) return;
     await fetch(`/api/certificates/${id}`, { method: "DELETE" });
     await loadData(); goList();
   }
@@ -904,6 +1022,14 @@ export default function AdminPage() {
                   <div className="flex items-center gap-2 mb-2">
                     <span className="text-sm font-bold text-[var(--bms-dark)] min-w-[2.5rem]">{si + 1}.{ssi + 1}</span>
                     <input className="auth-input flex-1 text-sm" placeholder="Subsection title" value={sub.title} onChange={e => updateSubsection(si, ssi, e.target.value)} />
+                    {(() => {
+                      const subWeight = sub.units.reduce((n, u) => n + (Number(u.weight) || 0), 0);
+                      return subWeight > 0 ? (
+                        <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-brand-muted whitespace-nowrap" title="Sum of this subsection's unit weights">
+                          {subWeight}%
+                        </span>
+                      ) : null;
+                    })()}
                     <button type="button" onClick={() => removeSubsection(si, ssi)} className="text-red-400 hover:text-red-600 text-xs">✕</button>
                   </div>
 
@@ -941,11 +1067,7 @@ export default function AdminPage() {
                         {unit.type === "VIDEO" && (
                           <div className="ml-12">
                             <input className="auth-input text-sm" placeholder="YouTube URL" value={unit.videoUrl || ""} onChange={e => updateUnit(si, ssi, ui, "videoUrl", e.target.value)} />
-                            {unit.videoUrl && unit.videoUrl.includes("youtu") && (
-                              <div className="mt-2 aspect-video max-w-xs rounded-lg overflow-hidden bg-black">
-                                <iframe className="w-full h-full" src={`https://www.youtube.com/embed/${unit.videoUrl.match(/(?:v=|youtu\.be\/)([a-zA-Z0-9_-]+)/)?.[1] || ""}`} allowFullScreen />
-                              </div>
-                            )}
+                            {unit.videoUrl && unit.videoUrl.includes("youtu") && <VideoUnitPreview url={unit.videoUrl} />}
                           </div>
                         )}
 
@@ -1049,7 +1171,13 @@ export default function AdminPage() {
             <>
               <div className="flex items-center justify-between mb-6">
                 <h1 className="text-3xl font-bold text-brand-dark">Admin Panel</h1>
-                <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
+                <div className="flex items-center gap-2">
+                  <button onClick={openImport} className="px-4 py-2.5 rounded-full text-sm font-medium flex items-center gap-1.5 border border-gray-300 text-brand-dark bg-white hover:border-gray-400 transition-colors">
+                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+                    Import course
+                  </button>
+                  <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
+                </div>
               </div>
 
               <div className="relative mb-6">
@@ -1576,8 +1704,216 @@ export default function AdminPage() {
               </>
             );
           })()}
+
+          {view === "import" && (
+            <>
+              <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
+              <h1 className="text-2xl font-bold mb-2 text-brand-dark">Import course from Open edX</h1>
+              <p className="text-sm text-brand-muted mb-6">
+                Upload an Open edX course export (<code className="text-xs bg-gray-100 px-1 py-0.5 rounded">.tar.gz</code>). Its sections, subsections,
+                videos, quizzes and PDF units become a micro-credential. No micro-programme is created or touched unless you pick one below.
+              </p>
+
+              {importError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{importError}</div>}
+
+              {importResult ? (
+                <div className="rounded-2xl border border-brand-line bg-white p-6">
+                  <div className="flex items-center gap-2 mb-3">
+                    <span className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span>
+                    <h2 className="text-lg font-bold text-brand-dark">Import complete</h2>
+                  </div>
+                  <ul className="text-sm text-brand-dark space-y-1 mb-5">
+                    <li>Micro-credential <strong>{importResult.summary?.title}</strong> {importResult.credentialAction}
+                      {importResult.credentialAction === "skipped" && " (existing credential left unchanged, just linked)"}.</li>
+                    <li>
+                      {importResult.programmeId
+                        ? <>Added to micro-programme <strong>{programmes.find(p => p.id === importResult.programmeId)?.title || "—"}</strong>.</>
+                        : "Not attached to any micro-programme — add it yourself when you're ready."}
+                    </li>
+                    <li className="text-brand-muted">
+                      {importResult.summary?.counts?.sections} sections · {importResult.summary?.counts?.videos} videos ·{" "}
+                      {importResult.summary?.counts?.quizzes} quizzes ({importResult.summary?.counts?.questions} questions) ·{" "}
+                      {importResult.summary?.counts?.presentations} PDFs
+                    </li>
+                  </ul>
+                  <div className="flex gap-3">
+                    <button
+                      onClick={() => { const c = credentials.find(x => x.id === importResult.credentialId); if (c) editCred(c); else { setTab("credentials"); goList(); } }}
+                      className="auth-btn max-w-xs"
+                    >
+                      Open micro-credential
+                    </button>
+                    <button onClick={() => { setTab("credentials"); goList(); }} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Done</button>
+                  </div>
+                </div>
+              ) : (
+                <div className="rounded-2xl border border-brand-line bg-white p-6 space-y-6">
+                  <div>
+                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer bg-white text-brand-dark hover:border-gray-400 transition-colors">
+                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
+                      {importFile ? "Choose a different file" : "Choose .tar.gz file"}
+                      <input
+                        type="file"
+                        accept=".tar.gz,.tgz,.gz,application/gzip,application/x-gzip"
+                        className="hidden"
+                        onChange={e => { const f = e.target.files?.[0]; if (f) analyseImport(f); e.target.value = ""; }}
+                      />
+                    </label>
+                    {importFile && <p className="text-xs text-brand-muted mt-2">{importFile.name} · {(importFile.size / 1024 / 1024).toFixed(1)} MB</p>}
+                  </div>
+
+                  {importBusy && !importPreview && (
+                    <div className="flex items-center gap-3 text-sm text-brand-muted">
+                      <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
+                      Reading archive…
+                    </div>
+                  )}
+
+                  {importPreview && (
+                    <div className="space-y-5">
+                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                        <div className="flex items-center gap-2 mb-1">
+                          <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{importPreview.code}</span>
+                          <span className="text-xs text-brand-muted">|</span>
+                          <span className="text-xs text-brand-muted">{importPreview.project}</span>
+                        </div>
+                        <h3 className="font-semibold text-brand-dark">{importPreview.title}</h3>
+                        {importPreview.developedBy && <p className="text-xs text-brand-muted mt-0.5">{importPreview.developedBy}</p>}
+                        <p className="text-sm text-brand-dark mt-3">
+                          {importPreview.counts.sections} sections · {importPreview.counts.subsections} subsections ·{" "}
+                          <strong>{importPreview.counts.units} units</strong> ({importPreview.counts.videos} videos,{" "}
+                          {importPreview.counts.quizzes} quizzes / {importPreview.counts.questions} questions,{" "}
+                          {importPreview.counts.presentations} PDFs)
+                        </p>
+                        <p className="text-xs text-brand-muted mt-1">
+                          Pass grade {importPreview.passGrade}% · {importPreview.hasImage ? `image ${importPreview.imageName}` : "no image"}
+                        </p>
+                      </div>
+
+                      <div>
+                        <label className="block text-sm font-medium text-brand-dark mb-1">Add to a micro-programme</label>
+                        <select
+                          className="auth-input"
+                          value={importProgrammeId}
+                          onChange={e => setImportProgrammeId(e.target.value)}
+                        >
+                          <option value="">— Don't attach to any programme —</option>
+                          {programmes.map(p => (
+                            <option key={p.id} value={p.id}>{p.title} ({p.code})</option>
+                          ))}
+                        </select>
+                        <p className="text-xs text-brand-muted mt-1">
+                          Nothing is created or linked automatically. Pick an existing micro-programme to add this credential to it, or leave it unset and add it yourself later.
+                        </p>
+                      </div>
+
+                      <details className="rounded-xl border border-gray-200 bg-white">
+                        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-brand-dark">Outline</summary>
+                        <div className="px-4 pb-4 space-y-3">
+                          {importPreview.outline.map((s: any, si: number) => (
+                            <div key={si}>
+                              <p className="text-sm font-semibold text-brand-green">{s.title}</p>
+                              {s.subsections.map((ss: any, ssi: number) => {
+                                const ssWeight = ss.units.reduce((n: number, u: any) => n + (Number(u.weight) || 0), 0);
+                                return (
+                                <div key={ssi} className="ml-4 mt-1">
+                                  <p className="text-sm text-brand-dark">
+                                    {ss.title}
+                                    {ssWeight > 0 && <span className="text-xs font-semibold text-brand-green ml-1.5">· {ssWeight}%</span>}
+                                  </p>
+                                  <ul className="ml-4">
+                                    {ss.units.map((u: any, ui: number) => (
+                                      <li key={ui} className="text-xs text-brand-muted">
+                                        <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${u.type === "VIDEO" ? "bg-blue-500" : u.type === "QUIZ" ? "bg-yellow-500" : "bg-purple-500"}`} />
+                                        {u.title} — <span className="text-brand-muted">{u.type.toLowerCase()}{u.type !== "VIDEO" ? ` · ${u.detail}` : ""}{u.weight > 0 ? ` · ${u.weight}%` : ""}</span>
+                                      </li>
+                                    ))}
+                                  </ul>
+                                </div>
+                                );
+                              })}
+                            </div>
+                          ))}
+                        </div>
+                      </details>
+
+                      {importPreview.warnings?.length > 0 && (
+                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
+                          <p className="text-sm font-semibold text-amber-800 mb-1">{importPreview.warnings.length} warning{importPreview.warnings.length === 1 ? "" : "s"}</p>
+                          <ul className="list-disc ml-5 text-xs text-amber-800 space-y-0.5">
+                            {importPreview.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
+                          </ul>
+                        </div>
+                      )}
+
+                      {importExisting?.credential && (
+                        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                          <p className="text-sm font-semibold text-amber-900 mb-2">
+                            A micro-credential “{importExisting.credential.title}” ({importExisting.credential.code}) already exists.
+                          </p>
+                          <label className="flex items-start gap-2 text-sm text-amber-900 mb-1.5">
+                            <input type="radio" name="credConflict" checked={credConflictChoice === "skip"} onChange={() => setCredConflictChoice("skip")} className="mt-0.5" />
+                            <span><strong>Keep the existing one</strong> and just add it to the programme. Nothing is overwritten.</span>
+                          </label>
+                          <label className="flex items-start gap-2 text-sm text-amber-900">
+                            <input type="radio" name="credConflict" checked={credConflictChoice === "replace"} onChange={() => setCredConflictChoice("replace")} className="mt-0.5" />
+                            <span><strong>Replace it</strong> with the imported version. This permanently deletes the current credential, its units and every learner’s enrolment and progress for it.</span>
+                          </label>
+                        </div>
+                      )}
+
+                      <div className="flex gap-3">
+                        <button onClick={runImport} disabled={importBusy} className="auth-btn max-w-xs">
+                          {importBusy ? "Importing…" : importExisting?.credential && credConflictChoice === "replace" ? "Replace & import" : "Import"}
+                        </button>
+                        <button onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                      </div>
+                    </div>
+                  )}
+                </div>
+              )}
+            </>
+          )}
         </div>
       </main>
+
+      {confirmDialog && (
+        <div
+          className="fixed inset-0 z-[100] flex items-center justify-center bg-black/40 p-4"
+          onClick={() => { confirmDialog.resolve(false); setConfirmDialog(null); }}
+        >
+          <div
+            role="alertdialog"
+            aria-modal="true"
+            className="w-full max-w-sm rounded-2xl border border-brand-line bg-white p-6 shadow-soft"
+            onClick={e => e.stopPropagation()}
+          >
+            <div className="flex items-start gap-3 mb-5">
+              <span className="w-9 h-9 flex-shrink-0 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
+                <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
+              </span>
+              <p className="text-sm text-brand-dark pt-1.5">{confirmDialog.message}</p>
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                type="button"
+                autoFocus
+                onClick={() => { confirmDialog.resolve(false); setConfirmDialog(null); }}
+                className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50"
+              >
+                Cancel
+              </button>
+              <button
+                type="button"
+                onClick={() => { confirmDialog.resolve(true); setConfirmDialog(null); }}
+                className="px-5 py-2.5 rounded-full text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+              >
+                Delete
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
     </>
   );
 }

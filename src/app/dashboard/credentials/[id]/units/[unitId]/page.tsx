@@ -55,7 +55,7 @@ function youtubeEmbedUrl(url: string): string | null {
     if (u.hostname.includes("youtu.be")) videoId = u.pathname.slice(1);
     else if (u.hostname.includes("youtube.com")) videoId = u.searchParams.get("v");
     if (!videoId) return null;
-    return `https://www.youtube.com/embed/${videoId}`;
+    return `https://www.youtube-nocookie.com/embed/${videoId}`;
   } catch {
     return null;
   }

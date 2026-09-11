@@ -2868,12 +2868,28 @@ input[type="number"].no-spin {
 .bms-extra-partners {
   background: rgba(213, 231, 208, 0.5);
   border-radius: 0.75rem;
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  justify-content: center;
+  gap: 2rem 2.5rem;
   margin-top: 2rem;
   padding: 15px;
 }
 
+/* Matches boostmyskills.eu's own .project_block_image sizing exactly. */
 .bms-extra-partners img {
   display: block;
+  height: 64px;
+  width: auto;
+  max-width: 100%;
+  object-fit: contain;
+}
+
+@media screen and (max-width: 600px) {
+  .bms-extra-partners img {
+    height: 52px;
+  }
 }
 
 .bms-legal {

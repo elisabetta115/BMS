@@ -34,6 +34,8 @@ export const footerColumns: FooterColumn[] = [
       { label: "RES4CITY", href: "https://www.res4city.eu/" },
       { label: "SHERLOCK", href: "https://www.sherlockproject.eu/" },
       { label: "COSS", href: "https://www.coss.ac.kr/" },
+      { label: "RESSKILL", href: "https://www.resskill.eu/" },
+      { label: "STREACS", href: "https://ace.aua.am/projects/streacs/" },
     ],
   },
   {
