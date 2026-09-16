@@ -4,6 +4,7 @@
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createDownloadUrl } from "@/lib/s3";
 
 export const dynamic = "force-dynamic";
 
@@ -18,11 +19,20 @@ export async function GET(
 
     const unit = await prisma.credentialUnit.findUnique({
       where: { id: unitId },
-      select: { fileData: true, fileMime: true, fileName: true },
+      select: { fileData: true, fileKey: true, fileMime: true, fileName: true },
     });
 
-    if (!unit || !unit.fileData) {
+    if (!unit || (!unit.fileData && !unit.fileKey)) {
       return new NextResponse("No file", { status: 404 });
+    }
+
+    // Files uploaded straight to S3 (bypassing our request-size limit) are
+    // served by redirecting the browser there directly, rather than
+    // streaming the bytes back through this route.
+    if (unit.fileKey) {
+      const url = await createDownloadUrl(unit.fileKey);
+      if (!url) return new NextResponse("File storage isn't configured.", { status: 500 });
+      return NextResponse.redirect(url);
     }
 
     const mime = unit.fileMime || "application/octet-stream";
@@ -35,7 +45,7 @@ export async function GET(
         ? `inline; filename="${name}"`
         : `attachment; filename="${name}"`;
 
-    return new NextResponse(unit.fileData, {
+    return new NextResponse(unit.fileData!, {
       headers: {
         "Content-Type": mime,
         "Content-Disposition": disposition,

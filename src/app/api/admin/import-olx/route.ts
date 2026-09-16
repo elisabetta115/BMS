@@ -1,20 +1,26 @@
 // POST /api/admin/import-olx
 //
-// Accepts an Open edX course export (.tar.gz) as multipart form-data and turns it
-// into a MicroCredential (with sections / subsections / units / questions).
-// A micro-programme is never created automatically — the archive's "project"
-// (e.g. "RESSKILL") is just an initiative label, not a specific programme, and
-// several distinct programmes can share one project name (see the RES4CITY
-// seed data: MP1–MP8 all have project "RES4CITY" but different credential
-// rosters). The admin optionally attaches the imported credential to one
-// *existing* programme they pick explicitly; if they pick none, only the
-// credential is created and programme placement is left to them afterwards.
+// Turns an Open edX course export (.tar.gz), already uploaded to S3 via
+// /api/admin/uploads/presign, into a MicroCredential (with sections /
+// subsections / units / questions). A micro-programme is never created
+// automatically — the archive's "project" (e.g. "RESSKILL") is just an
+// initiative label, not a specific programme, and several distinct
+// programmes can share one project name (see the RES4CITY seed data:
+// MP1–MP8 all have project "RES4CITY" but different credential rosters).
+// The admin optionally attaches the imported credential to one *existing*
+// programme they pick explicitly; if they pick none, only the credential is
+// created and programme placement is left to them afterwards.
 //
-//   field "file"                 – the .tar.gz archive (required)
-//   field "mode"                 – "preview" (default) or "commit"
-//   field "programmeId"          – optional: link the credential into this
+// The archive itself never passes through this route's request body — course
+// exports routinely exceed the ~6MB payload limit our hosting platform
+// enforces on a single request, so the client uploads the file straight to
+// S3 first and only sends us the resulting object key.
+//
+//   body "key"                   – the S3 object key of the uploaded archive
+//   body "mode"                  – "preview" (default) or "commit"
+//   body "programmeId"           – optional: link the credential into this
 //                                  existing micro-programme
-//   field "onExistingCredential" – "replace" | "skip"
+//   body "onExistingCredential"  – "replace" | "skip"
 //
 // "preview" parses the archive and reports what would be created plus any
 // conflicts. "commit" performs the writes; if it hits an unresolved conflict it
@@ -23,6 +29,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { getObjectBuffer, deleteObject } from "@/lib/s3";
 import { extractTarGz, parseOlx, type ParsedCourse } from "@/lib/olx-import";
 
 export const runtime = "nodejs";
@@ -84,29 +91,34 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
 
-  let form: FormData;
+  const { key, mode: rawMode, programmeId: rawProgrammeId, onExistingCredential: rawOnExisting } = await req.json();
+  if (!key || typeof key !== "string") {
+    return NextResponse.json({ error: "No uploaded archive reference provided." }, { status: 400 });
+  }
+
+  const mode = String(rawMode || "preview");
+  const programmeId = rawProgrammeId ? String(rawProgrammeId) : null;
+  const onExistingCredential = String(rawOnExisting || "");
+
+  // Fetch the archive from S3 — it was uploaded there directly by the
+  // browser, so its size was never constrained by our own request limits.
+  let archive: Buffer;
   try {
-    form = await req.formData();
-  } catch {
-    return NextResponse.json({ error: "Expected multipart form-data with a file." }, { status: 400 });
+    const buf = await getObjectBuffer(key);
+    if (!buf) return NextResponse.json({ error: "File storage isn't configured." }, { status: 500 });
+    archive = buf;
+  } catch (err) {
+    console.error("Error fetching uploaded archive from S3:", err);
+    return NextResponse.json({ error: "Could not find the uploaded archive. Please re-upload it." }, { status: 400 });
   }
-
-  const file = form.get("file");
-  if (!(file instanceof Blob)) {
-    return NextResponse.json({ error: "No file uploaded." }, { status: 400 });
+  if (archive.length > 200 * 1024 * 1024) {
+    return NextResponse.json({ error: "Archive is larger than 200 MB." }, { status: 400 });
   }
-  if (file.size > 60 * 1024 * 1024) {
-    return NextResponse.json({ error: "Archive is larger than 60 MB." }, { status: 413 });
-  }
-
-  const mode = String(form.get("mode") || "preview");
-  const programmeId = String(form.get("programmeId") || "") || null;
-  const onExistingCredential = String(form.get("onExistingCredential") || "");
 
   // Parse the archive.
   let course: ParsedCourse;
   try {
-    const files = await extractTarGz(Buffer.from(await file.arrayBuffer()));
+    const files = await extractTarGz(archive);
     course = parseOlx(files);
   } catch (err: any) {
     console.error("OLX parse error:", err);
@@ -240,6 +252,7 @@ export async function POST(req: NextRequest) {
       linkedProgrammeId = programmeId;
     }
 
+    await deleteObject(key).catch(() => {});
     return NextResponse.json({ mode: "commit", programmeId: linkedProgrammeId, credentialId, credentialAction, summary });
   } catch (err: any) {
     console.error("OLX import error:", err);

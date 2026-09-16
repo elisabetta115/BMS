@@ -11,15 +11,28 @@ export async function GET(
     const { id } = await params;
     const programme = await prisma.microProgramme.findUnique({
       where: { id },
+      omit: { imageData: true },
       include: {
         credentials: {
           orderBy: { order: "asc" },
           include: {
             credential: {
+              omit: { imageData: true },
               include: {
                 sections: {
                   orderBy: { order: "asc" },
-                  include: { subsections: { orderBy: { order: "asc" }, include: { units: { orderBy: { order: "asc" }, include: { questions: { orderBy: { order: "asc" } } } } } } },
+                  include: {
+                    subsections: {
+                      orderBy: { order: "asc" },
+                      include: {
+                        units: {
+                          orderBy: { order: "asc" },
+                          omit: { fileData: true },
+                          include: { questions: { orderBy: { order: "asc" } } },
+                        },
+                      },
+                    },
+                  },
                 },
               },
             },
@@ -30,12 +43,17 @@ export async function GET(
     if (!programme) return NextResponse.json({ error: "Not found." }, { status: 404 });
     const result = {
       ...programme,
-      imageData: undefined,
-      hasImage: !!programme.imageData,
+      hasImage: !!programme.imageMime,
       credentials: programme.credentials.map((pc: any) => ({
         ...pc.credential,
-        imageData: undefined,
-        hasImage: !!pc.credential.imageData,
+        hasImage: !!pc.credential.imageMime,
+        sections: pc.credential.sections.map((s: any) => ({
+          ...s,
+          subsections: s.subsections.map((ss: any) => ({
+            ...ss,
+            units: ss.units.map((u: any) => ({ ...u, hasFile: !!(u.fileKey || u.fileMime) })),
+          })),
+        })),
       })),
     };
     return NextResponse.json({ programme: result });
@@ -71,9 +89,9 @@ export async function PATCH(
       data.imageMime = null;
     }
 
-    const programme = await prisma.microProgramme.update({ where: { id }, data });
+    const programme = await prisma.microProgramme.update({ where: { id }, data, omit: { imageData: true } });
     return NextResponse.json({
-      programme: { ...programme, imageData: undefined, hasImage: !!programme.imageData },
+      programme: { ...programme, hasImage: !!programme.imageMime },
     });
   } catch (err: any) {
     console.error("Error updating programme:", err);

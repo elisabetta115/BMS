@@ -94,6 +94,7 @@ model CredentialUnit {
   weight       Int      @default(0)
   videoUrl     String?  @map("video_url")
   fileData     Bytes?   @map("file_data")
+  fileKey      String?  @map("file_key")
   fileMime     String?  @map("file_mime")
   fileName     String?  @map("file_name")
   createdAt    DateTime @default(now()) @map("created_at")

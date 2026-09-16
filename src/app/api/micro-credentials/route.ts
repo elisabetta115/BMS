@@ -15,7 +15,7 @@ function stripBinaryFromCredential(c: any) {
         units: (ss.units || []).map((u: any) => ({
           ...u,
           fileData: undefined,
-          hasFile: !!u.fileData,
+          hasFile: !!(u.fileData || u.fileKey),
         })),
       })),
     })),
@@ -41,16 +41,21 @@ function validateWeights(sections: any[]): string | null {
 export async function GET() {
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
+    // List view only needs a section count, not every section/unit/quiz's
+    // full content, and never the raw image bytes (served separately via
+    // /api/images/[type]/[id]) — fetching those for every row here was the
+    // difference between a very slow, huge response and a near-instant one.
     const credentials = await prisma.microCredential.findMany({
       orderBy: { code: "asc" },
-      include: {
-        sections: {
-          orderBy: { order: "asc" },
-          include: { subsections: { orderBy: { order: "asc" }, include: { units: { orderBy: { order: "asc" }, include: { questions: { orderBy: { order: "asc" } } } } } } },
-        },
-      },
+      omit: { imageData: true },
+      include: { _count: { select: { sections: true } } },
     });
-    const result = credentials.map(stripBinaryFromCredential);
+    const result = credentials.map((c: any) => ({
+      ...c,
+      hasImage: !!c.imageMime,
+      sectionsCount: c._count.sections,
+      _count: undefined,
+    }));
     return NextResponse.json({ credentials: result });
   } catch (err) {
     console.error("Error fetching micro-credentials:", err);
@@ -115,7 +120,12 @@ export async function POST(req: NextRequest) {
                     const b64 = u.fileBase64 || u.pptxBase64;
                     const mime = u.fileMime || u.pptxMime;
                     const name = u.fileName || u.pptxName;
-                    if (b64) {
+                    if (u.fileKey) {
+                      unitData.fileKey = u.fileKey;
+                      unitData.fileMime =
+                        mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                      unitData.fileName = name || "file";
+                    } else if (b64) {
                       unitData.fileData = Buffer.from(b64, "base64");
                       unitData.fileMime =
                         mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
@@ -143,10 +153,22 @@ export async function POST(req: NextRequest) {
 
     const credential = await prisma.microCredential.create({
       data,
+      omit: { imageData: true },
       include: {
         sections: {
           orderBy: { order: "asc" },
-          include: { subsections: { orderBy: { order: "asc" }, include: { units: { orderBy: { order: "asc" }, include: { questions: { orderBy: { order: "asc" } } } } } } },
+          include: {
+            subsections: {
+              orderBy: { order: "asc" },
+              include: {
+                units: {
+                  orderBy: { order: "asc" },
+                  omit: { fileData: true },
+                  include: { questions: { orderBy: { order: "asc" } } },
+                },
+              },
+            },
+          },
         },
       },
     });

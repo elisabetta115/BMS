@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { getObjectBuffer } from "@/lib/s3";
 import { execFile } from "child_process";
 
 export const dynamic = "force-dynamic";
@@ -22,19 +23,26 @@ export async function GET(
 
     const unit = await prisma.credentialUnit.findUnique({
       where: { id: unitId },
-      select: { fileData: true, fileMime: true, fileName: true },
+      select: { fileData: true, fileKey: true, fileMime: true, fileName: true },
     });
 
-    if (!unit || !unit.fileData) {
+    if (!unit || (!unit.fileData && !unit.fileKey)) {
       return new NextResponse("No file", { status: 404 });
     }
 
     const mime = unit.fileMime || "";
-    const fileBytes = Buffer.from(unit.fileData);
+    let fileBytes: Buffer;
+    if (unit.fileKey) {
+      const buf = await getObjectBuffer(unit.fileKey);
+      if (!buf) return new NextResponse("File storage isn't configured.", { status: 500 });
+      fileBytes = buf;
+    } else {
+      fileBytes = Buffer.from(unit.fileData!);
+    }
 
     // Already a PDF — serve inline directly.
     if (mime === "application/pdf") {
-      return new NextResponse(fileBytes, {
+      return new NextResponse(new Uint8Array(fileBytes), {
         headers: {
           "Content-Type": "application/pdf",
           "Content-Disposition": `inline; filename="${unit.fileName || "presentation.pdf"}"`,

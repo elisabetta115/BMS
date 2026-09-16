@@ -5,19 +5,21 @@ import { requireAdmin } from "@/lib/admin";
 export async function GET() {
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
+    // List view only needs enough to render cards and badges — not every
+    // credential's full section/unit/quiz content, and never the raw image
+    // bytes (images are served separately via /api/images/[type]/[id]).
+    // Fetching those for every row here was the difference between a ~30s,
+    // 40MB response and a near-instant one.
     const programmes = await prisma.microProgramme.findMany({
       orderBy: { code: "asc" },
+      omit: { imageData: true },
       include: {
         credentials: {
           orderBy: { order: "asc" },
           include: {
             credential: {
-              include: {
-                sections: {
-                  orderBy: { order: "asc" },
-                  include: { subsections: { orderBy: { order: "asc" }, include: { units: { orderBy: { order: "asc" }, include: { questions: { orderBy: { order: "asc" } } } } } } },
-                },
-              },
+              omit: { imageData: true },
+              include: { _count: { select: { sections: true } } },
             },
           },
         },
@@ -25,12 +27,12 @@ export async function GET() {
     });
     const result = programmes.map((p: any) => ({
       ...p,
-      imageData: undefined, // never send binary to client
-      hasImage: !!p.imageData,
+      hasImage: !!p.imageMime,
       credentials: p.credentials.map((pc: any) => ({
         ...pc.credential,
-        imageData: undefined,
-        hasImage: !!pc.credential.imageData,
+        hasImage: !!pc.credential.imageMime,
+        sectionsCount: pc.credential._count.sections,
+        _count: undefined,
       })),
     }));
     return NextResponse.json({ programmes: result });
@@ -69,9 +71,9 @@ export async function POST(req: NextRequest) {
       data.imageMime = imageMime;
     }
 
-    const programme = await prisma.microProgramme.create({ data });
+    const programme = await prisma.microProgramme.create({ data, omit: { imageData: true } });
     return NextResponse.json({
-      programme: { ...programme, imageData: undefined, hasImage: !!programme.imageData },
+      programme: { ...programme, hasImage: !!programme.imageMime },
     }, { status: 201 });
   } catch (err: any) {
     console.error("Error creating micro-programme:", err);

@@ -15,6 +15,7 @@ interface CredentialUnit {
   weight?: number;
   videoUrl?: string;
   fileBase64?: string;
+  fileKey?: string;
   fileMime?: string;
   fileName?: string;
   hasFile?: boolean;
@@ -28,7 +29,7 @@ interface MicroCredential {
   id: string; title: string; slug: string; code: string; project: string;
   description: string | null; overview: string | null; objectives: string | null;
   image: string | null; hasImage: boolean; developedBy: string | null;
-  passGrade: number; sections?: CredentialSection[];
+  passGrade: number; sections?: CredentialSection[]; sectionsCount?: number;
 }
 
 interface MicroProgramme {
@@ -66,8 +67,8 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
     if (!["image/png", "image/jpeg", "image/jpg"].includes(file.type)) {
       setError("Only PNG and JPG files are allowed."); e.target.value = ""; return;
     }
-    if (file.size > 20 * 1024 * 1024) {
-      setError("File must be under 20 MB."); e.target.value = ""; return;
+    if (file.size > 4 * 1024 * 1024) {
+      setError("File must be under 4 MB."); e.target.value = ""; return;
     }
 
     const reader = new FileReader();
@@ -103,7 +104,7 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
             Upload image
             <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
           </label>
-          <p className="text-xs text-brand-muted mt-1">PNG or JPG, max 20 MB</p>
+          <p className="text-xs text-brand-muted mt-1">PNG or JPG, max 4 MB</p>
           {value && imgError && <p className="text-xs text-orange-500 mt-1">Couldn&apos;t load existing image (it will be kept unless you upload a new one or remove it).</p>}
         </>
       )}
@@ -158,7 +159,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
     if (!file) return;
     setError("");
     if (file.type !== "application/pdf") { setError("Only PDF files are allowed."); e.target.value = ""; return; }
-    if (file.size > 50 * 1024 * 1024) { setError("File must be under 50 MB."); e.target.value = ""; return; }
+    if (file.size > 4 * 1024 * 1024) { setError("File must be under 4 MB."); e.target.value = ""; return; }
     const reader = new FileReader();
     reader.onload = () => {
       const dataUrl = reader.result as string;
@@ -191,7 +192,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
           </button>
         )}
       </div>
-      <p className="text-xs text-brand-muted mt-1">PDF only, max 50 MB</p>
+      <p className="text-xs text-brand-muted mt-1">PDF only, max 4 MB</p>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       {!value && !name && <p className="text-xs text-orange-500 mt-1">A PDF template is required.</p>}
     </div>
@@ -516,6 +517,7 @@ function PdfPreview({ unit }: { unit: CredentialUnit }) {
 }
 
 type Tab = "programmes" | "credentials" | "certificates";
+
 type View = "list" | "new-prog" | "edit-prog" | "new-cred" | "edit-cred" | "new-cert" | "edit-cert" | "import";
 
 function imageUrlFor(type: "programme" | "credential", id: string, version: number, fallback: string | null) {
@@ -549,6 +551,9 @@ export default function AdminPage() {
   const [credPickerSearch, setCredPickerSearch] = useState("");
   const [addCredDropOpen, setAddCredDropOpen] = useState(false);
   const addCredDropRef = useRef<HTMLDivElement>(null);
+  const [uploadingUnitKey, setUploadingUnitKey] = useState<string | null>(null);
+  const [unitUploadPct, setUnitUploadPct] = useState<number | null>(null);
+  const [unitUploadError, setUnitUploadError] = useState("");
 
   const [confirmDialog, setConfirmDialog] = useState<{ message: string; resolve: (ok: boolean) => void } | null>(null);
 
@@ -567,6 +572,8 @@ export default function AdminPage() {
   }, [confirmDialog]);
 
   const [importFile, setImportFile] = useState<File | null>(null);
+  const [importFileKey, setImportFileKey] = useState("");
+  const [importUploadPct, setImportUploadPct] = useState<number | null>(null);
   const [importPreview, setImportPreview] = useState<any>(null);
   const [importExisting, setImportExisting] = useState<{ credential: any } | null>(null);
   const [importBusy, setImportBusy] = useState(false);
@@ -693,6 +700,7 @@ export default function AdminPage() {
     setCredPickerOpen(false);
     setAddCredDropOpen(false);
     setImportFile(null);
+    setImportFileKey("");
     setImportPreview(null);
     setImportExisting(null);
     setImportError("");
@@ -704,40 +712,82 @@ export default function AdminPage() {
 
   function openImport() {
     pushAdminHistory("import");
-    setImportFile(null); setImportPreview(null); setImportExisting(null);
+    setImportFile(null); setImportFileKey(""); setImportUploadPct(null); setImportPreview(null); setImportExisting(null);
     setImportError(""); setImportResult(null); setCredConflictChoice("skip"); setImportProgrammeId("");
     setReturnTab("credentials"); setView("import");
   }
 
+/** Uploads a file straight to S3 (bypassing our server's request-size limit) and returns its object key. */
+  async function uploadToStorage(
+    file: File,
+    purpose: "olx-import" | "unit-file",
+    onProgress?: (pct: number) => void
+  ): Promise<string> {
+    const presignRes = await fetch("/api/admin/uploads/presign", {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ filename: file.name, contentType: file.type || "application/octet-stream", purpose }),
+    });
+    const presignData = await presignRes.json();
+    if (!presignRes.ok) throw new Error(presignData.error || "Could not prepare the upload.");
+
+    await new Promise<void>((resolve, reject) => {
+      const xhr = new XMLHttpRequest();
+      xhr.open("PUT", presignData.uploadUrl);
+      xhr.setRequestHeader("Content-Type", file.type || "application/octet-stream");
+      xhr.upload.onprogress = (e) => {
+        if (e.lengthComputable && onProgress) onProgress(Math.round((e.loaded / e.total) * 100));
+      };
+      xhr.onload = () => {
+        if (xhr.status >= 200 && xhr.status < 300) resolve();
+        else reject(new Error("Upload to storage failed."));
+      };
+      xhr.onerror = () => reject(new Error("Upload to storage failed — check your connection."));
+      xhr.send(file);
+    });
+
+    return presignData.key as string;
+  }
+
   async function analyseImport(f: File) {
-    setImportFile(f);
+    setImportFile(f); setImportFileKey("");
     setImportBusy(true); setImportError(""); setImportPreview(null); setImportExisting(null); setImportResult(null); setImportProgrammeId("");
+    setImportUploadPct(0);
     try {
-      const fd = new FormData();
-      fd.append("file", f);
-      fd.append("mode", "preview");
-      const r = await fetch("/api/admin/import-olx", { method: "POST", body: fd });
+      const key = await uploadToStorage(f, "olx-import", setImportUploadPct);
+      setImportUploadPct(null);
+      setImportFileKey(key);
+      const r = await fetch("/api/admin/import-olx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ key, mode: "preview" }),
+      });
       const d = await r.json();
       if (!r.ok) { setImportError(d.error || "Could not read the archive."); setImportBusy(false); return; }
       setImportPreview(d.summary);
       setImportExisting(d.existing);
       if (d.existing?.credential) setCredConflictChoice("skip");
-    } catch { setImportError("Upload failed."); }
+    } catch (err: any) { setImportError(err?.message || "Upload failed."); }
+    setImportUploadPct(null);
     setImportBusy(false);
   }
 
   async function runImport() {
-    if (!importFile) return;
+    if (!importFileKey) return;
     setImportBusy(true); setImportError("");
     try {
-      const fd = new FormData();
-      fd.append("file", importFile);
-      fd.append("mode", "commit");
-      // Programme attachment is opt-in — the importer never creates or
-      // auto-links a micro-programme on its own.
-      if (importProgrammeId) fd.append("programmeId", importProgrammeId);
-      if (importExisting?.credential) fd.append("onExistingCredential", credConflictChoice);
-      const r = await fetch("/api/admin/import-olx", { method: "POST", body: fd });
+      const r = await fetch("/api/admin/import-olx", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          key: importFileKey,
+          mode: "commit",
+          // Programme attachment is opt-in — the importer never creates or
+          // auto-links a micro-programme on its own.
+          programmeId: importProgrammeId || undefined,
+          onExistingCredential: importExisting?.credential ? credConflictChoice : undefined,
+        }),
+      });
       const d = await r.json();
       if (!r.ok) { setImportError(d.error || d.message || "Import failed."); setImportBusy(false); return; }
       setImportResult(d);
@@ -829,11 +879,29 @@ export default function AdminPage() {
     setView("new-cred");
   }
 
-  function editCred(c: MicroCredential, progId?: string) {
+  /**
+   * List views only carry a section count, not full content, to stay fast —
+   * so opening a credential always re-fetches the single, fully-detailed
+   * record rather than trusting whatever partial object was clicked.
+   */
+  async function fetchFullCredential(id: string): Promise<MicroCredential | null> {
+    try {
+      const r = await fetch(`/api/micro-credentials/${id}`);
+      if (!r.ok) return null;
+      const d = await r.json();
+      return d.credential as MicroCredential;
+    } catch {
+      return null;
+    }
+  }
+
+  async function editCred(c: MicroCredential, progId?: string) {
+    const full = await fetchFullCredential(c.id);
+    if (!full) { alert("Could not load this credential. Please try again."); return; }
     pushAdminHistory("edit-cred");
-    const imgUrl = c.hasImage ? imageUrlFor("credential", c.id, imageVersion, null) : c.image || "";
-    setCredForm({ title: c.title, slug: c.slug, code: c.code, project: c.project, description: c.description || "", overview: c.overview || "", objectives: c.objectives || "", image: imgUrl, developedBy: c.developedBy || "", passGrade: String(c.passGrade) });
-    setSections(c.sections || []); setEditingCred(c); setParentProgId(progId || null); setFormError("");
+    const imgUrl = full.hasImage ? imageUrlFor("credential", full.id, imageVersion, null) : full.image || "";
+    setCredForm({ title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", passGrade: String(full.passGrade) });
+    setSections(full.sections || []); setEditingCred(full); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("edit-cred");
   }
@@ -1005,6 +1073,9 @@ export default function AdminPage() {
         {overWeight && (
           <p className="text-xs text-red-600 mb-3">Total weight exceeds 100%. Adjust individual unit weights before saving.</p>
         )}
+        {unitUploadError && (
+          <p className="text-xs text-red-600 mb-3">{unitUploadError}</p>
+        )}
 
         {sections.length === 0 && <p className="text-brand-muted text-sm py-4 text-center rounded-2xl border border-dashed border-brand-line">No sections yet.</p>}
 
@@ -1082,6 +1153,7 @@ export default function AdminPage() {
                                   </div>
                                   <button type="button" onClick={() => {
                                     updateUnit(si, ssi, ui, "fileBase64", "");
+                                    updateUnit(si, ssi, ui, "fileKey", "");
                                     updateUnit(si, ssi, ui, "fileMime", "");
                                     updateUnit(si, ssi, ui, "fileName", "");
                                     updateUnit(si, ssi, ui, "hasFile", false);
@@ -1095,27 +1167,45 @@ export default function AdminPage() {
                               </>
                             ) : (
                               <div>
-                                <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400">
-                                  <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
-                                  Upload presentation
-                                  <input type="file" accept=".pptx,.ppt,.pdf" className="hidden" onChange={e => {
-                                    const file = e.target.files?.[0];
-                                    if (!file) return;
-                                    if (file.size > 1024 * 1024 * 1024) { alert("File must be under 1 GB."); e.target.value = ""; return; }
-                                    const reader = new FileReader();
-                                    reader.onload = () => {
-                                      const dataUrl = reader.result as string;
-                                      const [header, data] = dataUrl.split(",");
-                                      const mime = header.match(/data:(.*?);/)?.[1] || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-                                      updateUnit(si, ssi, ui, "fileBase64", data);
-                                      updateUnit(si, ssi, ui, "fileMime", mime);
-                                      updateUnit(si, ssi, ui, "fileName", file.name);
-                                      updateUnit(si, ssi, ui, "removeFile", false);
-                                    };
-                                    reader.readAsDataURL(file);
-                                    e.target.value = "";
-                                  }} />
-                                </label>
+                                {(() => {
+                                  const unitKey = `${si}-${ssi}-${ui}`;
+                                  const isUploading = uploadingUnitKey === unitKey;
+                                  return (
+                                    <>
+                                      <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400 ${isUploading ? "opacity-60 pointer-events-none" : ""}`}>
+                                        <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
+                                        {isUploading ? `Uploading… ${unitUploadPct ?? 0}%` : "Upload presentation"}
+                                        <input type="file" accept=".pptx,.ppt,.pdf" className="hidden" disabled={isUploading} onChange={async e => {
+                                          const file = e.target.files?.[0];
+                                          e.target.value = "";
+                                          if (!file) return;
+                                          if (file.size > 1024 * 1024 * 1024) { setUnitUploadError("File must be under 1 GB."); return; }
+                                          setUnitUploadError("");
+                                          setUploadingUnitKey(unitKey);
+                                          setUnitUploadPct(0);
+                                          try {
+                                            const mime = file.type || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                                            const key = await uploadToStorage(file, "unit-file", setUnitUploadPct);
+                                            updateUnit(si, ssi, ui, "fileBase64", "");
+                                            updateUnit(si, ssi, ui, "fileKey", key);
+                                            updateUnit(si, ssi, ui, "fileMime", mime);
+                                            updateUnit(si, ssi, ui, "fileName", file.name);
+                                            updateUnit(si, ssi, ui, "removeFile", false);
+                                          } catch (err: any) {
+                                            setUnitUploadError(err?.message || "Upload failed.");
+                                          }
+                                          setUploadingUnitKey(null);
+                                          setUnitUploadPct(null);
+                                        }} />
+                                      </label>
+                                      {isUploading && (
+                                        <div className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-gray-200 overflow-hidden">
+                                          <div className="h-full rounded-full transition-all" style={{ width: `${unitUploadPct ?? 0}%`, background: "var(--bms-green)" }} />
+                                        </div>
+                                      )}
+                                    </>
+                                  );
+                                })()}
                                 <p className="text-xs text-brand-muted mt-1">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
                               </div>
                             )}
@@ -1247,7 +1337,7 @@ export default function AdminPage() {
                                       <span className="text-xs text-brand-muted">|</span>
                                       <span className="text-xs text-brand-muted">{c.project}</span>
                                       <span className="text-xs text-brand-muted">|</span>
-                                      <span className="text-xs text-brand-muted">{(c.sections || []).length} sections</span>
+                                      <span className="text-xs text-brand-muted">{c.sectionsCount ?? (c.sections || []).length} sections</span>
                                     </div>
                                     <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
                                     <div className="flex flex-wrap gap-1">
@@ -1319,7 +1409,7 @@ export default function AdminPage() {
                                 <span className="text-xs text-brand-muted">|</span>
                                 <span className="text-xs text-brand-muted">{c.project}</span>
                                 <span className="text-xs text-brand-muted">|</span>
-                                <span className="text-xs text-brand-muted">{(c.sections || []).length} sections</span>
+                                <span className="text-xs text-brand-muted">{c.sectionsCount ?? (c.sections || []).length} sections</span>
                               </div>
                               <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
                               <div className="flex flex-wrap gap-1">
@@ -1456,7 +1546,7 @@ export default function AdminPage() {
                       <div key={c.id} className="rounded-2xl border border-brand-line bg-white px-5 py-4 flex items-center justify-between">
                         <div className="flex-1 cursor-pointer" onClick={() => editCred(c, editingProg.id)}>
                           <p className="font-medium text-brand-dark">{c.title}</p>
-                          <span className="text-xs text-brand-muted">{c.code} · {(c.sections || []).length} sections</span>
+                          <span className="text-xs text-brand-muted">{c.code} · {c.sectionsCount ?? (c.sections || []).length} sections</span>
                           {progsUsingCred(c.id).length > 1 && <span className="text-xs text-blue-500 ml-2">Shared</span>}
                         </div>
                         <div className="flex gap-2">
@@ -1763,9 +1853,16 @@ export default function AdminPage() {
                   </div>
 
                   {importBusy && !importPreview && (
-                    <div className="flex items-center gap-3 text-sm text-brand-muted">
-                      <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
-                      Reading archive…
+                    <div className="text-sm text-brand-muted">
+                      <div className="flex items-center gap-3">
+                        <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
+                        {importUploadPct !== null ? `Uploading… ${importUploadPct}%` : "Reading archive…"}
+                      </div>
+                      {importUploadPct !== null && (
+                        <div className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-gray-200 overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${importUploadPct}%`, background: "var(--bms-green)" }} />
+                        </div>
+                      )}
                     </div>
                   )}
 
@@ -1866,8 +1963,20 @@ export default function AdminPage() {
                         <button onClick={runImport} disabled={importBusy} className="auth-btn max-w-xs">
                           {importBusy ? "Importing…" : importExisting?.credential && credConflictChoice === "replace" ? "Replace & import" : "Import"}
                         </button>
-                        <button onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                        <button onClick={goList} disabled={importBusy} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
                       </div>
+
+                      {importBusy && (
+                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
+                          <div className="flex items-center gap-3 text-sm text-brand-dark mb-2">
+                            <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
+                            Saving your course — creating sections, units and quizzes. This can take a little while for larger courses, please don&apos;t close this tab.
+                          </div>
+                          <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
+                            <div className="h-full w-1/3 rounded-full animate-[indeterminate_1.2s_ease-in-out_infinite]" style={{ background: "var(--bms-green)" }} />
+                          </div>
+                        </div>
+                      )}
                     </div>
                   )}
                 </div>

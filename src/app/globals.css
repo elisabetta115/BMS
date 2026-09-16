@@ -3128,6 +3128,16 @@ input[type="number"].no-spin {
   animation: authFadeIn 240ms ease-out;
 }
 
+@keyframes indeterminate {
+  0% {
+    transform: translateX(-100%);
+  }
+
+  100% {
+    transform: translateX(300%);
+  }
+}
+
 @media (prefers-reduced-motion: reduce) {
   .bms-auth-tabs-pill,
   .bms-auth-tab {

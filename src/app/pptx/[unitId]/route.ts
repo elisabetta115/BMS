@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
+import { createDownloadUrl } from "@/lib/s3";
 
 export async function GET(
   req: NextRequest,
@@ -12,14 +13,20 @@ export async function GET(
 
     const unit = await prisma.credentialUnit.findUnique({
       where: { id: unitId },
-      select: { fileData: true, fileMime: true, fileName: true },
+      select: { fileData: true, fileKey: true, fileMime: true, fileName: true },
     });
 
-    if (!unit || !unit.fileData) {
+    if (!unit || (!unit.fileData && !unit.fileKey)) {
       return new NextResponse("No file", { status: 404 });
     }
 
-    return new NextResponse(unit.fileData, {
+    if (unit.fileKey) {
+      const url = await createDownloadUrl(unit.fileKey);
+      if (!url) return new NextResponse("File storage isn't configured.", { status: 500 });
+      return NextResponse.redirect(url);
+    }
+
+    return new NextResponse(unit.fileData!, {
       headers: {
         "Content-Type": unit.fileMime || "application/vnd.openxmlformats-officedocument.presentationml.presentation",
         "Content-Disposition": `attachment; filename="${unit.fileName || "presentation.pptx"}"`,

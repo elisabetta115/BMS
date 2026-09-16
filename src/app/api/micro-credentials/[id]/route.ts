@@ -2,12 +2,13 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { deleteObject } from "@/lib/s3";
 
 function stripBinaryFromCredential(c: any) {
   return {
     ...c,
     imageData: undefined,
-    hasImage: !!c.imageData,
+    hasImage: !!(c.imageData || c.imageMime),
     sections: (c.sections || []).map((s: any) => ({
       ...s,
       subsections: (s.subsections || []).map((ss: any) => ({
@@ -15,7 +16,7 @@ function stripBinaryFromCredential(c: any) {
         units: (ss.units || []).map((u: any) => ({
           ...u,
           fileData: undefined,
-          hasFile: !!u.fileData,
+          hasFile: !!(u.fileData || u.fileKey || u.fileMime),
         })),
       })),
     })),
@@ -37,7 +38,14 @@ function validateWeights(sections: any[]): string | null {
   return null;
 }
 
-function buildUnitCreate(u: any, ui: number) {
+interface ExistingUnitFile {
+  fileData: Uint8Array | null;
+  fileKey: string | null;
+  fileMime: string | null;
+  fileName: string | null;
+}
+
+function buildUnitCreate(u: any, ui: number, existingFile?: ExistingUnitFile) {
   const unitData: any = {
     title: u.title,
     type: u.type,
@@ -49,11 +57,24 @@ function buildUnitCreate(u: any, ui: number) {
     const b64 = u.fileBase64 || u.pptxBase64;
     const mime = u.fileMime || u.pptxMime;
     const name = u.fileName || u.pptxName;
-    if (b64) {
+    if (u.fileKey) {
+      unitData.fileKey = u.fileKey;
+      unitData.fileMime = mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+      unitData.fileName = name || "file";
+    } else if (b64) {
       unitData.fileData = Buffer.from(b64, "base64");
       unitData.fileMime =
         mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
       unitData.fileName = name || "file";
+    } else if (!u.removeFile && existingFile) {
+      // The client never round-trips the actual file bytes/key back to us on
+      // every save (only a "hasFile" flag) — if the unit wasn't touched and
+      // wasn't explicitly removed, carry its existing file forward instead
+      // of silently dropping it when the section tree is recreated below.
+      unitData.fileData = existingFile.fileData ? Buffer.from(existingFile.fileData) : null;
+      unitData.fileKey = existingFile.fileKey;
+      unitData.fileMime = existingFile.fileMime;
+      unitData.fileName = existingFile.fileName;
     }
   }
   if (u.type === "QUIZ" && u.questions?.length) {
@@ -78,6 +99,7 @@ const INCLUDE_FULL = {
         include: {
           units: {
             orderBy: { order: "asc" as const },
+            omit: { fileData: true },
             include: { questions: { orderBy: { order: "asc" as const } } },
           },
         },
@@ -95,6 +117,7 @@ export async function GET(
     const { id } = await params;
     const credential = await prisma.microCredential.findUnique({
       where: { id },
+      omit: { imageData: true },
       include: INCLUDE_FULL,
     });
     if (!credential) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -120,6 +143,16 @@ export async function PATCH(
       const weightErr = validateWeights(sections);
       if (weightErr) return NextResponse.json({ error: weightErr }, { status: 400 });
     }
+
+    // The whole section tree is recreated below, so grab each existing
+    // unit's file (by id) first — otherwise a save that doesn't touch a
+    // presentation unit would silently lose its attached file.
+    const existingUnits = await prisma.credentialUnit.findMany({
+      where: { subsection: { section: { credentialId: id } } },
+      select: { id: true, fileData: true, fileKey: true, fileMime: true, fileName: true },
+    });
+    const existingFilesById = new Map(existingUnits.map((u) => [u.id, u]));
+    const staleKeys = existingUnits.map((u) => u.fileKey).filter((k): k is string => !!k);
 
     await prisma.credentialSection.deleteMany({ where: { credentialId: id } });
 
@@ -152,7 +185,9 @@ export async function PATCH(
               title: ss.title,
               order: ssi,
               units: {
-                create: (ss.units || []).map((u: any, ui: number) => buildUnitCreate(u, ui)),
+                create: (ss.units || []).map((u: any, ui: number) =>
+                  buildUnitCreate(u, ui, u.id ? existingFilesById.get(u.id) : undefined)
+                ),
               },
             })),
           },
@@ -163,8 +198,17 @@ export async function PATCH(
     const credential = await prisma.microCredential.update({
       where: { id },
       data,
+      omit: { imageData: true },
       include: INCLUDE_FULL,
     });
+
+    // Clean up any S3 files that were replaced or explicitly removed —
+    // anything still referenced by the freshly-saved credential stays.
+    const keptKeys = new Set(
+      credential.sections.flatMap((s) => s.subsections.flatMap((ss) => ss.units.map((u) => u.fileKey))).filter(Boolean)
+    );
+    await Promise.all(staleKeys.filter((k) => !keptKeys.has(k)).map((k) => deleteObject(k).catch(() => {})));
+
     return NextResponse.json({ credential: stripBinaryFromCredential(credential) });
   } catch (err: any) {
     console.error("Error updating credential:", err);
@@ -182,7 +226,12 @@ export async function DELETE(
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { id } = await params;
+    const units = await prisma.credentialUnit.findMany({
+      where: { subsection: { section: { credentialId: id } } },
+      select: { fileKey: true },
+    });
     await prisma.microCredential.delete({ where: { id } });
+    await Promise.all(units.filter((u) => u.fileKey).map((u) => deleteObject(u.fileKey!).catch(() => {})));
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error deleting credential:", err);
