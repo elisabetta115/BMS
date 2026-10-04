@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCredentialProgress } from "@/lib/grading";
 
 export async function GET(
   _req: NextRequest,
@@ -14,23 +15,7 @@ export async function GET(
 
     const { id } = await params;
 
-    const [completions, credential] = await Promise.all([
-      prisma.unitCompletion.findMany({
-        where: {
-          userId: session.userId,
-          unit: { subsection: { section: { credentialId: id } } },
-        },
-        select: { unitId: true, unit: { select: { weight: true } } },
-      }),
-      prisma.microCredential.findUnique({
-        where: { id },
-        select: { passGrade: true },
-      }),
-    ]);
-
-    const completedUnitIds = completions.map(c => c.unitId);
-    const currentGrade = completions.reduce((sum, c) => sum + c.unit.weight, 0);
-    const hasPassed = !!credential && currentGrade >= credential.passGrade;
+    const { completedUnitIds, currentGrade, hasPassed } = await getCredentialProgress(session.userId, id);
 
     return NextResponse.json({ completedUnitIds, currentGrade, hasPassed });
   } catch (err) {

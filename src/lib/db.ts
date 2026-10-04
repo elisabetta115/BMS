@@ -17,9 +17,11 @@ function getSupabase(): SupabaseClient | null {
 export interface DBUser {
   id: string;
   name: string;
+  username: string | null;
   email: string;
   passwordHash: string;
   country: string | null;
+  gender: string | null;
   role: "USER" | "ADMIN";
 }
 
@@ -50,6 +52,21 @@ export interface DBMicroProgramme {
 
 // ─── User queries ───────────────────────────────────────────
 
+const USER_COLUMNS = "id, name, username, email, password_hash, country, gender, role";
+
+function toDBUser(data: any): DBUser {
+  return {
+    id: data.id,
+    name: data.name,
+    username: data.username ?? null,
+    email: data.email,
+    passwordHash: data.password_hash,
+    country: data.country,
+    gender: data.gender ?? null,
+    role: data.role || "USER",
+  };
+}
+
 export async function findUserByEmail(
   email: string
 ): Promise<DBUser | null> {
@@ -63,25 +80,34 @@ export async function findUserByEmail(
     );
   const { data } = await supabase
     .from("users")
-    .select("id, name, email, password_hash, country, role")
+    .select(USER_COLUMNS)
     .eq("email", email)
     .single();
-  if (!data) return null;
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    passwordHash: data.password_hash,
-    country: data.country,
-    role: data.role || "USER",
-  };
+  return data ? toDBUser(data) : null;
+}
+
+/** Usernames are unique regardless of letter case ("Anna" and "anna" are the same). */
+export async function findUserByUsername(username: string): Promise<DBUser | null> {
+  if (prisma) {
+    return prisma.user.findFirst({ where: { username: { equals: username, mode: "insensitive" } } });
+  }
+  const supabase = getSupabase();
+  if (!supabase) throw new Error("No database configured.");
+  const { data } = await supabase
+    .from("users")
+    .select(USER_COLUMNS)
+    .ilike("username", username.replace(/[\\%_]/g, "\\$&"))
+    .maybeSingle();
+  return data ? toDBUser(data) : null;
 }
 
 export async function createUser(input: {
   name: string;
+  username: string;
   email: string;
   passwordHash: string;
   country: string | null;
+  gender: string | null;
 }): Promise<DBUser> {
   if (prisma) {
     return prisma.user.create({ data: input });
@@ -92,21 +118,16 @@ export async function createUser(input: {
     .from("users")
     .insert({
       name: input.name,
+      username: input.username,
       email: input.email,
       password_hash: input.passwordHash,
       country: input.country,
+      gender: input.gender,
     })
-    .select("id, name, email, password_hash, country, role")
+    .select(USER_COLUMNS)
     .single();
   if (error) throw error;
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    passwordHash: data.password_hash,
-    country: data.country,
-    role: data.role || "USER",
-  };
+  return toDBUser(data);
 }
 
 export async function findUserById(id: string): Promise<DBUser | null> {
@@ -117,18 +138,10 @@ export async function findUserById(id: string): Promise<DBUser | null> {
   if (!supabase) throw new Error("No database configured.");
   const { data } = await supabase
     .from("users")
-    .select("id, name, email, password_hash, country, role")
+    .select(USER_COLUMNS)
     .eq("id", id)
     .single();
-  if (!data) return null;
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    passwordHash: data.password_hash,
-    country: data.country,
-    role: data.role || "USER",
-  };
+  return data ? toDBUser(data) : null;
 }
 
 export async function updateUser(
@@ -149,17 +162,10 @@ export async function updateUser(
     .from("users")
     .update(patch)
     .eq("id", id)
-    .select("id, name, email, password_hash, country, role")
+    .select(USER_COLUMNS)
     .single();
   if (error) throw error;
-  return {
-    id: data.id,
-    name: data.name,
-    email: data.email,
-    passwordHash: data.password_hash,
-    country: data.country,
-    role: data.role || "USER",
-  };
+  return toDBUser(data);
 }
 
 // ─── Micro-credential queries ───────────────────────────────

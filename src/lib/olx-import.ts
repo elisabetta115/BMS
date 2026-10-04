@@ -24,9 +24,13 @@ import * as tar from "tar-stream";
 /* ─── Output shape ─────────────────────────────────────────── */
 
 export interface ParsedQuestion {
+  /** The problem's display_name, shown above it like on the live site. */
+  title: string | null;
   question: string;
   options: string[];
   correctIndex: number;
+  /** Tries allowed (problem max_attempts, else the course default); null = unlimited. */
+  maxAttempts: number | null;
 }
 
 export interface ParsedUnit {
@@ -188,6 +192,9 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
     }
   }
 
+  // Course-wide default for problems that don't set their own max_attempts.
+  const courseMaxAttempts = positiveInt(policy.max_attempts ?? attr(courseNode, "max_attempts"));
+
   const title =
     policy.display_name ||
     attr(courseNode, "display_name") ||
@@ -316,7 +323,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
           for (const pRef of problemRefs) {
             const pXml = text(`${prefix}problem/${pRef}.xml`);
             if (!pXml) { warnings.push(`Missing problem/${pRef}.xml`); continue; }
-            const q = parseProblem(pXml);
+            const q = parseProblem(pXml, courseMaxAttempts);
             if (q) questions.push(q);
             else warnings.push(`Question in "${vertTitle}" is not multiple-choice — skipped.`);
           }
@@ -424,7 +431,7 @@ function videoUrlFrom(xml: string): string | null {
 }
 
 /** Parse a `<problem>` with a single-answer multiple-choice response. */
-function parseProblem(xml: string): ParsedQuestion | null {
+function parseProblem(xml: string, courseMaxAttempts: number | null): ParsedQuestion | null {
   const isMC = /<multiplechoiceresponse\b/.test(xml);
   const isChoice = /<choiceresponse\b/.test(xml);
   if (!isMC && !isChoice) return null;
@@ -449,7 +456,16 @@ function parseProblem(xml: string): ParsedQuestion | null {
 
   if (options.length < 2) return null;
   if (correctIndex === -1) correctIndex = 0;
-  return { question, options, correctIndex };
+
+  const title = htmlToText(attr(xml, "display_name") || "") || null;
+  const ownMax = attr(xml, "max_attempts");
+  const maxAttempts = ownMax !== null && ownMax !== "" ? positiveInt(ownMax) : courseMaxAttempts;
+  return { title, question, options, correctIndex, maxAttempts };
+}
+
+function positiveInt(value: unknown): number | null {
+  const n = Number(value);
+  return Number.isInteger(n) && n > 0 ? n : null;
 }
 
 /**

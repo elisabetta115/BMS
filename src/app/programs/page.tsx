@@ -3,8 +3,8 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import { ArrowRight, Search } from "lucide-react";
-import { useState, useEffect, useMemo } from "react";
+import { useState, useEffect } from "react";
+import { useRouter } from "next/navigation";
 
 interface MicroCredential {
   id: string;
@@ -24,19 +24,25 @@ interface MicroProgramme {
 }
 
 export default function ProgramsPage() {
+  const router = useRouter();
   const [programmes, setProgrammes] = useState<MicroProgramme[]>([]);
   const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState("");
-  const [projectFilter, setProjectFilter] = useState("");
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [enrolError, setEnrolError] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => (r.ok ? r.json() : null))
       .then((d) => {
-        setIsLoggedIn(Boolean(d?.user));
+        if (!d?.user) return;
+        setIsLoggedIn(true);
+        return fetch("/api/enrollments")
+          .then((r) => (r.ok ? r.json() : { programmes: [] }))
+          .then((e) => setEnrolledIds(new Set((e.programmes || []).map((p: { id: string }) => p.id))));
       })
-      .catch(() => setIsLoggedIn(false));
+      .catch(() => {});
   }, []);
 
   useEffect(() => {
@@ -47,24 +53,36 @@ export default function ProgramsPage() {
       .finally(() => setLoading(false));
   }, []);
 
-  const projectOptions = useMemo(
-    () => Array.from(new Set(programmes.map((p) => p.project).filter(Boolean))).sort(),
-    [programmes]
-  );
-
-  const filtered = useMemo(() => {
-    let result = programmes;
-    if (projectFilter) result = result.filter((p) => p.project === projectFilter);
-    if (!search.trim()) return result;
-    const q = search.toLowerCase();
-    return result.filter(
-      (p) =>
-        p.title.toLowerCase().includes(q) ||
-        p.code.toLowerCase().includes(q) ||
-        p.project.toLowerCase().includes(q) ||
-        (p.credentials || []).some((c) => c.title.toLowerCase().includes(q))
-    );
-  }, [programmes, search, projectFilter]);
+  // Live behaviour: "Enrol" enrols in the programme and opens the programme page,
+  // where each micro-credential has its own "Enroll Now".
+  async function handleEnrol(id: string) {
+    if (!isLoggedIn) {
+      router.push(`/login?redirect=/programs/${id}`);
+      return;
+    }
+    if (enrolledIds.has(id)) {
+      router.push(`/programs/${id}`);
+      return;
+    }
+    setEnrollingId(id);
+    setEnrolError(null);
+    try {
+      const r = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "programme", id }),
+      });
+      if (r.ok) {
+        router.push(`/programs/${id}`);
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      setEnrolError({ id, message: d.error || "Failed to enrol." });
+    } catch {
+      setEnrolError({ id, message: "Network error. Please try again." });
+    }
+    setEnrollingId(null);
+  }
 
   return (
     <>
@@ -74,41 +92,13 @@ export default function ProgramsPage() {
           <span className="bms-section-eyebrow">Catalogue</span>
           <h1 className="bms-section-title">Micro-programmes</h1>
 
-          <div className="mb-10 flex flex-col gap-3 sm:flex-row">
-            <label className="bms-courses-search flex-1">
-              <Search aria-hidden="true" size={20} />
-              <input
-                type="search"
-                placeholder="Search micro-programmes"
-                value={search}
-                onChange={(e) => setSearch(e.target.value)}
-              />
-            </label>
-            <select
-              value={projectFilter}
-              onChange={(e) => setProjectFilter(e.target.value)}
-              className="rounded-[10px] border border-[#bdbdbd] bg-white px-4 py-3 text-base text-brand-dark outline-none sm:min-w-52"
-            >
-              <option value="">All projects</option>
-              {projectOptions.map((p) => (
-                <option key={p} value={p}>
-                  {p}
-                </option>
-              ))}
-            </select>
-          </div>
-
           {loading ? (
             <p className="bms-courses-empty">Loading micro-programmes…</p>
-          ) : filtered.length === 0 ? (
-            <p className="bms-courses-empty">
-              {search || projectFilter
-                ? "No programmes match your search or filters."
-                : "No micro-programmes available yet."}
-            </p>
+          ) : programmes.length === 0 ? (
+            <p className="bms-courses-empty">No micro-programmes available yet.</p>
           ) : (
             <div className="bms-program-grid">
-              {filtered.map((p) => {
+              {programmes.map((p) => {
                 const href = `/programs/${p.id}`;
                 const img = p.hasImage ? `/api/images/programme/${p.id}` : p.image || "";
                 return (
@@ -142,10 +132,15 @@ export default function ProgramsPage() {
                         </ul>
                       )}
                       <div className="bms-card-actions">
-                        <Link className="bms-pill" href={href}>
-                          View
-                          <ArrowRight aria-hidden="true" size={18} strokeWidth={2.5} style={{ marginLeft: "0.5rem" }} />
-                        </Link>
+                        <button
+                          type="button"
+                          className="bms-pill"
+                          onClick={() => handleEnrol(p.id)}
+                          disabled={enrollingId === p.id}
+                        >
+                          {enrollingId === p.id ? "Enrolling…" : "Enrol"}
+                        </button>
+                        {enrolError?.id === p.id && <p className="bms-enrol-error mt-3">{enrolError.message}</p>}
                       </div>
                     </div>
                   </article>
@@ -155,7 +150,7 @@ export default function ProgramsPage() {
           )}
         </section>
       </main>
-      {isLoggedIn === false && <Footer />}
+      <Footer />
     </>
   );
 }

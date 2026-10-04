@@ -35,13 +35,17 @@ export function validateEmail(email: string): boolean {
   return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(email);
 }
 
-export async function createSessionToken(payload: {
+export interface SessionPayload {
   userId: string;
   email: string;
   name: string;
+  /** Null for accounts created before usernames existed. */
+  username: string | null;
   role: string;
-}): Promise<string> {
-  return new SignJWT(payload)
+}
+
+export async function createSessionToken(payload: SessionPayload): Promise<string> {
+  return new SignJWT({ ...payload })
     .setProtectedHeader({ alg: "HS256" })
     .setIssuedAt()
     .setExpirationTime(`${SESSION_DURATION}s`)
@@ -50,10 +54,12 @@ export async function createSessionToken(payload: {
 
 export async function verifySessionToken(
   token: string
-): Promise<{ userId: string; email: string; name: string; role: string } | null> {
+): Promise<SessionPayload | null> {
   try {
     const { payload } = await jwtVerify(token, secret);
-    return payload as { userId: string; email: string; name: string; role: string };
+    const session = payload as unknown as SessionPayload;
+    // Tokens issued before usernames existed have no username claim.
+    return { ...session, username: session.username ?? null };
   } catch {
     return null;
   }

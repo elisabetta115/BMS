@@ -14,6 +14,13 @@ export async function POST(
 
     const { unitId } = await params;
 
+    // Quizzes are completed by submitting their questions (see /api/questions/[id]/answer).
+    const unit = await prisma.credentialUnit.findUnique({ where: { id: unitId }, select: { type: true } });
+    if (!unit) return NextResponse.json({ error: "Unit not found." }, { status: 404 });
+    if (unit.type === "QUIZ") {
+      return NextResponse.json({ error: "Quizzes are completed by submitting their questions." }, { status: 400 });
+    }
+
     try {
       await prisma.unitCompletion.upsert({
         where: { userId_unitId: { userId: session.userId, unitId } },

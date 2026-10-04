@@ -7,7 +7,6 @@ import {
   enrollUserInCredential,
   unenrollUserFromProgramme,
   unenrollUserFromCredential,
-  getMicroProgrammeById,
 } from "@/lib/db";
 
 export async function GET() {
@@ -42,16 +41,9 @@ export async function POST(req: NextRequest) {
     }
 
     if (type === "programme") {
+      // Like the live site, this does not enrol in the programme's micro-credentials:
+      // learners enrol in each one with "Enroll Now" on the programme page.
       await enrollUserInProgramme(session.userId, id);
-      // Also auto-enroll in every credential within the programme
-      const programme = await getMicroProgrammeById(id);
-      if (programme?.credentials?.length) {
-        await Promise.all(
-          programme.credentials.map((c: any) =>
-            enrollUserInCredential(session.userId, c.id)
-          )
-        );
-      }
     } else if (type === "credential") {
       await enrollUserInCredential(session.userId, id);
     } else {

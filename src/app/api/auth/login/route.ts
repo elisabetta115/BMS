@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserByEmail } from "@/lib/db";
+import { findUserByEmail, findUserByUsername } from "@/lib/db";
 import { verifyPassword, createSessionToken, setSessionCookie } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
 import { prisma } from "@/lib/prisma";
@@ -9,7 +9,10 @@ async function findUserByEmailOrName(identifier: string) {
   const byEmail = await findUserByEmail(identifier.toLowerCase().trim());
   if (byEmail) return byEmail;
 
-  // Try by name (case-insensitive) via Prisma
+  const byUsername = await findUserByUsername(identifier.trim());
+  if (byUsername) return byUsername;
+
+  // Accounts created before usernames existed: try by name (case-insensitive) via Prisma
   if (prisma) {
     const byName = await prisma.user.findFirst({
       where: {
@@ -54,6 +57,7 @@ export async function POST(req: NextRequest) {
       userId: user.id,
       email: user.email,
       name: user.name,
+      username: user.username,
       role: user.role,
     });
     await setSessionCookie(token);

@@ -139,6 +139,8 @@ export async function POST(req: NextRequest) {
                         options: q.options,
                         correctIndex: q.correctIndex,
                         order: qi,
+                        title: q.title || null,
+                        maxAttempts: Number.isInteger(q.maxAttempts) && q.maxAttempts > 0 ? q.maxAttempts : null,
                       })),
                     };
                   }

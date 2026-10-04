@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { ArrowRight, ChevronDown, Search } from "lucide-react";
 import { useState, useEffect, useMemo, useRef } from "react";
+import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
 interface MicroCredential {
@@ -24,11 +25,13 @@ function FilterDropdown({
   label,
   value,
   options,
+  counts,
   onChange,
 }: {
   label: string;
   value: string;
   options: string[];
+  counts: Record<string, number>;
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
@@ -68,6 +71,7 @@ function FilterDropdown({
                 }}
               >
                 <span>{opt}</span>
+                <span className="bms-course-dropdown-count">{counts[opt] ?? 0}</span>
               </button>
             </li>
           ))}
@@ -85,14 +89,54 @@ export default function CoursesPage() {
   const [orgFilter, setOrgFilter] = useState("");
   const [programmeFilter, setProgrammeFilter] = useState("");
   const [credProgrammes, setCredProgrammes] = useState<Record<string, string[]>>({});
-  const [isLoggedIn, setIsLoggedIn] = useState<boolean | null>(null);
+  const router = useRouter();
+  const [isLoggedIn, setIsLoggedIn] = useState(false);
+  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
+  const [enrollingId, setEnrollingId] = useState<string | null>(null);
+  const [enrolError, setEnrolError] = useState<{ id: string; message: string } | null>(null);
 
   useEffect(() => {
     fetch("/api/auth/session")
       .then((r) => (r.ok ? r.json() : null))
-      .then((d) => setIsLoggedIn(Boolean(d?.user)))
-      .catch(() => setIsLoggedIn(false));
+      .then((d) => {
+        if (!d?.user) return;
+        setIsLoggedIn(true);
+        return fetch("/api/enrollments")
+          .then((r) => (r.ok ? r.json() : { credentials: [] }))
+          .then((e) => setEnrolledIds(new Set((e.credentials || []).map((c: { id: string }) => c.id))));
+      })
+      .catch(() => {});
   }, []);
+
+  // Live behaviour: "Enrol" enrols straight away and lands on "My Micro-credentials".
+  async function handleEnrol(id: string) {
+    if (!isLoggedIn) {
+      router.push(`/login?redirect=/credentials/${id}`);
+      return;
+    }
+    if (enrolledIds.has(id)) {
+      router.push(`/dashboard/credentials/${id}`);
+      return;
+    }
+    setEnrollingId(id);
+    setEnrolError(null);
+    try {
+      const r = await fetch("/api/enrollments", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "credential", id }),
+      });
+      if (r.ok) {
+        router.push("/dashboard/my-credentials");
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      setEnrolError({ id, message: d.error || "Failed to enrol." });
+    } catch {
+      setEnrolError({ id, message: "Network error. Please try again." });
+    }
+    setEnrollingId(null);
+  }
 
   useEffect(() => {
     fetch("/api/micro-credentials")
@@ -132,6 +176,19 @@ export default function CoursesPage() {
     return Array.from(all).sort();
   }, [credProgrammes]);
 
+  const counts = useMemo(() => {
+    const tally = (values: (string | null)[]) =>
+      values.reduce<Record<string, number>>((acc, v) => {
+        if (v) acc[v] = (acc[v] ?? 0) + 1;
+        return acc;
+      }, {});
+    return {
+      project: tally(credentials.map((c) => c.project)),
+      org: tally(credentials.map((c) => c.developedBy)),
+      programme: tally(credentials.flatMap((c) => credProgrammes[c.id] || [])),
+    };
+  }, [credentials, credProgrammes]);
+
   const filtered = useMemo(() => {
     let result = credentials;
     if (projectFilter) result = result.filter((c) => c.project === projectFilter);
@@ -153,7 +210,7 @@ export default function CoursesPage() {
       <Header />
       <main id="main">
         <section className="bms-courses">
-          <h1 className="bms-courses-heading">Viewing {filtered.length} micro-credentials</h1>
+          <h1 className="bms-courses-heading">Viewing {filtered.length} courses</h1>
 
           <div className="bms-courses-layout">
             <div className="bms-courses-grid">
@@ -189,14 +246,20 @@ export default function CoursesPage() {
                           <Link href={href}>{c.title}</Link>
                         </h2>
                         <div className="bms-course-actions">
-                          <Link className="bms-course-enrol" href={href}>
-                            View
-                            <ArrowRight aria-hidden="true" size={16} strokeWidth={2.5} />
-                          </Link>
+                          <button
+                            type="button"
+                            className="bms-course-enrol"
+                            onClick={() => handleEnrol(c.id)}
+                            disabled={enrollingId === c.id}
+                          >
+                            {enrollingId === c.id ? "Enrolling…" : "Enrol"}
+                            <ArrowRight aria-hidden="true" size={18} strokeWidth={2.5} />
+                          </button>
                           <Link className="bms-course-more" href={href}>
-                            More info <ArrowRight aria-hidden="true" size={18} />
+                            More info <ArrowRight aria-hidden="true" size={20} />
                           </Link>
                         </div>
+                        {enrolError?.id === c.id && <p className="bms-enrol-error mt-3">{enrolError.message}</p>}
                       </div>
                     </article>
                   );
@@ -209,23 +272,24 @@ export default function CoursesPage() {
                 <Search aria-hidden="true" size={20} />
                 <input
                   type="search"
-                  placeholder="Search for a credential"
+                  placeholder="Search for a course"
                   value={search}
                   onChange={(e) => setSearch(e.target.value)}
                 />
               </label>
               <h2 className="bms-courses-refine">Refine Your Search</h2>
               {projectOptions.length > 0 && (
-                <FilterDropdown label="Project" value={projectFilter} options={projectOptions} onChange={setProjectFilter} />
+                <FilterDropdown label="Project" value={projectFilter} options={projectOptions} counts={counts.project} onChange={setProjectFilter} />
               )}
               {orgOptions.length > 0 && (
-                <FilterDropdown label="Organisation" value={orgFilter} options={orgOptions} onChange={setOrgFilter} />
+                <FilterDropdown label="Organisation" value={orgFilter} options={orgOptions} counts={counts.org} onChange={setOrgFilter} />
               )}
               {programmeOptions.length > 0 && (
                 <FilterDropdown
                   label="Micro-Programme"
                   value={programmeFilter}
                   options={programmeOptions}
+                  counts={counts.programme}
                   onChange={setProgrammeFilter}
                 />
               )}
@@ -233,7 +297,7 @@ export default function CoursesPage() {
           </div>
         </section>
       </main>
-      {isLoggedIn === false && <Footer />}
+      <Footer />
     </>
   );
 }

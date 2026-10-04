@@ -5,196 +5,141 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
+import { ArrowRight, Info } from "lucide-react";
+import type { CourseCredential } from "@/components/course/types";
+import { siteConfig } from "@/data/site";
 
-interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-  order: number;
+/**
+ * The importer stores the course "about" text as plain text: one paragraph per
+ * line, "• " bullets, and the Background section appended to the overview.
+ */
+function splitOverview(overview: string | null): { context: string | null; background: string | null } {
+  if (!overview) return { context: null, background: null };
+  const [context, background] = overview.split(/\n+Background\n/);
+  return { context: context?.trim() || null, background: background?.trim() || null };
 }
 
-interface Unit {
-  id: string;
-  title: string;
-  type: "VIDEO" | "PRESENTATION" | "QUIZ";
-  order: number;
-  weight: number;
-  videoUrl: string | null;
-  hasFile: boolean;
-  questions: Question[];
-}
-
-interface Subsection {
-  id: string;
-  title: string;
-  order: number;
-  units: Unit[];
-}
-
-interface Section {
-  id: string;
-  title: string;
-  order: number;
-  subsections: Subsection[];
-}
-
-interface MicroCredential {
-  id: string;
-  title: string;
-  slug: string;
-  code: string;
-  project: string;
-  description: string | null;
-  overview: string | null;
-  objectives: string | null;
-  developedBy: string | null;
-  passGrade: number;
-  hasImage: boolean;
-  sections: Section[];
-}
-
-function unitTypeLabel(type: string) {
-  if (type === "VIDEO") return "Video";
-  if (type === "PRESENTATION") return "Presentation";
-  if (type === "QUIZ") return "Quiz";
-  return type;
-}
-
-function unitTypeIcon(type: string) {
-  if (type === "VIDEO") return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M8 5v14l11-7z" /></svg>
-  );
-  if (type === "PRESENTATION") return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-5 14H7v-2h7v2zm3-4H7v-2h10v2zm0-4H7V7h10v2z" /></svg>
-  );
+function RichText({ text }: { text: string }) {
+  const blocks: ({ type: "p"; text: string } | { type: "ul"; items: string[] })[] = [];
+  for (const raw of text.split("\n")) {
+    const line = raw.trim();
+    if (!line) continue;
+    if (line.startsWith("•")) {
+      const item = line.replace(/^•\s*/, "");
+      const last = blocks[blocks.length - 1];
+      if (last?.type === "ul") last.items.push(item);
+      else blocks.push({ type: "ul", items: [item] });
+    } else {
+      blocks.push({ type: "p", text: line });
+    }
+  }
   return (
-    <svg width="14" height="14" viewBox="0 0 24 24" fill="currentColor"><path d="M9 16.17L4.83 12l-1.42 1.41L9 19 21 7l-1.41-1.41L9 16.17z" /></svg>
+    <>
+      {blocks.map((b, i) =>
+        b.type === "p" ? (
+          <p key={i} className="bms-cd-text">
+            {b.text}
+          </p>
+        ) : (
+          <ul key={i} className="bms-cd-bullets">
+            {b.items.map((item, j) => (
+              <li key={j}>{item}</li>
+            ))}
+          </ul>
+        )
+      )}
+    </>
   );
 }
+
+const shareIcons = {
+  twitter:
+    "M24 4.557c-.883.392-1.832.656-2.828.775 1.017-.609 1.798-1.574 2.165-2.724-.951.564-2.005.974-3.127 1.195-.897-.957-2.178-1.555-3.594-1.555-3.179 0-5.515 2.966-4.797 6.045-4.091-.205-7.719-2.165-10.148-5.144-1.29 2.213-.669 5.108 1.523 6.574-.806-.026-1.566-.247-2.229-.616-.054 2.281 1.581 4.415 3.949 4.89-.693.188-1.452.232-2.224.084.626 1.956 2.444 3.379 4.6 3.419-2.07 1.623-4.678 2.348-7.29 2.04 2.179 1.397 4.768 2.212 7.548 2.212 9.142 0 14.307-7.721 13.995-14.646.962-.695 1.797-1.562 2.457-2.549z",
+  facebook:
+    "M9 8H6v4h3v12h5V12h3.642L18 8h-4V6.333C14 5.378 14.192 5 15.115 5H18V0h-3.808C10.596 0 9 1.583 9 4.615V8z",
+  linkedin:
+    "M4.98 3.5C4.98 4.881 3.87 6 2.5 6S.02 4.881.02 3.5C.02 2.12 1.13 1 2.5 1s2.48 1.12 2.48 2.5zM5 8H0v16h5V8zm7.982 0H8.014v16h4.969v-8.399c0-4.67 6.029-5.052 6.029 0V24H24V13.869c0-7.88-8.922-7.593-11.018-3.714V8z",
+};
 
 export default function CredentialDetailPage() {
   const router = useRouter();
   const params = useParams();
   const credentialId = params?.id as string;
 
-  const [user, setUser] = useState<any>(null);
+  const [user, setUser] = useState<{ name: string } | null>(null);
   const [authChecked, setAuthChecked] = useState(false);
-  const [credential, setCredential] = useState<MicroCredential | null>(null);
+  const [credential, setCredential] = useState<CourseCredential | null>(null);
   const [enrolled, setEnrolled] = useState(false);
   const [loading, setLoading] = useState(true);
   const [enrolling, setEnrolling] = useState(false);
   const [error, setError] = useState("");
-  const [expandedSections, setExpandedSections] = useState<Set<string>>(new Set());
 
   useEffect(() => {
     fetch("/api/auth/session")
-      .then(r => r.ok ? r.json() : null)
-      .then(d => { if (d?.user) setUser(d.user); })
+      .then((r) => (r.ok ? r.json() : null))
+      .then((d) => {
+        if (d?.user) setUser(d.user);
+      })
       .catch(() => {})
       .finally(() => setAuthChecked(true));
   }, []);
 
   useEffect(() => {
     if (!authChecked || !credentialId) return;
-
-    const tasks: Promise<any>[] = [
-      fetch(`/api/micro-credentials/${credentialId}`).then(r => r.ok ? r.json() : null),
-    ];
-    if (user) {
-      tasks.push(fetch("/api/enrollments").then(r => r.ok ? r.json() : { credentials: [] }));
-    }
-
-    Promise.all(tasks)
+    Promise.all([
+      fetch(`/api/micro-credentials/${credentialId}`).then((r) => (r.ok ? r.json() : null)),
+      user ? fetch("/api/enrollments").then((r) => (r.ok ? r.json() : { credentials: [] })) : null,
+    ])
       .then(([credRes, enrRes]) => {
-        if (!credRes?.credential) { setError("Micro-credential not found."); return; }
-        setCredential(credRes.credential);
-        if (enrRes) {
-          const isEnrolled = (enrRes.credentials || []).some((c: any) => c.id === credentialId);
-          setEnrolled(isEnrolled);
+        if (!credRes?.credential) {
+          setError("Micro-credential not found.");
+          return;
         }
+        setCredential(credRes.credential);
+        if (enrRes) setEnrolled((enrRes.credentials || []).some((c: { id: string }) => c.id === credentialId));
       })
       .catch(() => setError("Failed to load micro-credential."))
       .finally(() => setLoading(false));
   }, [authChecked, user, credentialId]);
 
+  // Live behaviour: enrolling takes the learner to "My Micro-credentials".
   async function handleEnroll() {
-    if (!user) { router.push(`/login?redirect=/credentials/${credentialId}`); return; }
+    if (!user) {
+      router.push(`/login?redirect=/credentials/${credentialId}`);
+      return;
+    }
     setEnrolling(true);
+    setError("");
     try {
       const r = await fetch("/api/enrollments", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ type: "credential", id: credentialId }),
       });
-      if (r.ok) setEnrolled(true);
-      else { const d = await r.json(); setError(d.error || "Failed to enroll."); }
-    } catch { setError("Network error."); }
+      if (r.ok) {
+        router.push("/dashboard/my-credentials");
+        return;
+      }
+      const d = await r.json().catch(() => ({}));
+      setError(d.error || "Failed to enroll.");
+    } catch {
+      setError("Network error.");
+    }
     setEnrolling(false);
-  }
-
-  function toggleSection(id: string) {
-    setExpandedSections(prev => {
-      const next = new Set(prev);
-      if (next.has(id)) next.delete(id); else next.add(id);
-      return next;
-    });
   }
 
   if (!authChecked || loading) {
     return (
       <>
         <Header />
-        <main className="py-10">
-          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-            <div className="h-4 w-36 bg-gray-200 rounded animate-pulse mb-6" />
-            <div className="grid lg:grid-cols-3 gap-8">
-              <div className="lg:col-span-2">
-                <div className="h-3 w-48 bg-gray-200 rounded animate-pulse mb-3" />
-                <div className="h-8 w-3/4 bg-gray-200 rounded animate-pulse mb-2" />
-                <div className="h-8 w-1/2 bg-gray-200 rounded animate-pulse mb-2" />
-                <div className="h-3 w-40 bg-gray-200 rounded animate-pulse mb-6" />
-                <div className="h-4 w-full bg-gray-200 rounded animate-pulse mb-2" />
-                <div className="h-4 w-5/6 bg-gray-200 rounded animate-pulse mb-2" />
-                <div className="h-4 w-2/3 bg-gray-200 rounded animate-pulse mb-8" />
-                <div className="rounded-2xl bg-gray-100 p-6 mb-10">
-                  <div className="h-5 w-44 bg-gray-200 rounded animate-pulse mb-3" />
-                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse mb-2" />
-                  <div className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
-                </div>
-                <div className="h-6 w-32 bg-gray-200 rounded animate-pulse mb-4" />
-                <div className="space-y-3">
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="rounded-2xl border border-brand-line p-5">
-                      <div className="h-5 w-2/3 bg-gray-200 rounded animate-pulse mb-2" />
-                      <div className="h-3 w-1/4 bg-gray-200 rounded animate-pulse" />
-                    </div>
-                  ))}
-                </div>
-              </div>
-              <aside className="space-y-6">
-                <div className="rounded-2xl h-48 bg-gray-200 animate-pulse" />
-                <div className="border-2 border-gray-200 rounded-2xl p-6">
-                  <div className="h-3 w-full bg-gray-200 rounded animate-pulse mb-2" />
-                  <div className="h-3 w-4/5 bg-gray-200 rounded animate-pulse mb-4" />
-                  <div className="h-11 w-full bg-gray-200 rounded-full animate-pulse" />
-                </div>
-                <div className="rounded-2xl border border-brand-line p-6 space-y-4">
-                  <div className="h-4 w-32 bg-gray-200 rounded animate-pulse" />
-                  {[1, 2, 3].map(i => (
-                    <div key={i} className="h-3 w-3/4 bg-gray-200 rounded animate-pulse" />
-                  ))}
-                </div>
-              </aside>
-            </div>
-          </div>
+        <main className="flex justify-center py-24">
+          <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" />
         </main>
-        <Footer />
       </>
     );
   }
 
-  if (error || !credential) {
+  if (!credential) {
     return (
       <>
         <Header />
@@ -211,217 +156,116 @@ export default function CredentialDetailPage() {
     );
   }
 
-  const totalUnits = credential.sections.reduce(
-    (acc, s) => acc + s.subsections.reduce((a, ss) => a + ss.units.length, 0), 0
-  );
-  const totalSections = credential.sections.length;
+  const { context, background } = splitOverview(credential.overview);
+  const overviewText = context || credential.description;
+  const shareUrl = encodeURIComponent(`${siteConfig.url}/credentials/${credential.id}`);
+  const shareLinks = [
+    { label: "Share on Twitter", icon: shareIcons.twitter, href: `https://twitter.com/intent/tweet?url=${shareUrl}` },
+    { label: "Share on Facebook", icon: shareIcons.facebook, href: `https://www.facebook.com/sharer/sharer.php?u=${shareUrl}` },
+    { label: "Share on LinkedIn", icon: shareIcons.linkedin, href: `https://www.linkedin.com/sharing/share-offsite/?url=${shareUrl}` },
+  ];
 
   return (
     <>
-      <Header />
-      <main id="main">
-        <div className="mx-auto max-w-[1180px] px-6 py-12 lg:px-8">
-          <Link
-            href={enrolled ? "/dashboard/my-credentials" : "/courses"}
-            className="mb-6 inline-block text-sm font-semibold text-brand-muted transition-colors hover:text-brand-green"
-          >
-            ← {enrolled ? "Back to my micro-credentials" : "Back to micro-credentials"}
-          </Link>
-
-          {error && (
-            <div className="mb-6 rounded-lg border border-red-200 bg-red-50 p-3 text-sm text-red-700">{error}</div>
-          )}
-
-          <div className="grid gap-10 lg:grid-cols-3">
-            {/* Left: content */}
-            <div className="lg:col-span-2">
-              <p className="mb-3 text-lg font-bold text-brand-green">{credential.code} | {credential.project}</p>
-              <h1 className="mb-4 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
-                {credential.title}
-              </h1>
-
-              {credential.developedBy && (
-                <p className="mb-6 text-sm text-brand-muted">
-                  Developed by: <span className="font-semibold text-brand-dark">{credential.developedBy}</span>
-                </p>
-              )}
-
-              {credential.description && (
-                <p className="mb-8 text-lg leading-8 text-brand-muted">{credential.description}</p>
-              )}
-
-              {/* Journey box */}
-              <div className="bg-brand-pale rounded-2xl p-6 mb-10">
-                <h3 className="font-bold text-lg mb-2 text-brand-green">Your Learning Journey</h3>
-                <p className="text-sm text-brand-dark">
-                  Track and complete your progress through the {totalUnits} unit{totalUnits !== 1 ? "s" : ""} in this micro-credential.
-                  A minimum grade of <strong>{credential.passGrade}%</strong> is required to pass.
-                </p>
+      <Header course={{ meta: `${credential.code} | ${credential.project}`, title: credential.title }} />
+      <main id="main" className="bms-cd">
+        <section className="bms-cd-hero">
+          <div className="bms-cd-hero-image">
+            {credential.hasImage ? (
+              <img src={`/api/images/credential/${credential.id}`} alt={credential.title} />
+            ) : (
+              <span>{credential.code}</span>
+            )}
+          </div>
+          <div className="bms-cd-intro">
+            <h1 className="bms-cd-title">{credential.title}</h1>
+            {credential.developedBy && <p className="bms-cd-by">by {credential.developedBy}</p>}
+            {enrolled ? (
+              <div className="bms-cd-hero-actions">
+                <span className="bms-cd-enrolled">You are enrolled in this course</span>
+                <Link className="bms-cd-enrol ml-auto" href={`/dashboard/credentials/${credential.id}`}>
+                  View Course <ArrowRight aria-hidden="true" size={20} />
+                </Link>
               </div>
-
-              {/* Overview */}
-              {credential.overview && (
-                <div className="mb-8">
-                  <h2 className="text-2xl font-bold mb-4 text-brand-green">Overview</h2>
-                  <hr className="border-t border-brand-pale mb-4" />
-                  <p className="text-brand-muted leading-relaxed whitespace-pre-line">{credential.overview}</p>
+            ) : (
+              <div className="bms-cd-hero-actions">
+                <button type="button" className="bms-cd-enrol" onClick={handleEnroll} disabled={enrolling}>
+                  {enrolling ? "Enrolling…" : "Enrol"} <ArrowRight aria-hidden="true" size={20} />
+                </button>
+                <div className="bms-cd-social">
+                  {shareLinks.map((s) => (
+                    <a key={s.label} href={s.href} target="_blank" rel="noopener noreferrer" aria-label={s.label}>
+                      <svg width="20" height="20" viewBox="0 0 24 24" fill="currentColor" aria-hidden="true">
+                        <path d={s.icon} />
+                      </svg>
+                    </a>
+                  ))}
                 </div>
-              )}
+              </div>
+            )}
+            {error && <p className="bms-enrol-error mt-3">{error}</p>}
+          </div>
+        </section>
 
-              {/* Objectives */}
-              {credential.objectives && (
-                <div className="mb-10">
-                  <h2 className="text-2xl font-bold mb-4 text-brand-green">Learning Objectives</h2>
-                  <hr className="border-t border-brand-pale mb-4" />
-                  <p className="text-brand-muted leading-relaxed whitespace-pre-line">{credential.objectives}</p>
-                </div>
-              )}
+        <div className="bms-cd-body">
+          <div className="bms-cd-main">
+            {overviewText && (
+              <section>
+                <h2 className="bms-cd-heading">Context and overview</h2>
+                <RichText text={overviewText} />
+              </section>
+            )}
+            {credential.objectives && (
+              <section>
+                <h2 className="bms-cd-heading">Learning objectives</h2>
+                <RichText text={credential.objectives} />
+              </section>
+            )}
+            {background && (
+              <section>
+                <h2 className="bms-cd-heading">Background</h2>
+                <RichText text={background} />
+              </section>
+            )}
+          </div>
 
-              {/* Course structure */}
-              {credential.sections.length > 0 && (
-                <div>
-                  <div className="flex items-center gap-2 mb-1">
-                    <svg width="20" height="20" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
-                    <h2 className="text-2xl font-bold text-brand-green">Course Content</h2>
-                    <span className="text-lg font-bold text-brand-muted">{totalSections} section{totalSections !== 1 ? "s" : ""} · {totalUnits} unit{totalUnits !== 1 ? "s" : ""}</span>
-                  </div>
-                  <hr className="border-t border-brand-pale mb-6" />
-
-                  <div className="space-y-3">
-                    {credential.sections.map(section => {
-                      const isOpen = expandedSections.has(section.id);
-                      const sectionUnits = section.subsections.reduce((a, ss) => a + ss.units.length, 0);
-                      return (
-                        <div key={section.id} className="rounded-2xl border border-brand-line overflow-hidden">
-                          <button
-                            onClick={() => toggleSection(section.id)}
-                            className="w-full flex items-center justify-between p-5 text-left hover:bg-brand-wash transition-colors"
-                          >
-                            <div>
-                              <span className="font-semibold text-base" style={{ color: "var(--bms-dark)" }}>{section.title}</span>
-                              <span className="ml-3 text-sm text-brand-muted">{sectionUnits} unit{sectionUnits !== 1 ? "s" : ""}</span>
-                            </div>
-                            <svg
-                              width="20" height="20" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"
-                              className={`transition-transform flex-shrink-0 ${isOpen ? "rotate-180" : ""}`}
-                            >
-                              <path d="m6 9 6 6 6-6" />
-                            </svg>
-                          </button>
-
-                          {isOpen && (
-                            <div className="border-t border-brand-line">
-                              {section.subsections.map(ss => (
-                                <div key={ss.id}>
-                                  {ss.title && (
-                                    <div className="px-5 py-2 bg-brand-wash text-sm font-medium text-brand-muted border-b border-brand-line">
-                                      {ss.title}
-                                    </div>
-                                  )}
-                                  {ss.units.map(unit => (
-                                    <div key={unit.id} className="flex items-center gap-3 px-5 py-3 border-b border-brand-line last:border-0">
-                                      <span className="text-brand-muted flex-shrink-0">{unitTypeIcon(unit.type)}</span>
-                                      <span className="text-sm text-brand-dark flex-1">{unit.title}</span>
-                                      <span className="text-xs text-brand-muted flex-shrink-0">{unitTypeLabel(unit.type)}</span>
-                                      {unit.weight > 0 && (
-                                        <span className="text-xs font-medium px-2 py-0.5 rounded-full bg-brand-pale text-brand-green flex-shrink-0">
-                                          {unit.weight}%
-                                        </span>
-                                      )}
-                                    </div>
-                                  ))}
-                                </div>
-                              ))}
-                            </div>
-                          )}
-                        </div>
-                      );
-                    })}
-                  </div>
-                </div>
-              )}
+          <aside>
+            <div className="bms-cd-meta">
+              <p>
+                <Info aria-hidden="true" size={22} fill="currentColor" stroke="#f6f7f9" />
+                <span>
+                  Course Number:{" "}
+                  <strong>
+                    {credential.code} | {credential.project}
+                  </strong>
+                </span>
+              </p>
             </div>
 
-            {/* Right: sidebar */}
-            <aside className="space-y-6">
-              {/* Image / placeholder */}
-              <div className="rounded-2xl overflow-hidden h-48 bg-gradient-to-br from-[var(--bms-green)] to-[#079845] flex items-center justify-center">
-                {credential.hasImage ? (
-                  <img src={`/api/images/credential/${credential.id}`} alt={credential.title} className="w-full h-full object-cover" />
-                ) : (
-                  <span className="text-white/40 text-6xl font-bold">{credential.code}</span>
+            {(credential.sections.length > 0 || credential.developedBy) && (
+              <div className="bms-cd-sections">
+                {credential.sections.length > 0 && (
+                  <>
+                    <h2 className="bms-cd-sections-title">Sections</h2>
+                    <ol className="bms-cd-sections-list">
+                      {credential.sections.map((s, i) => (
+                        <li key={s.id}>
+                          <span className="bms-cd-section-num">{i + 1}</span>
+                          <span>{s.title}</span>
+                        </li>
+                      ))}
+                    </ol>
+                  </>
                 )}
-              </div>
-
-              {/* Enroll card or continue button */}
-              {enrolled ? (
-                <div className="border border-brand-green rounded-2xl p-6 text-center">
-                  <p className="text-sm font-semibold text-brand-green mb-1">You are enrolled</p>
-                  <p className="text-xs text-brand-muted mb-4">Track your progress and access all course materials.</p>
-                  <Link
-                    href={`/dashboard/credentials/${credential.id}`}
-                    className="block w-full px-6 py-3 rounded-full text-white font-medium text-sm text-center transition-colors"
-                    style={{ background: "var(--bms-green)" }}
-                  >
-                    Continue Learning
-                  </Link>
-                </div>
-              ) : (
-                <div className="border border-brand-green rounded-2xl p-6 text-center">
-                  <p className="text-sm text-brand-muted mb-4">
-                    {user
-                      ? "Enroll to access all course materials and track your progress."
-                      : "Log in to enroll and start learning."}
-                  </p>
-                  <button
-                    onClick={handleEnroll}
-                    disabled={enrolling}
-                    className="w-full px-6 py-3 rounded-full text-white font-medium text-sm transition-colors disabled:opacity-60"
-                    style={{ background: "var(--bms-green)" }}
-                  >
-                    {user ? (enrolling ? "Enrolling…" : "Enroll in this micro-credential") : "Log in to enroll"}
-                  </button>
-                </div>
-              )}
-
-              {/* Stats card */}
-              <div className="rounded-2xl border border-brand-line p-6 space-y-4">
-                <h3 className="font-bold text-base" style={{ color: "var(--bms-dark)" }}>Credential Details</h3>
-
-                <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M17 3H7c-1.1 0-2 .9-2 2v16l7-3 7 3V5c0-1.1-.9-2-2-2z" /></svg>
-                  <span className="text-sm text-brand-muted">{totalSections} section{totalSections !== 1 ? "s" : ""}</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M12 2C6.48 2 2 6.48 2 12s4.48 10 10 10 10-4.48 10-10S17.52 2 12 2zm-2 15l-5-5 1.41-1.41L10 14.17l7.59-7.59L19 8l-9 9z" /></svg>
-                  <span className="text-sm text-brand-muted">{totalUnits} unit{totalUnits !== 1 ? "s" : ""} total</span>
-                </div>
-
-                <div className="flex items-center gap-3">
-                  <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845"><path d="M19 3H5c-1.1 0-2 .9-2 2v14c0 1.1.9 2 2 2h14c1.1 0 2-.9 2-2V5c0-1.1-.9-2-2-2zm-7 14l-5-5 1.41-1.41L12 14.17l7.59-7.59L21 8l-9 9z" /></svg>
-                  <span className="text-sm text-brand-muted">Pass grade: <strong>{credential.passGrade}%</strong></span>
-                </div>
-
                 {credential.developedBy && (
-                  <div className="flex items-start gap-3">
-                    <svg width="18" height="18" viewBox="0 0 24 24" fill="#079845" className="flex-shrink-0 mt-0.5"><path d="M12 12c2.21 0 4-1.79 4-4s-1.79-4-4-4-4 1.79-4 4 1.79 4 4 4zm0 2c-2.67 0-8 1.34-8 4v2h16v-2c0-2.66-5.33-4-8-4z" /></svg>
-                    <span className="text-sm text-brand-muted">By {credential.developedBy}</span>
-                  </div>
+                  <>
+                    <p className="bms-cd-createdby">Created and delivered by:</p>
+                    <p className="bms-cd-author">{credential.developedBy}</p>
+                  </>
                 )}
               </div>
-
-              {/* Credential Record */}
-              <div>
-                <h3 className="text-lg font-bold mb-3 text-brand-green">Credential Record</h3>
-                <hr className="border-t border-brand-pale mb-4" />
-                <p className="text-sm text-brand-muted leading-relaxed">
-                  Once you meet all requirements for this micro-credential, you will receive a credential record.
-                  This record can be used to demonstrate your skills and continue your learning journey.
-                </p>
-              </div>
-            </aside>
-          </div>
+            )}
+          </aside>
         </div>
       </main>
       <Footer />

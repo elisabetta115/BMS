@@ -35,3 +35,7 @@ yarn-error.log*
 
 # typescript
 *.tsbuildinfo
+
+# local only: screenshots of the live site (personal data) and test course exports
+/screenshot/
+/test-imports/

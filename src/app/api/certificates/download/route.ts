@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
+import { getCredentialProgress } from "@/lib/grading";
 
 export const dynamic = "force-dynamic";
 import { PDFDocument, StandardFonts, rgb } from "pdf-lib";
@@ -23,20 +24,11 @@ export async function GET(req: NextRequest) {
     if (credentialId) {
       const credential = await prisma.microCredential.findUnique({
         where: { id: credentialId },
-        select: { title: true, project: true, passGrade: true },
+        select: { title: true, project: true },
       });
       if (!credential) return NextResponse.json({ error: "Credential not found." }, { status: 404 });
 
-      const completions = await prisma.unitCompletion.findMany({
-        where: {
-          userId: session.userId,
-          unit: { subsection: { section: { credentialId } } },
-        },
-        select: { unit: { select: { weight: true } } },
-      });
-
-      const grade = completions.reduce((sum, c) => sum + c.unit.weight, 0);
-      hasPassed = grade >= credential.passGrade;
+      hasPassed = (await getCredentialProgress(session.userId, credentialId)).hasPassed;
       project = credential.project;
       contentTitle = credential.title;
     } else if (programmeId) {
@@ -47,7 +39,7 @@ export async function GET(req: NextRequest) {
           project: true,
           credentials: {
             select: {
-              credential: { select: { id: true, passGrade: true } },
+              credential: { select: { id: true } },
             },
           },
         },
@@ -56,17 +48,7 @@ export async function GET(req: NextRequest) {
 
       const credIds = programme.credentials.map(pc => pc.credential.id);
       const allPassed = await Promise.all(
-        programme.credentials.map(async pc => {
-          const completions = await prisma!.unitCompletion.findMany({
-            where: {
-              userId: session.userId,
-              unit: { subsection: { section: { credentialId: pc.credential.id } } },
-            },
-            select: { unit: { select: { weight: true } } },
-          });
-          const grade = completions.reduce((sum, c) => sum + c.unit.weight, 0);
-          return grade >= pc.credential.passGrade;
-        })
+        credIds.map(async (id) => (await getCredentialProgress(session.userId, id)).hasPassed)
       );
 
       hasPassed = credIds.length > 0 && allPassed.every(Boolean);

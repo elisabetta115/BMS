@@ -17,14 +17,24 @@
 // S3 first and only sends us the resulting object key.
 //
 //   body "key"                   – the S3 object key of the uploaded archive
-//   body "mode"                  – "preview" (default) or "commit"
+//   body "mode"                  – "preview" (default), "check" or "commit"
+//   body "title" / "code"        – optional: admin-edited name / number to use
+//                                  instead of the ones in the archive
+//   body "project"               – "check" only: the archive's project
 //   body "programmeId"           – optional: link the credential into this
 //                                  existing micro-programme
 //   body "onExistingCredential"  – "replace" | "skip"
 //
 // "preview" parses the archive and reports what would be created plus any
-// conflicts. "commit" performs the writes; if it hits an unresolved conflict it
-// responds 409 with { conflict, ... } so the UI can ask the admin what to do.
+// conflicts. "check" re-runs only the conflict check for an edited name /
+// number (no archive needed). "commit" performs the writes; if it hits an
+// unresolved conflict it responds 409 with { conflict, ... } so the UI can ask
+// the admin what to do.
+//
+// Conflicts are looked up among credentials of the same project only — codes
+// like "MC08" are reused by unrelated projects. Same name + same number is a
+// re-import (replace or skip); same name *or* same number alone is a clash the
+// admin must resolve by renaming / renumbering the upload before importing.
 
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
@@ -51,6 +61,38 @@ async function uniqueSlug(model: "microCredential" | "microProgramme", base: str
     slug = `${b}-${n}`;
   }
   return slug;
+}
+
+const norm = (s: string) => s.trim().replace(/\s+/g, " ").toLowerCase();
+
+type CredRef = { id: string; title: string; code: string };
+
+/**
+ * Compares a would-be credential with the existing ones in its project.
+ * `credential` is an exact (name + number) match; `nameClash` / `codeClash`
+ * are credentials sharing only the name or only the number, reported only
+ * when there is no exact match.
+ */
+async function findMatches(title: string, code: string, project: string) {
+  const sameProject: CredRef[] = await prisma!.microCredential.findMany({
+    where: { project: { equals: project.trim(), mode: "insensitive" } },
+    select: { id: true, title: true, code: true },
+  });
+  const t = norm(title);
+  const c = norm(code);
+  const duplicate = sameProject.find((x) => norm(x.title) === t && norm(x.code) === c) ?? null;
+  return {
+    credential: duplicate,
+    nameClash: duplicate ? null : sameProject.find((x) => norm(x.title) === t) ?? null,
+    codeClash: duplicate ? null : sameProject.find((x) => norm(x.code) === c) ?? null,
+  };
+}
+
+function clashMessage(m: Awaited<ReturnType<typeof findMatches>>, project: string) {
+  const parts: string[] = [];
+  if (m.nameClash) parts.push(`the name "${m.nameClash.title}" is already used by ${m.nameClash.code}`);
+  if (m.codeClash) parts.push(`the number ${m.codeClash.code} is already used by "${m.codeClash.title}"`);
+  return `In project ${project || "(none)"}, ${parts.join(" and ")}. Change the name or number of the course you're uploading.`;
 }
 
 function courseSummary(c: ParsedCourse) {
@@ -91,14 +133,31 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
 
-  const { key, mode: rawMode, programmeId: rawProgrammeId, onExistingCredential: rawOnExisting } = await req.json();
-  if (!key || typeof key !== "string") {
-    return NextResponse.json({ error: "No uploaded archive reference provided." }, { status: 400 });
-  }
+  const {
+    key, mode: rawMode, programmeId: rawProgrammeId, onExistingCredential: rawOnExisting,
+    title: rawTitle, code: rawCode, project: rawProject,
+  } = await req.json();
 
   const mode = String(rawMode || "preview");
   const programmeId = rawProgrammeId ? String(rawProgrammeId) : null;
   const onExistingCredential = String(rawOnExisting || "");
+  const titleOverride = rawTitle != null ? String(rawTitle).trim() : null;
+  const codeOverride = rawCode != null ? String(rawCode).trim().toUpperCase() : null;
+  if (titleOverride === "" || codeOverride === "") {
+    return NextResponse.json({ error: "The micro-credential name and number can't be empty." }, { status: 400 });
+  }
+
+  // Re-check an edited name / number without re-reading the archive.
+  if (mode === "check") {
+    if (titleOverride == null || codeOverride == null) {
+      return NextResponse.json({ error: "Name and number are required." }, { status: 400 });
+    }
+    return NextResponse.json({ mode: "check", existing: await findMatches(titleOverride, codeOverride, String(rawProject ?? "")) });
+  }
+
+  if (!key || typeof key !== "string") {
+    return NextResponse.json({ error: "No uploaded archive reference provided." }, { status: 400 });
+  }
 
   // Fetch the archive from S3 — it was uploaded there directly by the
   // browser, so its size was never constrained by our own request limits.
@@ -129,26 +188,12 @@ export async function POST(req: NextRequest) {
     return NextResponse.json({ error: "No importable content found in the archive.", summary: courseSummary(course) }, { status: 400 });
   }
 
-  // A credential is "the same one" if it shares a code, a title, or the slug
-  // this import would produce — titles matter most: the app deliberately
-  // reuses one credential by name across several programmes (see e.g.
-  // "Introduction to Renewable Energies" in the RES4CITY seed data), so two
-  // courses that land on the same title are almost certainly meant to be the
-  // same credential, not an accidental duplicate.
-  const existingCredential = await prisma.microCredential.findFirst({
-    where: {
-      OR: [
-        { code: { equals: course.code, mode: "insensitive" } },
-        { title: { equals: course.title, mode: "insensitive" } },
-        { slug: slugify(course.title) },
-      ],
-    },
-  });
+  if (titleOverride) course.title = titleOverride;
+  if (codeOverride) course.code = codeOverride;
 
+  const conflictInfo = await findMatches(course.title, course.code, course.project);
+  const existingCredential = conflictInfo.credential;
   const summary = courseSummary(course);
-  const conflictInfo = {
-    credential: existingCredential ? { id: existingCredential.id, title: existingCredential.title, code: existingCredential.code } : null,
-  };
 
   if (mode !== "commit") {
     return NextResponse.json({ mode: "preview", summary, existing: conflictInfo });
@@ -160,9 +205,15 @@ export async function POST(req: NextRequest) {
     const programme = await prisma.microProgramme.findUnique({ where: { id: programmeId } });
     if (!programme) return NextResponse.json({ error: "The selected micro-programme no longer exists." }, { status: 400 });
   }
+  if (conflictInfo.nameClash || conflictInfo.codeClash) {
+    return NextResponse.json(
+      { conflict: "clash", message: clashMessage(conflictInfo, course.project), existing: conflictInfo, summary },
+      { status: 409 },
+    );
+  }
   if (existingCredential && !["replace", "skip"].includes(onExistingCredential)) {
     return NextResponse.json(
-      { conflict: "credential", message: `A micro-credential "${existingCredential.title}" (${existingCredential.code}) already exists.`, existing: conflictInfo, summary },
+      { conflict: "credential", message: `"${existingCredential.title}" (${existingCredential.code}) has already been imported in project ${course.project || "(none)"}.`, existing: conflictInfo, summary },
       { status: 409 },
     );
   }
@@ -204,6 +255,8 @@ export async function POST(req: NextRequest) {
                       options: q.options,
                       correctIndex: q.correctIndex,
                       order: qi,
+                      title: q.title ?? null,
+                      maxAttempts: q.maxAttempts ?? null,
                     })),
                   };
                 }

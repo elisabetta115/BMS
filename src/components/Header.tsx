@@ -9,11 +9,18 @@ import { cn } from "@/lib/utils/cn";
 interface SessionUser {
   userId: string;
   name: string;
+  username: string | null;
   email: string;
   role: string;
 }
 
-export default function Header() {
+/** Shown next to the logo on a course page, like the live course "about" page. */
+export interface HeaderCourseContext {
+  meta: string;
+  title: string;
+}
+
+export default function Header({ course }: { course?: HeaderCourseContext } = {}) {
   const router = useRouter();
   const [user, setUser] = useState<SessionUser | null>(null);
   const [catalogueOpen, setCatalogueOpen] = useState(false);
@@ -65,14 +72,16 @@ export default function Header() {
   }
 
   const triggerClass =
-    "inline-flex items-center gap-1.5 text-base font-semibold leading-[1.2] text-brand-dark transition-colors hover:text-brand-green";
+    "inline-flex items-center gap-1.5 text-[1.2rem] font-medium leading-[1.2] text-brand-dark transition-colors hover:text-brand-green";
   const menuPanelClass =
-    "absolute left-0 top-full mt-3 z-50 min-w-56 rounded-lg bg-white py-3 shadow-soft border border-brand-line";
+    "absolute left-0 top-full mt-3 z-50 min-w-60 rounded-lg bg-white py-2 shadow-soft";
   const menuLinkClass =
-    "block px-5 py-3 text-sm font-medium text-brand-dark transition-colors hover:bg-brand-pale hover:text-brand-green";
+    "block px-6 py-3 text-[1.15rem] font-normal text-brand-dark transition-colors hover:text-brand-green";
+  const userMenuLinkClass =
+    "block w-full px-5 py-2 text-left text-[1.1rem] font-normal text-brand-dark transition-colors hover:text-brand-green";
 
   return (
-    <header className="sticky top-0 z-50 border-b border-brand-line bg-white">
+    <header className="sticky top-0 z-50 bg-white">
       <div className="mx-auto flex max-w-[1440px] items-center justify-between px-4 py-4 lg:px-8">
         {/* Left: logo + desktop nav */}
         <div className="flex items-center gap-10">
@@ -80,7 +89,7 @@ export default function Header() {
             <img
               src="/logos/boostmyskills-logo.png"
               alt="BoostMySkills"
-              className="h-12 w-auto"
+              className="h-14 w-auto"
               onError={(e) => {
                 const target = e.target as HTMLImageElement;
                 target.style.display = "none";
@@ -91,6 +100,13 @@ export default function Header() {
               }}
             />
           </Link>
+
+          {course && (
+            <div className="hidden min-w-0 max-w-sm flex-col items-center text-center xl:flex">
+              <span className="text-sm leading-tight text-[#454545]">{course.meta}</span>
+              <span className="truncate text-base font-medium leading-snug text-brand-dark">{course.title}</span>
+            </div>
+          )}
 
           <nav className="hidden items-center gap-7 lg:flex">
             {user && (
@@ -169,29 +185,21 @@ export default function Header() {
                 aria-haspopup="menu"
               >
                 <User size={20} />
-                {user.name}
+                {user.username || user.name}
                 <ChevronDown size={18} strokeWidth={2.5} className={cn("transition-transform", userMenuOpen && "rotate-180")} />
               </button>
               {userMenuOpen && (
-                <div className="absolute right-0 top-full mt-3 z-50 min-w-52 rounded-lg border border-brand-line bg-white py-3 shadow-soft" role="menu">
-                  <Link href="/dashboard" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
-                    Dashboard
-                  </Link>
-                  <Link href="/dashboard/profile" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
-                    My Profile
+                <div className="absolute right-0 top-full mt-4 z-50 w-60 rounded border border-[#dddddd] bg-white py-2" role="menu">
+                  <Link href="/dashboard/profile" className={userMenuLinkClass} onClick={() => setUserMenuOpen(false)}>
+                    Account
                   </Link>
                   {user.role === "ADMIN" && (
-                    <Link href="/admin" className={menuLinkClass} onClick={() => setUserMenuOpen(false)}>
+                    <Link href="/admin" className={userMenuLinkClass} onClick={() => setUserMenuOpen(false)}>
                       Admin Panel
                     </Link>
                   )}
-                  <hr className="my-2 border-brand-line" />
-                  <button
-                    type="button"
-                    onClick={handleLogout}
-                    className="block w-full px-5 py-3 text-left text-sm font-medium text-red-600 transition-colors hover:bg-brand-pale"
-                  >
-                    Sign out
+                  <button type="button" onClick={handleLogout} className={userMenuLinkClass}>
+                    Sign Out
                   </button>
                 </div>
               )}
@@ -257,19 +265,16 @@ export default function Header() {
             <div className="mt-4 grid gap-3 border-t border-brand-line pt-4">
               {user ? (
                 <>
-                  <Link href="/dashboard" className="rounded-full bg-brand-green px-6 py-3 text-center font-bold text-white" onClick={() => setMobileOpen(false)}>
-                    Dashboard
-                  </Link>
                   <Link href="/dashboard/profile" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
-                    My Profile
+                    Account
                   </Link>
                   {user.role === "ADMIN" && (
                     <Link href="/admin" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
                       Admin Panel
                     </Link>
                   )}
-                  <button type="button" onClick={handleLogout} className="rounded-full px-6 py-3 text-center font-bold text-red-600">
-                    Sign out
+                  <button type="button" onClick={handleLogout} className="rounded-full px-6 py-3 text-center font-bold text-brand-dark">
+                    Sign Out
                   </button>
                 </>
               ) : (

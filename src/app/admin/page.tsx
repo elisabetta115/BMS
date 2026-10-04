@@ -6,7 +6,7 @@ import { useRouter } from "next/navigation";
 
 /* ─── Types ────────────────────────────────────────────── */
 
-interface UnitQuestion { id?: string; question: string; options: string[]; correctIndex: number; }
+interface UnitQuestion { id?: string; title?: string | null; question: string; options: string[]; correctIndex: number; maxAttempts?: number | null; }
 interface CredentialUnit {
   id?: string;
   title: string;
@@ -31,6 +31,8 @@ interface MicroCredential {
   image: string | null; hasImage: boolean; developedBy: string | null;
   passGrade: number; sections?: CredentialSection[]; sectionsCount?: number;
 }
+
+interface ImportMatch { id: string; title: string; code: string; }
 
 interface MicroProgramme {
   id: string; title: string; slug: string; code: string; project: string;
@@ -575,7 +577,15 @@ export default function AdminPage() {
   const [importFileKey, setImportFileKey] = useState("");
   const [importUploadPct, setImportUploadPct] = useState<number | null>(null);
   const [importPreview, setImportPreview] = useState<any>(null);
-  const [importExisting, setImportExisting] = useState<{ credential: any } | null>(null);
+  // Matches among credentials of the same project: `credential` = same name and
+  // number (re-import); `nameClash` / `codeClash` = only one of them matches.
+  const [importExisting, setImportExisting] = useState<{ credential: ImportMatch | null; nameClash: ImportMatch | null; codeClash: ImportMatch | null } | null>(null);
+  // Name / number the credential will be imported with — editable to resolve clashes.
+  const [importTitle, setImportTitle] = useState("");
+  const [importCode, setImportCode] = useState("");
+  const [importChecking, setImportChecking] = useState(false);
+  const importCheckSeq = useRef(0);
+  const importLastChecked = useRef("");
   const [importBusy, setImportBusy] = useState(false);
   const [importError, setImportError] = useState("");
   const [importResult, setImportResult] = useState<any>(null);
@@ -703,6 +713,8 @@ export default function AdminPage() {
     setImportFileKey("");
     setImportPreview(null);
     setImportExisting(null);
+    setImportTitle("");
+    setImportCode("");
     setImportError("");
     setImportResult(null);
     setTab(returnTab);
@@ -713,7 +725,7 @@ export default function AdminPage() {
   function openImport() {
     pushAdminHistory("import");
     setImportFile(null); setImportFileKey(""); setImportUploadPct(null); setImportPreview(null); setImportExisting(null);
-    setImportError(""); setImportResult(null); setCredConflictChoice("skip"); setImportProgrammeId("");
+    setImportTitle(""); setImportCode(""); setImportError(""); setImportResult(null); setCredConflictChoice("skip"); setImportProgrammeId("");
     setReturnTab("credentials"); setView("import");
   }
 
@@ -764,13 +776,51 @@ export default function AdminPage() {
       });
       const d = await r.json();
       if (!r.ok) { setImportError(d.error || "Could not read the archive."); setImportBusy(false); return; }
+      importLastChecked.current = importCheckKey(d.summary.title, d.summary.code);
       setImportPreview(d.summary);
+      setImportTitle(d.summary.title);
+      setImportCode(d.summary.code);
       setImportExisting(d.existing);
       if (d.existing?.credential) setCredConflictChoice("skip");
     } catch (err: any) { setImportError(err?.message || "Upload failed."); }
     setImportUploadPct(null);
     setImportBusy(false);
   }
+
+  function importCheckKey(title: string, code: string) { return `${title.trim()}\n${code.trim().toUpperCase()}`; }
+
+  // Re-check the same-project name / number matches whenever the admin edits
+  // them (debounced; stale responses are dropped).
+  useEffect(() => {
+    const seq = ++importCheckSeq.current;
+    const checkKey = importCheckKey(importTitle, importCode);
+    if (!importPreview || !importTitle.trim() || !importCode.trim() || checkKey === importLastChecked.current) {
+      setImportChecking(false);
+      return;
+    }
+    setImportChecking(true);
+    const timer = setTimeout(async () => {
+      try {
+        const r = await fetch("/api/admin/import-olx", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ mode: "check", title: importTitle, code: importCode, project: importPreview.project }),
+        });
+        const d = await r.json();
+        if (seq !== importCheckSeq.current) return;
+        if (r.ok) {
+          importLastChecked.current = checkKey;
+          setImportExisting(d.existing);
+          setCredConflictChoice("skip");
+          setImportError("");
+        } else setImportError(d.error || "Could not check the name and number.");
+      } catch {
+        if (seq === importCheckSeq.current) setImportError("Could not check the name and number.");
+      }
+      if (seq === importCheckSeq.current) setImportChecking(false);
+    }, 400);
+    return () => clearTimeout(timer);
+  }, [importPreview, importTitle, importCode]);
 
   async function runImport() {
     if (!importFileKey) return;
@@ -785,11 +835,22 @@ export default function AdminPage() {
           // Programme attachment is opt-in — the importer never creates or
           // auto-links a micro-programme on its own.
           programmeId: importProgrammeId || undefined,
+          title: importTitle,
+          code: importCode,
           onExistingCredential: importExisting?.credential ? credConflictChoice : undefined,
         }),
       });
       const d = await r.json();
-      if (!r.ok) { setImportError(d.error || d.message || "Import failed."); setImportBusy(false); return; }
+      if (!r.ok) {
+        // A 409 carries the up-to-date matches (e.g. someone imported a clashing course meanwhile).
+        if (r.status === 409 && d.existing) {
+          importLastChecked.current = importCheckKey(importTitle, importCode);
+          setImportExisting(d.existing);
+        }
+        setImportError(d.error || d.message || "Import failed.");
+        setImportBusy(false);
+        return;
+      }
       setImportResult(d);
       await loadData();
     } catch { setImportError("Import failed."); }
@@ -1219,6 +1280,10 @@ export default function AdminPage() {
                                 <div className="flex items-center justify-between mb-2">
                                   <span className="text-xs font-medium text-brand-muted">Q{qi + 1}</span>
                                   <button type="button" onClick={() => removeUnitQ(si, ssi, ui, qi)} className="text-xs text-red-500 hover:underline">Remove</button>
+                                </div>
+                                <div className="flex gap-2 mb-2">
+                                  <input className="auth-input flex-1 text-sm" placeholder="Name shown above the question (optional)" value={q.title ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "title", e.target.value || null)} />
+                                  <input className="auth-input w-48 text-sm" type="number" min={1} placeholder="Tries (empty = unlimited)" value={q.maxAttempts ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "maxAttempts", e.target.value ? Math.max(1, parseInt(e.target.value, 10) || 1) : null)} />
                                 </div>
                                 <input className="auth-input text-sm mb-2" placeholder="Question" value={q.question} onChange={e => updateUnitQ(si, ssi, ui, qi, "question", e.target.value)} />
                                 {q.options.map((opt, oi) => (
@@ -1810,21 +1875,27 @@ export default function AdminPage() {
                 <div className="rounded-2xl border border-brand-line bg-white p-6">
                   <div className="flex items-center gap-2 mb-3">
                     <span className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span>
-                    <h2 className="text-lg font-bold text-brand-dark">Import complete</h2>
+                    <h2 className="text-lg font-bold text-brand-dark">{importResult.credentialAction === "skipped" ? "Upload discarded" : "Import complete"}</h2>
                   </div>
                   <ul className="text-sm text-brand-dark space-y-1 mb-5">
-                    <li>Micro-credential <strong>{importResult.summary?.title}</strong> {importResult.credentialAction}
-                      {importResult.credentialAction === "skipped" && " (existing credential left unchanged, just linked)"}.</li>
-                    <li>
-                      {importResult.programmeId
-                        ? <>Added to micro-programme <strong>{programmes.find(p => p.id === importResult.programmeId)?.title || "—"}</strong>.</>
-                        : "Not attached to any micro-programme — add it yourself when you're ready."}
-                    </li>
-                    <li className="text-brand-muted">
-                      {importResult.summary?.counts?.sections} sections · {importResult.summary?.counts?.videos} videos ·{" "}
-                      {importResult.summary?.counts?.quizzes} quizzes ({importResult.summary?.counts?.questions} questions) ·{" "}
-                      {importResult.summary?.counts?.presentations} PDFs
-                    </li>
+                    {importResult.credentialAction === "skipped" ? (
+                      <li>The existing micro-credential <strong>{importResult.summary?.title}</strong> was left unchanged.</li>
+                    ) : (
+                      <li>Micro-credential <strong>{importResult.summary?.title}</strong>{" "}
+                        {importResult.credentialAction === "replaced" ? "re-imported (the previous version was deleted)" : "created"}.</li>
+                    )}
+                    {importResult.programmeId ? (
+                      <li>Added to micro-programme <strong>{programmes.find(p => p.id === importResult.programmeId)?.title || "—"}</strong>.</li>
+                    ) : importResult.credentialAction !== "skipped" && (
+                      <li>Not attached to any micro-programme — add it yourself when you&apos;re ready.</li>
+                    )}
+                    {importResult.credentialAction !== "skipped" && (
+                      <li className="text-brand-muted">
+                        {importResult.summary?.counts?.sections} sections · {importResult.summary?.counts?.videos} videos ·{" "}
+                        {importResult.summary?.counts?.quizzes} quizzes ({importResult.summary?.counts?.questions} questions) ·{" "}
+                        {importResult.summary?.counts?.presentations} PDFs
+                      </li>
+                    )}
                   </ul>
                   <div className="flex gap-3">
                     <button
@@ -1870,11 +1941,11 @@ export default function AdminPage() {
                     <div className="space-y-5">
                       <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
                         <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{importPreview.code}</span>
+                          <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{importCode || importPreview.code}</span>
                           <span className="text-xs text-brand-muted">|</span>
                           <span className="text-xs text-brand-muted">{importPreview.project}</span>
                         </div>
-                        <h3 className="font-semibold text-brand-dark">{importPreview.title}</h3>
+                        <h3 className="font-semibold text-brand-dark">{importTitle || importPreview.title}</h3>
                         {importPreview.developedBy && <p className="text-xs text-brand-muted mt-0.5">{importPreview.developedBy}</p>}
                         <p className="text-sm text-brand-dark mt-3">
                           {importPreview.counts.sections} sections · {importPreview.counts.subsections} subsections ·{" "}
@@ -1943,25 +2014,82 @@ export default function AdminPage() {
                         </div>
                       )}
 
-                      {importExisting?.credential && (
-                        <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-                          <p className="text-sm font-semibold text-amber-900 mb-2">
-                            A micro-credential “{importExisting.credential.title}” ({importExisting.credential.code}) already exists.
-                          </p>
-                          <label className="flex items-start gap-2 text-sm text-amber-900 mb-1.5">
-                            <input type="radio" name="credConflict" checked={credConflictChoice === "skip"} onChange={() => setCredConflictChoice("skip")} className="mt-0.5" />
-                            <span><strong>Keep the existing one</strong> and just add it to the programme. Nothing is overwritten.</span>
-                          </label>
-                          <label className="flex items-start gap-2 text-sm text-amber-900">
-                            <input type="radio" name="credConflict" checked={credConflictChoice === "replace"} onChange={() => setCredConflictChoice("replace")} className="mt-0.5" />
-                            <span><strong>Replace it</strong> with the imported version. This permanently deletes the current credential, its units and every learner’s enrolment and progress for it.</span>
-                          </label>
-                        </div>
-                      )}
+                      {(() => {
+                        const clash = !!(importExisting?.nameClash || importExisting?.codeClash);
+                        const renamed = importTitle !== importPreview.title || importCode !== importPreview.code;
+                        if (!clash && !renamed) return null;
+                        const project = importPreview.project || "(no project)";
+                        return (
+                          <div className={`rounded-xl border p-4 ${clash ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"}`}>
+                            {clash && (
+                              <>
+                                <p className="text-sm font-semibold text-red-800 mb-1">This name or number is already used in {project}.</p>
+                                <ul className="list-disc ml-5 text-sm text-red-800 space-y-0.5 mb-2">
+                                  {importExisting?.nameClash && (
+                                    <li>The name “{importExisting.nameClash.title}” is already used by <strong>{importExisting.nameClash.code}</strong>.</li>
+                                  )}
+                                  {importExisting?.codeClash && (
+                                    <li>The number <strong>{importExisting.codeClash.code}</strong> is already used by “{importExisting.codeClash.title}”.</li>
+                                  )}
+                                </ul>
+                                <p className="text-xs text-red-800 mb-3">Change the name or number of the course you&apos;re uploading before importing it.</p>
+                              </>
+                            )}
+                            <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-3">
+                              <div>
+                                <label className="block text-sm font-medium text-brand-dark mb-1">Number</label>
+                                <input className="auth-input" value={importCode} onChange={e => setImportCode(e.target.value.toUpperCase())} />
+                              </div>
+                              <div>
+                                <label className="block text-sm font-medium text-brand-dark mb-1">Name</label>
+                                <input className="auth-input" value={importTitle} onChange={e => setImportTitle(e.target.value)} />
+                              </div>
+                            </div>
+                            <p className="text-xs mt-2 text-brand-muted">
+                              {!importTitle.trim() || !importCode.trim()
+                                ? "Name and number can't be empty."
+                                : importChecking
+                                  ? "Checking…"
+                                  : !clash && !importExisting?.credential && <span className="text-green-700">✓ No clash in {project}. Ready to import.</span>}
+                            </p>
+                          </div>
+                        );
+                      })()}
+
+                      {importExisting?.credential && (() => {
+                        const inProgs = progsUsingCred(importExisting.credential.id);
+                        return (
+                          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
+                            <p className="text-sm font-semibold text-amber-900 mb-2">
+                              “{importExisting.credential.title}” ({importExisting.credential.code}) has already been imported in {importPreview.project || "this project"}.
+                            </p>
+                            <label className="flex items-start gap-2 text-sm text-amber-900 mb-1.5">
+                              <input type="radio" name="credConflict" checked={credConflictChoice === "skip"} onChange={() => setCredConflictChoice("skip")} className="mt-0.5" />
+                              <span>
+                                <strong>Discard this upload</strong> and keep the existing micro-credential unchanged.
+                                {importProgrammeId && " It will still be added to the selected programme."}
+                              </span>
+                            </label>
+                            <label className="flex items-start gap-2 text-sm text-amber-900">
+                              <input type="radio" name="credConflict" checked={credConflictChoice === "replace"} onChange={() => setCredConflictChoice("replace")} className="mt-0.5" />
+                              <span>
+                                <strong>Re-import</strong> and replace the existing one with this file. This permanently deletes the current micro-credential, its units and every learner’s enrolment and progress for it
+                                {inProgs.length > 0 ? `, and removes it from ${inProgs.join(", ")}.` : "."}
+                              </span>
+                            </label>
+                          </div>
+                        );
+                      })()}
 
                       <div className="flex gap-3">
-                        <button onClick={runImport} disabled={importBusy} className="auth-btn max-w-xs">
-                          {importBusy ? "Importing…" : importExisting?.credential && credConflictChoice === "replace" ? "Replace & import" : "Import"}
+                        <button
+                          onClick={runImport}
+                          disabled={importBusy || importChecking || !importTitle.trim() || !importCode.trim() || !!importExisting?.nameClash || !!importExisting?.codeClash}
+                          className="auth-btn max-w-xs"
+                        >
+                          {importBusy ? "Importing…"
+                            : importExisting?.credential ? (credConflictChoice === "replace" ? "Re-import" : "Discard upload")
+                            : "Import"}
                         </button>
                         <button onClick={goList} disabled={importBusy} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
                       </div>

@@ -1,52 +1,30 @@
 "use client";
 
 import Header from "@/components/Header";
+import Footer from "@/components/Footer";
+import CourseHeader, { CourseFallback } from "@/components/course/CourseHeader";
+import { useCourse } from "@/components/course/useCourse";
+import { flatUnits, type Answer, type Question, type Unit } from "@/components/course/types";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowLeft, ArrowRight, Check, CircleCheck, ExternalLink, FileDown } from "lucide-react";
+import {
+  ArrowLeft,
+  ArrowRight,
+  BookText,
+  Check,
+  ChevronLeft,
+  ChevronRight,
+  Copyright,
+  ExternalLink,
+  FileDown,
+  Info,
+  Save,
+  SquarePen,
+  Video,
+  X,
+} from "lucide-react";
 import { cn } from "@/lib/utils/cn";
-
-interface Question {
-  id: string;
-  question: string;
-  options: string[];
-  correctIndex: number;
-  order: number;
-}
-
-interface Unit {
-  id: string;
-  title: string;
-  type: "VIDEO" | "PRESENTATION" | "QUIZ";
-  order: number;
-  weight: number;
-  videoUrl: string | null;
-  hasFile: boolean;
-  questions: Question[];
-}
-
-interface Subsection {
-  id: string;
-  title: string;
-  order: number;
-  units: Unit[];
-}
-
-interface Section {
-  id: string;
-  title: string;
-  order: number;
-  subsections: Subsection[];
-}
-
-interface MicroCredential {
-  id: string;
-  title: string;
-  code?: string;
-  project?: string;
-  sections: Section[];
-}
 
 function youtubeEmbedUrl(url: string): string | null {
   try {
@@ -61,116 +39,185 @@ function youtubeEmbedUrl(url: string): string | null {
   }
 }
 
-function flatUnits(credential: MicroCredential): Unit[] {
-  return credential.sections.flatMap((s) => s.subsections.flatMap((ss) => ss.units));
-}
-
 /* ── Quiz player ────────────────────────────────────────────── */
-function QuizPlayer({ unit, onComplete }: { unit: Unit; onComplete: () => void }) {
-  const [answers, setAnswers] = useState<(number | null)[]>(() => unit.questions.map(() => null));
-  const [submitted, setSubmitted] = useState(false);
-  const [alreadyCompleted, setAlreadyCompleted] = useState(false);
+function QuizQuestion({
+  question: q,
+  title,
+  graded,
+  answer,
+  onAnswer,
+}: {
+  question: Question;
+  title: string;
+  graded: boolean;
+  answer: Answer | undefined;
+  onAnswer: (answer: Answer) => void;
+}) {
+  const [choice, setChoice] = useState<number | null>(answer?.savedChoice ?? answer?.submittedChoice ?? null);
+  const [shown, setShown] = useState(false);
+  const [busy, setBusy] = useState(false);
+  const [error, setError] = useState("");
 
-  function select(qi: number, optionIdx: number) {
-    if (submitted) return;
-    setAnswers((prev) => {
-      const next = [...prev];
-      next[qi] = optionIdx;
-      return next;
-    });
-  }
+  const attempts = answer?.attempts ?? 0;
+  const attemptsLeft = q.maxAttempts === null || attempts < q.maxAttempts;
+  // Marks and feedback show for the submitted answer until the learner picks something else.
+  const showingResult = attempts > 0 && choice === answer?.submittedChoice;
+  const isCorrect = showingResult && answer?.correct === true;
+  const savedNotGraded =
+    !showingResult && choice !== null && choice === answer?.savedChoice && answer?.savedChoice !== answer?.submittedChoice;
 
-  function submit() {
-    if (answers.some((a) => a === null)) return;
-    setSubmitted(true);
-  }
-
-  function retry() {
-    setAnswers(unit.questions.map(() => null));
-    setSubmitted(false);
-    setAlreadyCompleted(false);
-  }
-
-  const correctCount = submitted ? unit.questions.filter((q, i) => answers[i] === q.correctIndex).length : 0;
-  const total = unit.questions.length;
-  const scorePct = total > 0 ? Math.round((correctCount / total) * 100) : 0;
-  const allCorrect = submitted && correctCount === total;
-  const allAnswered = answers.every((a) => a !== null);
-
-  useEffect(() => {
-    if (allCorrect && !alreadyCompleted) {
-      setAlreadyCompleted(true);
-      onComplete();
+  async function send(action: "save" | "submit") {
+    if (choice === null) return;
+    setBusy(true);
+    setError("");
+    try {
+      const r = await fetch(`/api/questions/${q.id}/answer`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ choice, action }),
+      });
+      const d = await r.json().catch(() => ({}));
+      if (!r.ok) throw new Error(d.error || "Something went wrong. Please try again.");
+      setShown(false);
+      onAnswer(d.answer);
+    } catch (e) {
+      setError((e as Error).message);
+    } finally {
+      setBusy(false);
     }
-  }, [allCorrect, alreadyCompleted, onComplete]);
-
-  if (total === 0) {
-    return <p className="bms-learn-text">This quiz has no questions yet.</p>;
   }
 
   return (
-    <div>
-      <p className="bms-learn-quiz-warn">Answer every question. Get them all right to complete this unit.</p>
+    <section className="bms-quiz-problem" aria-labelledby={`q-title-${q.id}`}>
+      <h3 className="bms-quiz-title" id={`q-title-${q.id}`}>
+        {title}
+      </h3>
+      <p className="bms-quiz-points">
+        {attempts > 0 ? `${answer?.correct ? 1 : 0}/1 point` : "0.0/1.0 point"} ({graded ? "graded" : "ungraded"})
+      </p>
+      <p className="bms-quiz-prompt">{q.question}</p>
 
-      {submitted && (
-        <p
-          className={cn(
-            "bms-learn-feedback",
-            scorePct === 100 ? "bms-learn-feedback-correct" : "bms-learn-feedback-incorrect"
-          )}
-        >
-          {scorePct}% — {correctCount} / {total} correct.
-          {unit.weight > 0 ? ` This quiz counts for ${unit.weight}% of your grade.` : ""}
-          {scorePct < 100 ? " Get all answers right to complete this unit." : ""}
+      <div role="radiogroup" aria-labelledby={`q-title-${q.id}`}>
+        {q.options.map((opt, oi) => {
+          const isSelected = choice === oi;
+          const isAnswer = shown && oi === answer?.correctIndex;
+          return (
+            <label
+              key={oi}
+              className={cn(
+                "bms-quiz-option",
+                showingResult && isSelected && (isCorrect ? "is-correct" : "is-wrong"),
+                isAnswer && "is-answer"
+              )}
+            >
+              <input
+                type="radio"
+                name={`q-${q.id}`}
+                checked={isSelected}
+                // Not `disabled`: live keeps the radios coloured once the tries are used up.
+                aria-disabled={!attemptsLeft || busy}
+                onChange={() => {
+                  if (!attemptsLeft || busy) return;
+                  setChoice(oi);
+                  setShown(false);
+                }}
+              />
+              <span>
+                {opt}
+                {isAnswer && <Check aria-label="Correct answer" className="bms-quiz-answer-tick" size={22} strokeWidth={3.5} />}
+              </span>
+            </label>
+          );
+        })}
+      </div>
+
+      {showingResult &&
+        (isCorrect ? (
+          <Check aria-label="Correct" className="bms-quiz-mark is-correct" size={24} strokeWidth={3.5} />
+        ) : (
+          <X aria-label="Incorrect" className="bms-quiz-mark is-wrong" size={24} strokeWidth={3.5} />
+        ))}
+
+      <div className="bms-quiz-tools">
+        {attempts > 0 && (
+          <button type="button" onClick={() => setShown(true)} disabled={shown}>
+            Show answer
+          </button>
+        )}
+        {attemptsLeft && !showingResult && (
+          <button type="button" onClick={() => send("save")} disabled={choice === null || busy}>
+            Save
+          </button>
+        )}
+      </div>
+
+      <div className="bms-quiz-submit">
+        <button type="button" disabled={choice === null || !attemptsLeft || busy} onClick={() => send("submit")}>
+          Submit
+        </button>
+        {q.maxAttempts !== null && (
+          <span>
+            You have used {attempts} of {q.maxAttempts} attempt{q.maxAttempts === 1 ? "" : "s"}
+          </span>
+        )}
+      </div>
+      {error && <p className="bms-modal-error">{error}</p>}
+
+      {shown ? (
+        <p className="bms-quiz-feedback">
+          <Info aria-hidden="true" size={24} className="is-info" fill="currentColor" stroke="#fff" />
+          Answers are displayed within the problem
         </p>
-      )}
+      ) : showingResult ? (
+        <p className="bms-quiz-feedback">
+          {isCorrect ? (
+            <>
+              <Check aria-hidden="true" size={22} strokeWidth={3.5} className="is-correct" />
+              Correct (1/1 point)
+            </>
+          ) : (
+            <>
+              <X aria-hidden="true" size={22} strokeWidth={3.5} className="is-wrong" />
+              Incorrect (0/1 point)
+            </>
+          )}
+        </p>
+      ) : savedNotGraded ? (
+        <p className="bms-quiz-feedback is-saved">
+          <Save aria-hidden="true" size={22} className="is-saved" />
+          Your answers have been saved but not graded. Click &apos;Submit&apos; to grade them.
+        </p>
+      ) : null}
+    </section>
+  );
+}
 
-      {unit.questions.map((q, qi) => {
-        const chosen = answers[qi];
-        return (
-          <fieldset className="bms-learn-question" key={q.id}>
-            <legend>
-              <span className="bms-learn-qnum">Question {qi + 1}</span>
-            </legend>
-            <p className="bms-learn-qprompt">{q.question}</p>
-            {q.options.map((opt, oi) => {
-              const isSelected = chosen === oi;
-              const isCorrectOpt = q.correctIndex === oi;
-              return (
-                <label
-                  key={oi}
-                  className={cn(
-                    "bms-learn-option",
-                    submitted && "is-locked",
-                    submitted && isCorrectOpt && "is-answer",
-                    submitted && isSelected && !isCorrectOpt && "is-wrong",
-                    !submitted && isSelected && "is-chosen"
-                  )}
-                >
-                  <input
-                    type="radio"
-                    name={`q-${q.id}`}
-                    checked={isSelected}
-                    disabled={submitted}
-                    onChange={() => select(qi, oi)}
-                  />
-                  <span>{opt}</span>
-                </label>
-              );
-            })}
-          </fieldset>
-        );
-      })}
-
-      {!submitted ? (
-        <button type="button" className="bms-learn-check" onClick={submit} disabled={!allAnswered}>
-          {allAnswered ? "Submit answers" : `Answer all ${total} questions`}
-        </button>
-      ) : (
-        <button type="button" className="bms-learn-check" onClick={retry}>
-          Retry quiz
-        </button>
-      )}
+/** A quiz unit: one Open edX-style problem block per question. */
+function QuizPlayer({
+  unit,
+  answers,
+  onAnswer,
+}: {
+  unit: Unit;
+  answers: Map<string, Answer>;
+  onAnswer: (answer: Answer) => void;
+}) {
+  if (unit.questions.length === 0) {
+    return <p className="bms-learn-text">This quiz has no questions yet.</p>;
+  }
+  return (
+    <div className="bms-quiz">
+      {unit.questions.map((q, qi) => (
+        <QuizQuestion
+          key={q.id}
+          question={q}
+          // Older questions have no stored name: use the unit's name, as live problems usually do.
+          title={q.title || (qi === 0 ? unit.title : "problem")}
+          graded={unit.weight > 0}
+          answer={answers.get(q.id)}
+          onAnswer={onAnswer}
+        />
+      ))}
     </div>
   );
 }
@@ -205,6 +252,11 @@ function VideoPlayer({ unit, onComplete }: { unit: Unit; onComplete: () => void 
 function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () => void }) {
   const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
   const [blobUrl, setBlobUrl] = useState<string | null>(null);
+
+  // Like videos, a presentation counts as complete as soon as it is opened.
+  useEffect(() => {
+    onComplete();
+  }, [onComplete]);
 
   useEffect(() => {
     if (!unit.hasFile) return;
@@ -277,61 +329,46 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
   );
 }
 
+
+function UnitTypeIcon({ type }: { type: Unit["type"] }) {
+  if (type === "VIDEO") return <Video aria-label="Video" size={24} fill="currentColor" strokeWidth={1.5} />;
+  if (type === "PRESENTATION") return <BookText aria-label="Presentation" size={24} strokeWidth={2.25} />;
+  return <SquarePen aria-label="Quiz" size={24} strokeWidth={2.25} />;
+}
+
 /* ── Main page ──────────────────────────────────────────────── */
 export default function UnitViewerPage() {
   const router = useRouter();
   const params = useParams();
   const credentialId = params?.id as string;
   const unitId = params?.unitId as string;
+  const { user, credential, enrolled, loading, error, completedUnitIds, setCompletedUnitIds } =
+    useCourse(credentialId);
 
-  const [user, setUser] = useState<{ name: string } | null>(null);
-  const [credential, setCredential] = useState<MicroCredential | null>(null);
-  const [unit, setUnit] = useState<Unit | null>(null);
-  const [enrolled, setEnrolled] = useState(false);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState("");
-  const [completedUnitIds, setCompletedUnitIds] = useState<Set<string>>(new Set());
+  const unit = credential ? flatUnits(credential).find((u) => u.id === unitId) ?? null : null;
 
+  const [answers, setAnswers] = useState<Map<string, Answer>>(new Map());
+  const [answersLoaded, setAnswersLoaded] = useState(false);
   useEffect(() => {
-    fetch("/api/auth/session")
-      .then((r) => {
-        if (!r.ok) {
-          router.push("/login");
-          return null;
-        }
-        return r.json();
-      })
-      .then((d) => {
-        if (d?.user) setUser(d.user);
-      })
-      .catch(() => router.push("/login"));
-  }, [router]);
+    if (!enrolled || !credentialId) return;
+    fetch(`/api/micro-credentials/${credentialId}/answers`)
+      .then((r) => (r.ok ? r.json() : { answers: [] }))
+      .then((d) => setAnswers(new Map((d.answers || []).map((a: Answer) => [a.questionId, a]))))
+      .catch(() => {})
+      .finally(() => setAnswersLoaded(true));
+  }, [enrolled, credentialId]);
 
-  useEffect(() => {
-    if (!user || !credentialId) return;
-    Promise.all([
-      fetch(`/api/micro-credentials/${credentialId}`).then((r) => (r.ok ? r.json() : null)),
-      fetch("/api/enrollments").then((r) => (r.ok ? r.json() : { credentials: [] })),
-      fetch(`/api/micro-credentials/${credentialId}/progress`).then((r) =>
-        r.ok ? r.json() : { completedUnitIds: [] }
-      ),
-    ])
-      .then(([credRes, enrRes, progRes]) => {
-        if (!credRes?.credential) {
-          setError("Micro-credential not found.");
-          return;
-        }
-        const cred: MicroCredential = credRes.credential;
-        setCredential(cred);
-        setEnrolled((enrRes.credentials || []).some((c: { id: string }) => c.id === credentialId));
-        setCompletedUnitIds(new Set(progRes.completedUnitIds || []));
-        const found = flatUnits(cred).find((u) => u.id === unitId) ?? null;
-        if (!found) setError("Unit not found.");
-        setUnit(found);
-      })
-      .catch(() => setError("Failed to load content."))
-      .finally(() => setLoading(false));
-  }, [user, credentialId, unitId]);
+  const handleAnswer = useCallback(
+    (answer: Answer) => {
+      const next = new Map(answers).set(answer.questionId, answer);
+      setAnswers(next);
+      // The server marks a quiz unit done once all of its questions are submitted.
+      if (unit && unit.questions.every((q) => (next.get(q.id)?.attempts ?? 0) > 0)) {
+        setCompletedUnitIds((prev) => new Set([...prev, unit.id]));
+      }
+    },
+    [answers, unit, setCompletedUnitIds]
+  );
 
   const handleComplete = useCallback(() => {
     if (!unit || completedUnitIds.has(unit.id)) return;
@@ -341,174 +378,106 @@ export default function UnitViewerPage() {
         if (data?.success) setCompletedUnitIds((prev) => new Set([...prev, unit.id]));
       })
       .catch(() => {});
-  }, [unit, completedUnitIds]);
+  }, [unit, completedUnitIds, setCompletedUnitIds]);
 
   if (!user) return null;
-
-  if (loading) {
-    return (
-      <>
-        <Header />
-        <main id="main" className="py-20">
-          <div className="flex justify-center">
-            <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" />
-          </div>
-        </main>
-      </>
-    );
-  }
-
+  if (loading) return <><Header /><CourseFallback state="loading" credentialId={credentialId} /></>;
   if (error || !credential || !unit) {
     return (
       <>
         <Header />
-        <main id="main" className="py-20">
-          <div className="mx-auto max-w-3xl px-4 text-center">
-            <p className="mb-4 text-brand-muted">{error || "Content not found."}</p>
-            <Link href={`/dashboard/credentials/${credentialId}`} className="font-semibold text-brand-green hover:underline">
-              ← Back to credential
-            </Link>
-          </div>
-        </main>
+        <CourseFallback state="error" credentialId={credentialId} message={error || "Unit not found."} />
       </>
     );
   }
+  if (!enrolled) return <><Header /><CourseFallback state="not-enrolled" credentialId={credentialId} /></>;
 
-  if (!enrolled) {
-    return (
-      <>
-        <Header />
-        <main id="main" className="py-16">
-          <div className="mx-auto max-w-3xl px-4 text-center">
-            <p className="mb-4 text-brand-muted">You are not enrolled in this micro-credential.</p>
-            <Link
-              href={`/credentials/${credentialId}`}
-              className="inline-flex items-center justify-center rounded-full bg-brand-green px-8 py-3 text-sm font-bold text-white"
-            >
-              View and enroll
-            </Link>
-          </div>
-        </main>
-      </>
-    );
-  }
+  const sectionIdx = credential.sections.findIndex((s) =>
+    s.subsections.some((ss) => ss.units.some((u) => u.id === unitId))
+  );
+  const section = credential.sections[sectionIdx];
+  const subsection = section.subsections.find((ss) => ss.units.some((u) => u.id === unitId))!;
 
   const allUnits = flatUnits(credential);
   const currentIdx = allUnits.findIndex((u) => u.id === unitId);
   const prevUnit = currentIdx > 0 ? allUnits[currentIdx - 1] : null;
   const nextUnit = currentIdx < allUnits.length - 1 ? allUnits[currentIdx + 1] : null;
-  const isCurrentUnitDone = completedUnitIds.has(unitId);
+
+  const outlineHref = `/dashboard/credentials/${credentialId}`;
+  const unitHref = (id: string) => `${outlineHref}/units/${id}`;
+  const goPrev = () => prevUnit && router.push(unitHref(prevUnit.id));
+  // On the last unit the live site shows "End", which opens the Progress tab.
+  const goNext = () => router.push(nextUnit ? unitHref(nextUnit.id) : `${outlineHref}/progress`);
 
   return (
     <>
-      <Header />
-      <main id="main">
-        <div className="bms-learn">
-          <aside className="bms-learn-sidebar">
-            <Link className="bms-learn-back" href={`/dashboard/credentials/${credentialId}`}>
-              <ArrowLeft aria-hidden="true" size={16} /> Back to credential
-            </Link>
-            {(credential.code || credential.project) && (
-              <p className="bms-learn-eyebrow">
-                {[credential.code, credential.project].filter(Boolean).join(" | ")}
-              </p>
-            )}
-            <h1 className="bms-learn-course-title">{credential.title}</h1>
-            <p className="bms-learn-progress">
-              {completedUnitIds.size} / {allUnits.length} completed
-            </p>
-            <ol className="bms-learn-units">
-              {allUnits.map((u) => {
-                const isActive = u.id === unitId;
-                const isDone = completedUnitIds.has(u.id);
-                return (
-                  <li key={u.id}>
-                    <button
-                      type="button"
-                      className={cn(isActive && "is-active")}
-                      onClick={() => router.push(`/dashboard/credentials/${credentialId}/units/${u.id}`)}
-                    >
-                      {isDone ? (
-                        <CircleCheck aria-hidden="true" size={18} className="bms-learn-tick" />
-                      ) : (
-                        <span className="bms-learn-dot" />
-                      )}
-                      <span>{u.title}</span>
-                      {u.weight > 0 && (
-                        <span style={{ marginLeft: "auto", fontSize: "0.78rem", color: "#999" }}>{u.weight}%</span>
-                      )}
-                    </button>
-                  </li>
-                );
-              })}
-            </ol>
-          </aside>
+      <CourseHeader userName={user.username || user.name} course={credential} activeTab="course" />
+      <main id="main" className="bms-unit">
+        <nav className="bms-unit-breadcrumb" aria-label="Breadcrumb">
+          <Link href={outlineHref}>{credential.title}</Link>
+          <ChevronRight aria-hidden="true" size={20} strokeWidth={2.5} />
+          <Link href={outlineHref}>{section.title}</Link>
+          <ChevronRight aria-hidden="true" size={20} strokeWidth={2.5} />
+          <Link href={unitHref(subsection.units[0].id)}>{subsection.title}</Link>
+        </nav>
 
-          <main className="bms-learn-main">
-            <p className="bms-learn-section-eyebrow">
-              {unit.type === "VIDEO" ? "Video" : unit.type === "PRESENTATION" ? "Presentation" : "Quiz"}
-              {unit.weight > 0 ? ` · ${unit.weight}% of grade` : ""}
-              {isCurrentUnitDone ? " · Completed" : ""}
-            </p>
-            <h2 className="bms-learn-unit-title">{unit.title}</h2>
+        <div className="bms-unit-seq">
+          <button type="button" className="bms-unit-seq-arrow" onClick={goPrev} disabled={!prevUnit} aria-label="Previous unit">
+            <ArrowLeft aria-hidden="true" size={24} />
+          </button>
+          <ol>
+            {subsection.units.map((u, i) => (
+              <li key={u.id}>
+                <Link
+                  href={unitHref(u.id)}
+                  className={cn(u.id === unitId && "is-active")}
+                  aria-current={u.id === unitId ? "page" : undefined}
+                  title={u.title}
+                >
+                  <span className="bms-unit-seq-num">
+                    {sectionIdx + 1}.{i + 1}
+                  </span>
+                  <UnitTypeIcon type={u.type} />
+                </Link>
+              </li>
+            ))}
+          </ol>
+          <button type="button" className="bms-unit-seq-arrow" onClick={goNext} aria-label="Next unit">
+            <ArrowRight aria-hidden="true" size={24} />
+          </button>
+        </div>
 
+        <div className="bms-unit-body">
+          <h1 className="bms-unit-title">{unit.title}</h1>
+
+          <div className="bms-unit-content">
             {unit.type === "VIDEO" && <VideoPlayer unit={unit} onComplete={handleComplete} />}
             {unit.type === "PRESENTATION" && <PresentationViewer unit={unit} onComplete={handleComplete} />}
-            {unit.type === "QUIZ" && <QuizPlayer unit={unit} onComplete={handleComplete} />}
-
-            <div className="bms-learn-actions">
-              {prevUnit ? (
-                <button
-                  type="button"
-                  className="bms-learn-nav"
-                  onClick={() => router.push(`/dashboard/credentials/${credentialId}/units/${prevUnit.id}`)}
-                >
-                  <ArrowLeft aria-hidden="true" size={16} /> Previous
-                </button>
+            {unit.type === "QUIZ" &&
+              (answersLoaded ? (
+                <QuizPlayer key={unit.id} unit={unit} answers={answers} onAnswer={handleAnswer} />
               ) : (
-                <button
-                  type="button"
-                  className="bms-learn-nav"
-                  onClick={() => router.push(`/dashboard/credentials/${credentialId}`)}
-                >
-                  <ArrowLeft aria-hidden="true" size={16} /> Overview
-                </button>
-              )}
+                <div className="flex justify-center py-16">
+                  <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" />
+                </div>
+              ))}
+          </div>
 
-              {unit.type !== "QUIZ" ? (
-                <button
-                  type="button"
-                  className="bms-learn-complete"
-                  onClick={handleComplete}
-                  disabled={isCurrentUnitDone}
-                >
-                  <Check aria-hidden="true" size={16} /> {isCurrentUnitDone ? "Completed" : "Mark as complete"}
-                </button>
-              ) : (
-                <span className="bms-learn-quiz-progress">Complete the quiz to finish this unit</span>
-              )}
-
-              {nextUnit ? (
-                <button
-                  type="button"
-                  className="bms-learn-nav"
-                  onClick={() => router.push(`/dashboard/credentials/${credentialId}/units/${nextUnit.id}`)}
-                >
-                  Next <ArrowRight aria-hidden="true" size={16} />
-                </button>
-              ) : (
-                <button
-                  type="button"
-                  className="bms-learn-nav"
-                  onClick={() => router.push(`/dashboard/credentials/${credentialId}`)}
-                >
-                  Finish <ArrowRight aria-hidden="true" size={16} />
-                </button>
-              )}
-            </div>
-          </main>
+          <div className="bms-unit-nav">
+            <button type="button" className="bms-unit-prev" onClick={goPrev} disabled={!prevUnit}>
+              <ChevronLeft aria-hidden="true" size={22} /> Previous
+            </button>
+            <button type="button" className="bms-unit-next" onClick={goNext}>
+              {nextUnit ? "Next" : "End"} <ChevronRight aria-hidden="true" size={22} />
+            </button>
+          </div>
         </div>
+
+        <p className="bms-unit-rights">
+          <Copyright aria-hidden="true" size={20} /> All Rights Reserved
+        </p>
       </main>
+      <Footer />
     </>
   );
 }

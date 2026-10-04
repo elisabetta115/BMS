@@ -9,7 +9,7 @@ export async function GET() {
   const user = await findUserById(session.userId);
   if (!user) return NextResponse.json({ error: "User not found" }, { status: 404 });
 
-  return NextResponse.json({ name: user.name, email: user.email, country: user.country });
+  return NextResponse.json({ name: user.name, username: user.username, email: user.email, country: user.country });
 }
 
 export async function PUT(req: NextRequest) {
@@ -68,6 +68,7 @@ export async function PUT(req: NextRequest) {
     userId: updated.id,
     email: updated.email,
     name: updated.name,
+    username: updated.username,
     role: updated.role,
   });
   await setSessionCookie(token);

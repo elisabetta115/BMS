@@ -21,6 +21,8 @@ CREATE TABLE "users" (
     "password_hash" TEXT NOT NULL,
     "country" TEXT,
     "role" "Role" NOT NULL DEFAULT 'USER',
+    "username" TEXT,
+    "gender" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 
@@ -106,8 +108,24 @@ CREATE TABLE "unit_questions" (
     "correct_index" INTEGER NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+    "title" TEXT,
+    "max_attempts" INTEGER,
 
     CONSTRAINT "unit_questions_pkey" PRIMARY KEY ("id")
+);
+
+-- CreateTable
+CREATE TABLE "question_answers" (
+    "id" TEXT NOT NULL,
+    "user_id" TEXT NOT NULL,
+    "question_id" TEXT NOT NULL,
+    "saved_choice" INTEGER,
+    "submitted_choice" INTEGER,
+    "attempts" INTEGER NOT NULL DEFAULT 0,
+    "correct" BOOLEAN,
+    "updated_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "question_answers_pkey" PRIMARY KEY ("id")
 );
 
 -- CreateTable
@@ -182,6 +200,12 @@ CREATE TABLE "project_certificates" (
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
 -- CreateIndex
+CREATE UNIQUE INDEX "users_username_key" ON "users"("username");
+
+-- CreateIndex
+CREATE UNIQUE INDEX "question_answers_user_id_question_id_key" ON "question_answers"("user_id", "question_id");
+
+-- CreateIndex
 CREATE UNIQUE INDEX "micro_credentials_slug_key" ON "micro_credentials"("slug");
 
 -- CreateIndex
@@ -234,3 +258,9 @@ ALTER TABLE "credential_enrollments" ADD CONSTRAINT "credential_enrollments_user
 
 -- AddForeignKey
 ALTER TABLE "credential_enrollments" ADD CONSTRAINT "credential_enrollments_credential_id_fkey" FOREIGN KEY ("credential_id") REFERENCES "micro_credentials"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "question_answers" ADD CONSTRAINT "question_answers_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "question_answers" ADD CONSTRAINT "question_answers_question_id_fkey" FOREIGN KEY ("question_id") REFERENCES "unit_questions"("id") ON DELETE CASCADE ON UPDATE CASCADE;

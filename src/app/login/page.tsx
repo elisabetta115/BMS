@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, User } from "lucide-react";
@@ -75,10 +74,6 @@ export default function LoginPage() {
         <button type="submit" className="bms-auth-submit bms-auth-submit-login" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </button>
-
-        <Link className="bms-auth-forgot" href="/register">
-          Don&apos;t have an account? Register
-        </Link>
       </form>
     </AuthShell>
   );

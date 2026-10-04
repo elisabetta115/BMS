@@ -4,7 +4,7 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { deleteObject } from "@/lib/s3";
 
-function stripBinaryFromCredential(c: any) {
+function stripBinaryFromCredential(c: any, includeAnswers = true) {
   return {
     ...c,
     imageData: undefined,
@@ -17,6 +17,10 @@ function stripBinaryFromCredential(c: any) {
           ...u,
           fileData: undefined,
           hasFile: !!(u.fileData || u.fileKey || u.fileMime),
+          // Learners get the right answer only after submitting (see /api/questions/[id]/answer).
+          questions: includeAnswers
+            ? u.questions
+            : (u.questions || []).map((q: any) => ({ ...q, correctIndex: undefined })),
         })),
       })),
     })),
@@ -84,6 +88,8 @@ function buildUnitCreate(u: any, ui: number, existingFile?: ExistingUnitFile) {
         options: q.options,
         correctIndex: q.correctIndex,
         order: qi,
+        title: q.title || null,
+        maxAttempts: Number.isInteger(q.maxAttempts) && q.maxAttempts > 0 ? q.maxAttempts : null,
       })),
     };
   }
@@ -121,7 +127,8 @@ export async function GET(
       include: INCLUDE_FULL,
     });
     if (!credential) return NextResponse.json({ error: "Not found." }, { status: 404 });
-    return NextResponse.json({ credential: stripBinaryFromCredential(credential) });
+    const isAdmin = !((await requireAdmin()) instanceof NextResponse);
+    return NextResponse.json({ credential: stripBinaryFromCredential(credential, isAdmin) });
   } catch (err) {
     console.error("Error fetching credential:", err);
     return NextResponse.json({ error: "Failed." }, { status: 500 });
