@@ -123,7 +123,7 @@ export default function Home() {
               </Link>
             </div>
           </div>
-          <div className="relative mx-auto aspect-square w-full max-w-[532px]">
+          <div className="relative mx-auto aspect-[2260/2784] w-full max-w-[532px]">
             <img
               alt="Learners building sustainability skills"
               src="/images/landing.png"

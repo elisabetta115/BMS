@@ -162,12 +162,6 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
                 </div>
               )}
             </div>
-
-            {!user && (
-              <Link href="/about" className={triggerClass}>
-                About us
-              </Link>
-            )}
           </nav>
         </div>
 
@@ -256,11 +250,6 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
             <Link href="/courses" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
               Micro-credentials
             </Link>
-            {!user && (
-              <Link href="/about" className="py-2.5 px-2 text-lg font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
-                About us
-              </Link>
-            )}
 
             <div className="mt-4 grid gap-3 border-t border-brand-line pt-4">
               {user ? (

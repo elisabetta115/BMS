@@ -10,7 +10,6 @@ export const primaryNavigation: NavItem[] = [
       { label: "Micro-credentials", href: "/courses" },
     ],
   },
-  { label: "About us", href: "/about" },
 ];
 
 export type FooterColumn = {
