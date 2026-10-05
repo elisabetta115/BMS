@@ -612,8 +612,9 @@ input[type="number"].no-spin {
   overflow: hidden;
 }
 
+/* Course images are 3:2 (1536×1024); show them whole instead of cropping. */
 .bms-course-image {
-  aspect-ratio: 37 / 32;
+  aspect-ratio: 3 / 2;
   display: block;
   overflow: hidden;
 }
@@ -621,13 +622,8 @@ input[type="number"].no-spin {
 .bms-course-image img {
   display: block;
   height: 100%;
-  object-fit: cover;
-  transition: transform 0.3s ease;
+  object-fit: contain;
   width: 100%;
-}
-
-.bms-course-image:hover img {
-  transform: scale(1.03);
 }
 
 .bms-course-body {
@@ -708,14 +704,16 @@ input[type="number"].no-spin {
   color: #079845;
 }
 
-/* Sidebar */
+/* Sidebar — sizes and colours taken from the live res4city theme */
 .bms-courses-sidebar {
   align-self: start;
   background: #f9f9f9;
-  border-radius: 12px;
+  border: 1px solid #bdbdbd;
+  border-radius: 10px;
   display: flex;
   flex-direction: column;
-  padding: 1rem 0.875rem 1.25rem;
+  min-height: 950px;
+  padding: 15px 10px;
 }
 
 .bms-courses-search {
@@ -725,9 +723,13 @@ input[type="number"].no-spin {
   border-radius: 10px;
   color: #079845;
   display: flex;
-  gap: 0.75rem;
-  min-height: 3.25rem;
-  padding: 0 1rem;
+  gap: 20px;
+  height: 42px;
+  padding: 0 15px 0 12px;
+}
+
+.bms-courses-search svg {
+  flex-shrink: 0;
 }
 
 .bms-courses-search input {
@@ -735,7 +737,8 @@ input[type="number"].no-spin {
   border: 0;
   color: #252525;
   flex: 1;
-  font-size: 1.05rem;
+  font-size: 20px;
+  min-width: 0;
   outline: none;
 }
 
@@ -743,108 +746,113 @@ input[type="number"].no-spin {
   color: #b5b5b5;
 }
 
+.bms-courses-search:focus-within {
+  border-color: #079845;
+}
+
 .bms-courses-refine {
   color: #252525;
-  font-size: 1.95rem;
+  font-size: 25px;
   font-weight: 500;
-  margin: 3.5rem 0 1.75rem;
+  margin: 40px 0 20px;
+  padding: 10px;
   text-align: center;
 }
 
 .bms-course-filter {
-  margin-bottom: 1.25rem;
-  position: relative;
+  margin-bottom: 30px;
 }
 
 .bms-course-dropbtn {
-  align-items: center;
   background: #fff;
   border: 1px solid #b5b5b5;
   border-radius: 8px;
   cursor: pointer;
-  display: flex;
-  gap: 0.5rem;
-  min-height: 56px;
-  padding: 0 0.875rem;
+  display: block;
+  font-size: 20px;
+  line-height: 1.2;
+  padding: 14px;
   position: relative;
+  text-align: center;
+  transition: border-color 0.3s ease;
   width: 100%;
+}
+
+.bms-course-dropbtn:hover,
+.bms-course-dropbtn:focus {
+  border-color: #000;
 }
 
 .bms-course-dropbtn-label {
   background: #f9f9f9;
   color: #4caf50;
-  font-size: 0.875rem;
-  font-weight: 300;
-  left: 0.625rem;
+  font-size: 14px;
+  font-weight: 400;
+  left: 5px;
+  line-height: 20px;
   padding: 0 5px;
+  pointer-events: none;
   position: absolute;
-  top: -0.6rem;
+  top: -14px;
 }
 
 .bms-course-dropbtn-value {
   color: #252525;
-  flex: 1;
-  font-size: 1.5rem;
   font-weight: 300;
   letter-spacing: 0.03em;
-  text-align: center;
+  padding: 0 5px;
+  pointer-events: none;
 }
 
 .bms-course-dropbtn-arrow {
   color: #252525;
-  flex-shrink: 0;
+  position: absolute;
+  right: 13px;
+  top: 50%;
+  transform: translateY(-50%);
+  transition: transform 0.3s ease;
+}
+
+.bms-course-dropbtn-arrow.is-open {
+  transform: translateY(-50%) rotate(180deg);
 }
 
 .bms-course-dropdown {
   background: #fff;
-  border: 1px solid #e0e0e0;
+  border: 1px solid #b5b5b5;
   border-radius: 8px;
-  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.1);
+  font-size: 16px;
   list-style: none;
-  margin: 0.4rem 0 0;
-  max-height: 320px;
-  overflow: auto;
-  padding: 0.4rem;
-  position: absolute;
-  width: 100%;
-  z-index: 20;
+  margin: 4px 0 0;
+  padding: 10px;
 }
 
 .bms-course-dropdown li button {
   align-items: center;
   background: none;
   border: 0;
-  border-radius: 6px;
   color: #3d3e3f;
   cursor: pointer;
   display: flex;
-  font-size: 1.05rem;
+  font-size: 14px;
   gap: 0.75rem;
   justify-content: space-between;
   letter-spacing: 0.08em;
-  padding: 0.55rem 0.75rem;
+  line-height: 20.72px;
+  padding: 5px 14px 5px 10px;
   text-align: left;
   width: 100%;
 }
 
-.bms-course-dropdown li button:hover:not(:disabled) {
-  background: #f2f7f2;
-}
-
-.bms-course-dropdown li button.is-selected {
-  background: #e7f3e9;
-  color: #079845;
-}
-
-.bms-course-dropdown li button:disabled {
-  cursor: default;
-  opacity: 0.5;
+.bms-course-dropdown li button:hover,
+.bms-course-dropdown li button:focus-visible {
+  background: #079845;
+  color: #fff;
 }
 
 .bms-course-dropdown-count {
-  color: #3d3e3f;
+  color: inherit;
   flex-shrink: 0;
-  font-size: 1rem;
 }
 
 /* Course detail page (/courses/[slug]) */
@@ -2315,10 +2323,10 @@ input[type="number"].no-spin {
 
 .bms-cd-hero-image {
   align-items: center;
+  aspect-ratio: 3 / 2;
   background: #fafafa;
   border-radius: 1.81rem;
   display: flex;
-  height: 323px;
   justify-content: center;
   max-width: 462px;
   overflow: hidden;
@@ -2327,7 +2335,7 @@ input[type="number"].no-spin {
 
 .bms-cd-hero-image img {
   height: 100%;
-  object-fit: cover;
+  object-fit: contain;
   width: 100%;
 }
 
@@ -2594,6 +2602,7 @@ input[type="number"].no-spin {
   }
 
   .bms-courses-sidebar {
+    min-height: 0;
     order: -1;
   }
 }
@@ -3244,6 +3253,7 @@ input[type="number"].no-spin {
 
 .bms-auth-input-wrap {
   align-items: center;
+  background: #fff;
   border: 1px solid #767676;
   border-radius: 6px;
   display: flex;
@@ -3259,14 +3269,25 @@ input[type="number"].no-spin {
   color: #1a1a1a;
   display: block;
   font-size: 0.875rem;
+  font-weight: 400;
   height: 44px;
   margin-top: 0.55rem;
+  padding: 0 1rem;
   width: 100%;
 }
 
 .bms-auth-input-wrap .bms-auth-field {
+  background: transparent;
   border: 0;
   margin-top: 0;
+  outline: none;
+  padding-right: 0.75rem;
+}
+
+/* Focus ring goes around the whole box (input + icon), not just the input. */
+.bms-auth-input-wrap:focus-within {
+  border-color: #1a1a1a;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
 }
 
 .bms-auth-input-wrap svg {
@@ -3738,46 +3759,516 @@ input[type="number"].no-spin {
 }
 
 /* ==========================================================================
-   Admin panel — align /admin with the .bms-* design system.
-   The page markup is Tailwind-based; these scoped rules pull its shell,
-   headings, buttons and neutral palette onto the b2 brand system so it no
-   longer reads as a separate site. Scoped to .bms-admin so nothing else moves.
+   Admin panel — built from the same pieces as the public and learner pages:
+   headings like "My Micro-credentials", rows like the catalogue cards, green
+   pill buttons like "Enrol", tabs like the learner course tabs, the catalogue
+   search box and the sign-in form's labels and fields.
    ========================================================================== */
 .bms-admin {
   margin: 0 auto;
-  max-width: 1120px;
+  max-width: 1160px;
   padding: 3.5rem 1.25rem 4rem;
   width: 92%;
 }
 
-.bms-admin h1 {
-  color: #111;
-  font-size: 2.5rem;
+.bms-admin-head {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 1rem 1.5rem;
+  justify-content: space-between;
+  margin-bottom: 2.5rem;
+}
+
+.bms-admin-head-actions {
+  align-items: center;
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.75rem;
+}
+
+/* Same as .bms-dash-title */
+.bms-admin-title {
+  color: #1a1a1a;
+  font-size: 3rem;
+  font-weight: 500;
+  line-height: 1.2;
+  margin: 0;
+}
+
+.bms-admin-title.is-sub {
+  font-size: 2.25rem;
+  margin-bottom: 2rem;
+}
+
+/* Same as .bms-dash-note */
+.bms-admin-intro {
+  color: #555;
+  font-size: 1.1rem;
+  line-height: 1.5;
+  margin: 0 0 2rem;
+  max-width: 52rem;
+}
+
+.bms-admin-back {
+  align-items: center;
+  background: none;
+  border: 0;
+  color: #1a1a1a;
+  display: inline-flex;
+  font-size: 1.05rem;
   font-weight: 700;
-  letter-spacing: -0.5px;
-  line-height: 1.15;
+  gap: 0.35rem;
+  margin-bottom: 1.25rem;
+  padding: 0;
 }
 
-.bms-admin h2 {
-  letter-spacing: -0.3px;
+.bms-admin-back:hover {
+  color: #079845;
 }
 
-/* Primary actions → brand-green pill (matches .bms-dash-cta) */
-.bms-admin .auth-btn {
-  width: auto;
+/* Buttons: primary = .bms-course-enrol, secondary = header "Register for free" */
+.bms-admin-btn,
+.bms-admin-btn-secondary,
+.bms-admin-btn-danger {
+  align-items: center;
   border-radius: 9999px;
-  padding: 0.8rem 1.6rem;
-  font-size: 0.95rem;
+  display: inline-flex;
+  font-size: 1.05rem;
+  gap: 0.5rem;
+  justify-content: center;
+  line-height: 1.3;
+  padding: 0.75rem 1.6rem;
+  text-decoration: none;
+  transition: background-color 0.2s ease, border-color 0.2s ease, color 0.2s ease;
+  white-space: nowrap;
 }
 
-/* Neutral greys → brand line / wash / pale, scoped to the admin subtree */
+.bms-admin-btn {
+  background: #079845;
+  border: 1px solid #079845;
+  color: #fff;
+  font-weight: 500;
+}
+
+.bms-admin-btn:hover:not(:disabled) {
+  background: #057a38;
+  border-color: #057a38;
+}
+
+.bms-admin-btn.is-danger {
+  background: #c62828;
+  border-color: #c62828;
+}
+
+.bms-admin-btn.is-danger:hover:not(:disabled) {
+  background: #8e1c1c;
+  border-color: #8e1c1c;
+}
+
+.bms-admin-btn-secondary {
+  background: #fff;
+  border: 1px solid #079845;
+  color: #1a1a1a;
+  font-weight: 700;
+}
+
+.bms-admin-btn-secondary:hover:not(:disabled) {
+  background: #eaf3e7;
+}
+
+.bms-admin-btn-danger {
+  background: #fff;
+  border: 1px solid #c62828;
+  color: #c62828;
+  font-weight: 700;
+}
+
+.bms-admin-btn-danger:hover:not(:disabled) {
+  background: #fdecea;
+}
+
+.bms-admin-btn:disabled,
+.bms-admin-btn-secondary:disabled,
+.bms-admin-btn-danger:disabled {
+  cursor: not-allowed;
+  opacity: 0.55;
+}
+
+.bms-admin-btn:focus-visible,
+.bms-admin-btn-secondary:focus-visible,
+.bms-admin-btn-danger:focus-visible,
+.bms-admin-back:focus-visible,
+.bms-admin-link:focus-visible,
+.bms-admin-tabs button:focus-visible {
+  outline: 2px solid #079845;
+  outline-offset: 3px;
+}
+
+/* "+ Add" menu */
+.bms-admin-menu {
+  background: #fff;
+  border: 1px solid #b5b5b5;
+  border-radius: 8px;
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+  min-width: 220px;
+  padding: 6px;
+  position: absolute;
+  right: 0;
+  top: calc(100% + 6px);
+  z-index: 20;
+}
+
+.bms-admin-menu button {
+  background: none;
+  border: 0;
+  border-radius: 6px;
+  color: #1a1a1a;
+  display: block;
+  font-size: 1.05rem;
+  padding: 0.6rem 0.9rem;
+  text-align: left;
+  width: 100%;
+}
+
+.bms-admin-menu button:hover,
+.bms-admin-menu button:focus-visible {
+  background: #079845;
+  color: #fff;
+  outline: none;
+}
+
+/* Search — same as the catalogue's .bms-courses-search */
+.bms-admin-search {
+  align-items: center;
+  background: #fff;
+  border: 1px solid #bdbdbd;
+  border-radius: 10px;
+  color: #079845;
+  display: flex;
+  gap: 16px;
+  height: 48px;
+  margin-bottom: 2rem;
+  padding: 0 12px 0 14px;
+}
+
+.bms-admin-search:focus-within {
+  border-color: #079845;
+}
+
+.bms-admin-search input {
+  background: transparent;
+  border: 0;
+  color: #252525;
+  flex: 1;
+  font-size: 1.15rem;
+  min-width: 0;
+  outline: none;
+}
+
+.bms-admin-search input::placeholder {
+  color: #b5b5b5;
+}
+
+.bms-admin-search-clear {
+  background: none;
+  border: 0;
+  color: #767676;
+  display: inline-flex;
+  padding: 4px;
+}
+
+.bms-admin-search-clear:hover {
+  color: #1a1a1a;
+}
+
+/* Tabs — same as the learner .bms-course-tabs */
+.bms-admin-tabs {
+  border-bottom: 1px solid #e5e5e5;
+  display: flex;
+  flex-wrap: wrap;
+  margin-bottom: 2rem;
+}
+
+.bms-admin-tabs button {
+  background: none;
+  border: 0;
+  border-bottom: 4px solid transparent;
+  color: #454545;
+  font-size: 1.25rem;
+  padding: 0.6rem 1rem 0.7rem;
+}
+
+.bms-admin-tabs button:hover {
+  color: #0a3055;
+}
+
+.bms-admin-tabs button.is-active {
+  border-bottom-color: #079845;
+  color: #0a3055;
+}
+
+.bms-admin-tab-count {
+  background: #eaf3e7;
+  border-radius: 9999px;
+  color: #079845;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-left: 0.35rem;
+  padding: 0.1rem 0.55rem;
+  vertical-align: 2px;
+}
+
+/* List rows — like .bms-course-card, laid out like the "My Micro-credentials" rows */
+.bms-admin-results {
+  display: grid;
+  gap: 2.5rem;
+}
+
+.bms-admin-group {
+  color: #1a1a1a;
+  font-size: 1.5rem;
+  font-weight: 500;
+  margin: 0 0 1rem;
+}
+
+.bms-admin-list {
+  display: grid;
+  gap: 1.25rem;
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.bms-admin-item {
+  align-items: center;
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  cursor: pointer;
+  display: grid;
+  gap: 1.5rem;
+  grid-template-columns: 168px minmax(0, 1fr) auto;
+  padding: 1rem 2rem 1rem 1rem;
+  transition: box-shadow 0.2s ease;
+}
+
+.bms-admin-item:hover {
+  box-shadow: 0 12px 30px rgba(0, 0, 0, 0.12);
+}
+
+.bms-admin-item.is-compact {
+  grid-template-columns: 64px minmax(0, 1fr) auto;
+}
+
+.bms-admin-item-thumb {
+  align-items: center;
+  aspect-ratio: 3 / 2;
+  background: #fdfdfd;
+  border-radius: 1rem;
+  display: flex;
+  justify-content: center;
+  overflow: hidden;
+}
+
+.bms-admin-item-thumb img {
+  height: 100%;
+  object-fit: contain;
+  width: 100%;
+}
+
+.bms-admin-item-thumb > span {
+  align-items: center;
+  background: #eaf3e7;
+  color: rgba(7, 152, 69, 0.45);
+  display: flex;
+  font-size: 1.4rem;
+  font-weight: 700;
+  height: 100%;
+  justify-content: center;
+  width: 100%;
+}
+
+.bms-admin-item-thumb.is-icon {
+  aspect-ratio: 1;
+  background: #eaf3e7;
+  color: #079845;
+}
+
+.bms-admin-item-meta {
+  color: #000;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 0;
+}
+
+.bms-admin-item-title {
+  color: #000;
+  font-size: 1.4rem;
+  font-weight: 500;
+  line-height: 1.25;
+  margin: 0.5rem 0 0;
+}
+
+.bms-admin-chips {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.4rem;
+  margin-top: 0.8rem;
+}
+
+.bms-admin-chip {
+  background: #eaf3e7;
+  border-radius: 9999px;
+  color: #079845;
+  display: inline-block;
+  white-space: nowrap;
+  font-size: 0.9rem;
+  font-weight: 600;
+  padding: 0.15rem 0.7rem;
+}
+
+.bms-admin-chip.is-empty {
+  background: #f6f7f9;
+  color: #767676;
+  font-weight: 400;
+}
+
+.bms-admin-item-actions {
+  align-items: center;
+  display: flex;
+  gap: 1.25rem;
+}
+
+/* Like the catalogue's "More info" link */
+.bms-admin-link {
+  background: none;
+  border: 0;
+  color: #1a1a1a;
+  font-size: 1.05rem;
+  font-weight: 700;
+  padding: 0;
+  text-decoration: none;
+}
+
+.bms-admin-link:hover {
+  color: #079845;
+}
+
+.bms-admin-link.is-danger {
+  color: #c62828;
+}
+
+.bms-admin-link.is-danger:hover {
+  color: #8e1c1c;
+}
+
+.bms-admin-empty {
+  background: #f9f9f9;
+  border-radius: 1.5rem;
+  color: #555;
+  font-size: 1.1rem;
+  margin: 0;
+  padding: 2.5rem 1.5rem;
+  text-align: center;
+}
+
+/* Credentials inside a programme's edit view */
+.bms-admin-subitem {
+  align-items: center;
+  background: #fff;
+  border-radius: 1rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  display: flex;
+  gap: 1rem;
+  justify-content: space-between;
+  padding: 1rem 1.5rem;
+}
+
+.bms-admin-subitem-title {
+  color: #000;
+  font-size: 1.15rem;
+  font-weight: 500;
+  margin: 0.25rem 0 0;
+}
+
+/* Like the course page's green section headings (.bms-cd-heading), one size down */
+.bms-admin-section-title {
+  color: #079845;
+  font-size: 1.75rem;
+  font-weight: 600;
+  line-height: 1.2;
+  margin: 0;
+}
+
+/* Forms — a white card like the sign-in card; labels and fields like the sign-in form */
+.bms-admin-panel {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 8px 24px rgba(0, 0, 0, 0.06);
+  padding: 2rem 2.25rem;
+}
+
+.bms-admin-label {
+  color: #000;
+  display: block;
+  font-size: 0.85rem;
+  font-weight: 700;
+  margin-bottom: 0.5rem;
+  text-transform: uppercase;
+}
+
+.bms-admin-help {
+  color: #767676;
+  font-size: 0.9rem;
+  margin: 0.4rem 0 0;
+}
+
+.bms-admin .auth-input {
+  background: #fff;
+  border: 1px solid #767676;
+  border-radius: 6px;
+  color: #1a1a1a;
+  font-size: 0.95rem;
+  min-height: 44px;
+  padding: 0.6rem 1rem;
+}
+
+.bms-admin .auth-input:focus {
+  border-color: #1a1a1a;
+  box-shadow: inset 0 0 0 1px #1a1a1a;
+}
+
+.bms-admin .auth-input::placeholder {
+  color: #9a9a9a;
+}
+
+.bms-admin-alert {
+  background: #fdecea;
+  border: 1px solid #f5c2c0;
+  border-radius: 10px;
+  color: #9f1d1d;
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+}
+
+.bms-admin-dialog {
+  background: #fff;
+  border-radius: 1.5rem;
+  box-shadow: 0 20px 50px rgba(0, 0, 0, 0.2);
+  max-width: 28rem;
+  padding: 2rem;
+  width: 100%;
+}
+
+/* Leftover Tailwind greys inside the editors → the site's neutrals */
 .bms-admin .border-gray-200,
 .bms-admin .border-gray-300 {
-  border-color: #eeeeee;
+  border-color: #e5e5e5;
 }
 .bms-admin .bg-gray-50,
 .bms-admin .bg-gray-100 {
-  background-color: #f6f7f9;
+  background-color: #f9f9f9;
 }
 .bms-admin .hover\:bg-gray-50:hover {
   background-color: #eaf3e7;
@@ -3785,18 +4276,62 @@ input[type="number"].no-spin {
 .bms-admin .hover\:border-gray-400:hover {
   border-color: #079845;
 }
-
-/* Stray off-brand accent → brand green */
 .bms-admin .text-blue-500 {
   color: #079845;
 }
 
-@media (max-width: 640px) {
+@media (max-width: 760px) {
   .bms-admin {
     padding-top: 2.25rem;
   }
-  .bms-admin h1 {
-    font-size: 2rem;
+
+  .bms-admin-title {
+    font-size: 2.25rem;
+  }
+
+  .bms-admin-title.is-sub {
+    font-size: 1.75rem;
+  }
+
+  .bms-admin-item,
+  .bms-admin-item.is-compact {
+    grid-template-columns: 96px minmax(0, 1fr);
+    padding: 1rem;
+  }
+
+  .bms-admin-item.is-compact {
+    grid-template-columns: 56px minmax(0, 1fr);
+  }
+
+  .bms-admin-item-actions {
+    grid-column: 1 / -1;
+    justify-content: flex-end;
+  }
+
+  .bms-admin-item-title {
+    font-size: 1.2rem;
+  }
+
+  .bms-admin-panel {
+    padding: 1.5rem 1.25rem;
+  }
+
+  .bms-admin-head-actions .bms-admin-btn,
+  .bms-admin-head-actions .bms-admin-btn-secondary {
+    font-size: 1rem;
+    padding: 0.6rem 1.1rem;
+  }
+
+  /* One scrollable row of tabs instead of three stacked lines */
+  .bms-admin-tabs {
+    flex-wrap: nowrap;
+    overflow-x: auto;
+  }
+
+  .bms-admin-tabs button {
+    flex-shrink: 0;
+    font-size: 1.05rem;
+    padding: 0.5rem 0.75rem 0.6rem;
   }
 }
 

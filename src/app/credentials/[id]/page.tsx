@@ -179,7 +179,7 @@ export default function CredentialDetailPage() {
           </div>
           <div className="bms-cd-intro">
             <h1 className="bms-cd-title">{credential.title}</h1>
-            {credential.developedBy && <p className="bms-cd-by">by {credential.developedBy}</p>}
+            {credential.organisation && <p className="bms-cd-by">by {credential.organisation}</p>}
             {enrolled ? (
               <div className="bms-cd-hero-actions">
                 <span className="bms-cd-enrolled">You are enrolled in this course</span>

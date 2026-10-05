@@ -68,7 +68,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, overview, objectives, developedBy, passGrade, sections, imageBase64, imageMime } = await req.json();
+    const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime } = await req.json();
     if (!title || !code) return NextResponse.json({ error: "Title and code required." }, { status: 400 });
 
     const weightErr = validateWeights(sections || []);
@@ -90,6 +90,8 @@ export async function POST(req: NextRequest) {
       overview: overview || null,
       objectives: objectives || null,
       developedBy: developedBy || null,
+      organisation: organisation || null,
+      topic: topic || null,
       passGrade: passGrade || 50,
     };
 

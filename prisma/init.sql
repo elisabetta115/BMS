@@ -43,6 +43,8 @@ CREATE TABLE "micro_credentials" (
     "image_data" BYTEA,
     "image_mime" TEXT,
     "developed_by" TEXT,
+    "organisation" TEXT,
+    "topic" TEXT,
     "pass_grade" INTEGER NOT NULL DEFAULT 50,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,

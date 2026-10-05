@@ -51,6 +51,9 @@ model MicroCredential {
   imageData   Bytes?   @map("image_data")
   imageMime   String?  @map("image_mime")
   developedBy String?  @map("developed_by")
+  /// University / organisation shown at the top of cards and pages (developedBy also names the authors).
+  organisation String?
+  topic       String?
   passGrade   Int      @default(50) @map("pass_grade")
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")

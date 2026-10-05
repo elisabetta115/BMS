@@ -10,7 +10,7 @@ interface CourseInfo {
   title: string;
   code: string;
   project: string;
-  developedBy: string | null;
+  organisation: string | null;
 }
 
 /** Learner course header: course code + title, user menu, and Course / Progress tabs. */
@@ -35,7 +35,7 @@ export default function CourseHeader({
       >
         <div className="bms-mfe-course">
           <span className="bms-mfe-course-meta">
-            {[course.developedBy, `${course.code} | ${course.project}`].filter(Boolean).join(" ")}
+            {[course.organisation, `${course.code} | ${course.project}`].filter(Boolean).join(" ")}
           </span>
           <span className="bms-mfe-course-title">{course.title}</span>
         </div>

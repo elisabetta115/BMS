@@ -3,8 +3,8 @@
 import Header from "@/components/Header";
 import Footer from "@/components/Footer";
 import Link from "next/link";
-import { ArrowRight, ChevronDown, Search } from "lucide-react";
-import { useState, useEffect, useMemo, useRef } from "react";
+import { ArrowRight, Search, X } from "lucide-react";
+import { useState, useEffect, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
@@ -17,10 +17,13 @@ interface MicroCredential {
   description: string | null;
   image: string | null;
   hasImage: boolean;
-  developedBy: string | null;
+  organisation: string | null;
+  topic: string | null;
   passGrade: number;
 }
 
+// Mirrors the live facet dropdown: the list opens in-flow under the button, and once a value
+// is picked the chevron becomes a close icon that clears the filter.
 function FilterDropdown({
   label,
   value,
@@ -35,36 +38,42 @@ function FilterDropdown({
   onChange: (v: string) => void;
 }) {
   const [open, setOpen] = useState(false);
-  const ref = useRef<HTMLDivElement>(null);
-
-  useEffect(() => {
-    if (!open) return;
-    const handler = (e: MouseEvent) => {
-      if (ref.current && !ref.current.contains(e.target as Node)) setOpen(false);
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
-  }, [open]);
 
   return (
-    <div className="bms-course-filter" ref={ref}>
-      <button type="button" className="bms-course-dropbtn" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
-        <span className="bms-course-dropbtn-label">{label}</span>
-        <span className="bms-course-dropbtn-value">{value || "All Default"}</span>
-        <ChevronDown aria-hidden="true" size={20} className={cn("bms-course-dropbtn-arrow", open && "rotate-180")} />
-      </button>
-      {open && (
+    <div className="bms-course-filter">
+      {value ? (
+        <button
+          type="button"
+          className="bms-course-dropbtn"
+          onClick={() => onChange("")}
+          aria-label={`${label}: ${value}. Clear filter`}
+        >
+          <span className="bms-course-dropbtn-label">{label}</span>
+          <span className="bms-course-dropbtn-value">{value}</span>
+          <X aria-hidden="true" size={24} className="bms-course-dropbtn-arrow" />
+        </button>
+      ) : (
+        <button type="button" className="bms-course-dropbtn" onClick={() => setOpen((v) => !v)} aria-expanded={open}>
+          <span className="bms-course-dropbtn-label">{label}</span>
+          <span className="bms-course-dropbtn-value">All Default</span>
+          <svg
+            aria-hidden="true"
+            className={cn("bms-course-dropbtn-arrow", open && "is-open")}
+            width="24"
+            height="24"
+            viewBox="0 0 24 24"
+            fill="none"
+          >
+            <path d="M4 8L12 16L20 8" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" />
+          </svg>
+        </button>
+      )}
+      {open && !value && (
         <ul className="bms-course-dropdown">
-          <li>
-            <button type="button" className={cn(!value && "is-selected")} onClick={() => { onChange(""); setOpen(false); }}>
-              <span>All Default</span>
-            </button>
-          </li>
           {options.map((opt) => (
             <li key={opt}>
               <button
                 type="button"
-                className={cn(value === opt && "is-selected")}
                 onClick={() => {
                   onChange(opt);
                   setOpen(false);
@@ -87,6 +96,7 @@ export default function CoursesPage() {
   const [search, setSearch] = useState("");
   const [projectFilter, setProjectFilter] = useState("");
   const [orgFilter, setOrgFilter] = useState("");
+  const [topicFilter, setTopicFilter] = useState("");
   const [programmeFilter, setProgrammeFilter] = useState("");
   const [credProgrammes, setCredProgrammes] = useState<Record<string, string[]>>({});
   const router = useRouter();
@@ -167,7 +177,11 @@ export default function CoursesPage() {
     [credentials]
   );
   const orgOptions = useMemo(
-    () => Array.from(new Set(credentials.map((c) => c.developedBy).filter((v): v is string => Boolean(v)))).sort(),
+    () => Array.from(new Set(credentials.map((c) => c.organisation).filter((v): v is string => Boolean(v)))).sort(),
+    [credentials]
+  );
+  const topicOptions = useMemo(
+    () => Array.from(new Set(credentials.map((c) => c.topic).filter((v): v is string => Boolean(v)))).sort(),
     [credentials]
   );
   const programmeOptions = useMemo(() => {
@@ -184,7 +198,8 @@ export default function CoursesPage() {
       }, {});
     return {
       project: tally(credentials.map((c) => c.project)),
-      org: tally(credentials.map((c) => c.developedBy)),
+      org: tally(credentials.map((c) => c.organisation)),
+      topic: tally(credentials.map((c) => c.topic)),
       programme: tally(credentials.flatMap((c) => credProgrammes[c.id] || [])),
     };
   }, [credentials, credProgrammes]);
@@ -192,7 +207,8 @@ export default function CoursesPage() {
   const filtered = useMemo(() => {
     let result = credentials;
     if (projectFilter) result = result.filter((c) => c.project === projectFilter);
-    if (orgFilter) result = result.filter((c) => c.developedBy === orgFilter);
+    if (orgFilter) result = result.filter((c) => c.organisation === orgFilter);
+    if (topicFilter) result = result.filter((c) => c.topic === topicFilter);
     if (programmeFilter) result = result.filter((c) => (credProgrammes[c.id] || []).includes(programmeFilter));
     if (!search.trim()) return result;
     const q = search.toLowerCase();
@@ -201,9 +217,10 @@ export default function CoursesPage() {
         c.title.toLowerCase().includes(q) ||
         c.code.toLowerCase().includes(q) ||
         c.project.toLowerCase().includes(q) ||
-        (c.developedBy || "").toLowerCase().includes(q)
+        (c.organisation || "").toLowerCase().includes(q) ||
+        (c.topic || "").toLowerCase().includes(q)
     );
-  }, [credentials, search, projectFilter, orgFilter, programmeFilter, credProgrammes]);
+  }, [credentials, search, projectFilter, orgFilter, topicFilter, programmeFilter, credProgrammes]);
 
   return (
     <>
@@ -218,7 +235,7 @@ export default function CoursesPage() {
                 <p className="bms-courses-empty">Loading micro-credentials…</p>
               ) : filtered.length === 0 ? (
                 <p className="bms-courses-empty">
-                  {search || projectFilter || orgFilter || programmeFilter
+                  {search || projectFilter || orgFilter || topicFilter || programmeFilter
                     ? "No credentials match your search or filters."
                     : "No micro-credentials available yet."}
                 </p>
@@ -238,7 +255,7 @@ export default function CoursesPage() {
                         )}
                       </Link>
                       <div className="bms-course-body">
-                        {c.developedBy && <span className="bms-course-org">{c.developedBy}</span>}
+                        {c.organisation && <span className="bms-course-org">{c.organisation}</span>}
                         <span className="bms-course-code">
                           {c.code} | {c.project}
                         </span>
@@ -269,7 +286,7 @@ export default function CoursesPage() {
 
             <aside className="bms-courses-sidebar">
               <label className="bms-courses-search">
-                <Search aria-hidden="true" size={20} />
+                <Search aria-hidden="true" size={22} strokeWidth={3} />
                 <input
                   type="search"
                   placeholder="Search for a course"
@@ -283,6 +300,9 @@ export default function CoursesPage() {
               )}
               {orgOptions.length > 0 && (
                 <FilterDropdown label="Organisation" value={orgFilter} options={orgOptions} counts={counts.org} onChange={setOrgFilter} />
+              )}
+              {topicOptions.length > 0 && (
+                <FilterDropdown label="Topic" value={topicFilter} options={topicOptions} counts={counts.topic} onChange={setTopicFilter} />
               )}
               {programmeOptions.length > 0 && (
                 <FilterDropdown

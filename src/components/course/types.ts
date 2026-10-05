@@ -56,6 +56,8 @@ export interface CourseCredential {
   overview: string | null;
   objectives: string | null;
   developedBy: string | null;
+  organisation: string | null;
+  topic: string | null;
   passGrade: number;
   hasImage: boolean;
   sections: Section[];

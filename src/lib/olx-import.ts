@@ -20,6 +20,7 @@
 import zlib from "zlib";
 import { Readable } from "stream";
 import * as tar from "tar-stream";
+import { ORGANISATIONS, organisationName } from "@/data/organisations";
 
 /* ─── Output shape ─────────────────────────────────────────── */
 
@@ -58,6 +59,9 @@ export interface ParsedCourse {
   code: string;
   project: string;
   developedBy: string | null;
+  /** University shown at the top of cards and pages. */
+  organisation: string | null;
+  topic: string | null;
   description: string | null;
   overview: string | null;
   objectives: string | null;
@@ -201,16 +205,21 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
     courseId ||
     "Imported course";
 
-  const project =
-    policy.other_course_settings?.project ||
-    (() => {
+  // Custom course settings ({"project": "RESSKILL", "topic": "Renewable Energy"}):
+  // in policy.json, or as an attribute on the course node in older exports.
+  const otherSettings: Record<string, unknown> = {
+    ...(() => {
       const m = attr(courseNode, "other_course_settings");
       if (m) {
-        try { return JSON.parse(m.replace(/&quot;/g, '"')).project; } catch { /* ignore */ }
+        try { return JSON.parse(m.replace(/&quot;/g, '"')); } catch { /* ignore */ }
       }
-      return "";
-    })() ||
-    "";
+      return {};
+    })(),
+    ...policy.other_course_settings,
+  };
+  const setting = (k: string) => (typeof otherSettings[k] === "string" ? (otherSettings[k] as string).trim() : "");
+  const project = setting("project");
+  const topic = setting("topic") || null;
 
   // Code: "MC09_RESSKILL" → "MC09"; else the whole course id.
   const code = (courseId.split(/[_\-]/)[0] || courseId || "MC").toUpperCase();
@@ -256,13 +265,18 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   }
 
   let developedBy: string | null = null;
+  let university: string | null = null;
   const sidebar = text(`${prefix}about/about_sidebar_html.html`);
   if (sidebar) {
     const author = sidebar.match(/class="course_author">([^<]+)</)?.[1]?.trim();
     const uni = sidebar.match(/class="university_info">([^<]+)</)?.[1]?.trim();
-    developedBy = [author, uni].filter(Boolean).join(", ") || null;
+    university = uni ? organisationName(uni) : null;
+    developedBy = [author, university].filter(Boolean).join(", ") || null;
   }
-  if (!developedBy && org) developedBy = org;
+  if (!developedBy && org) developedBy = organisationName(org);
+  // The live catalogue names the university from the course's org code, so prefer
+  // that; fall back to the sidebar's university line, then the bare code.
+  const organisation = ORGANISATIONS[org.toUpperCase()] || university || org || null;
 
   // Course image.
   let image: ParsedCourse["image"];
@@ -398,6 +412,8 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
     code,
     project,
     developedBy,
+    organisation,
+    topic,
     description,
     overview,
     objectives,

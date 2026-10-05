@@ -101,6 +101,8 @@ function courseSummary(c: ParsedCourse) {
     code: c.code,
     project: c.project,
     developedBy: c.developedBy,
+    organisation: c.organisation,
+    topic: c.topic,
     description: c.description,
     overview: c.overview,
     objectives: c.objectives,
@@ -281,6 +283,8 @@ export async function POST(req: NextRequest) {
           overview: course.overview,
           objectives: course.objectives,
           developedBy: course.developedBy,
+          organisation: course.organisation,
+          topic: course.topic,
           passGrade: course.passGrade,
           ...(course.image
             ? { imageData: Buffer.from(course.image.base64, "base64"), imageMime: course.image.mime }

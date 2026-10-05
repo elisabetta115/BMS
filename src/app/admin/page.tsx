@@ -3,6 +3,9 @@
 import Header from "@/components/Header";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
+import { Award, Download, Plus, Search, X } from "lucide-react";
+import { ORGANISATIONS } from "@/data/organisations";
+import OlxImport from "@/components/admin/OlxImport";
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -29,10 +32,9 @@ interface MicroCredential {
   id: string; title: string; slug: string; code: string; project: string;
   description: string | null; overview: string | null; objectives: string | null;
   image: string | null; hasImage: boolean; developedBy: string | null;
+  organisation: string | null; topic: string | null;
   passGrade: number; sections?: CredentialSection[]; sectionsCount?: number;
 }
-
-interface ImportMatch { id: string; title: string; code: string; }
 
 interface MicroProgramme {
   id: string; title: string; slug: string; code: string; project: string;
@@ -101,12 +103,12 @@ function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl:
         </div>
       ) : (
         <>
-          <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400">
+          <label className="bms-admin-btn-secondary">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
             Upload image
             <input type="file" accept=".png,.jpg,.jpeg" onChange={handleFile} className="hidden" />
           </label>
-          <p className="text-xs text-brand-muted mt-1">PNG or JPG, max 4 MB</p>
+          <p className="bms-admin-help">PNG or JPG, max 4 MB</p>
           {value && imgError && <p className="text-xs text-orange-500 mt-1">Couldn&apos;t load existing image (it will be kept unless you upload a new one or remove it).</p>}
         </>
       )}
@@ -183,7 +185,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
             <span className="text-sm text-red-700">{name}</span>
           </div>
         )}
-        <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer bg-white text-brand-dark hover:border-gray-400 transition-colors">
+        <label className="bms-admin-btn-secondary">
           <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
           {name ? "Replace PDF" : "Upload PDF"}
           <input type="file" accept=".pdf" onChange={handleFile} className="hidden" />
@@ -194,7 +196,7 @@ function CertificatePdfUploader({ value, name, onChange }: {
           </button>
         )}
       </div>
-      <p className="text-xs text-brand-muted mt-1">PDF only, max 4 MB</p>
+      <p className="bms-admin-help">PDF only, max 4 MB</p>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       {!value && !name && <p className="text-xs text-orange-500 mt-1">A PDF template is required.</p>}
     </div>
@@ -408,24 +410,86 @@ function AddPicker({ onProg, onCred, onCert }: { onProg: () => void; onCred: () 
 
   return (
     <div className="relative" ref={ref}>
-      <button onClick={() => setOpen(!open)} className="px-5 py-2.5 rounded-full text-white text-sm font-medium flex items-center gap-1.5" style={{ background: "var(--bms-green)" }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
-        Add
+      <button type="button" onClick={() => setOpen(!open)} aria-expanded={open} className="bms-admin-btn">
+        <Plus aria-hidden="true" size={18} strokeWidth={2.5} /> Add
       </button>
       {open && (
-        <div className="absolute right-0 top-full mt-1 bg-white rounded-xl shadow-soft border border-brand-line py-1 min-w-[200px] z-10">
-          <button onClick={() => { onProg(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-[var(--bms-green)]" /> Micro-programme
-          </button>
-          <button onClick={() => { onCred(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full" style={{ background: "var(--bms-dark)" }} /> Micro-credential
-          </button>
-          <button onClick={() => { onCert(); setOpen(false); }} className="w-full text-left px-4 py-2.5 text-sm hover:bg-gray-50 flex items-center gap-2">
-            <span className="w-2 h-2 rounded-full bg-red-500" /> Certificate
-          </button>
+        <div className="bms-admin-menu">
+          <button type="button" onClick={() => { onProg(); setOpen(false); }}>Micro-programme</button>
+          <button type="button" onClick={() => { onCred(); setOpen(false); }}>Micro-credential</button>
+          <button type="button" onClick={() => { onCert(); setOpen(false); }}>Certificate</button>
         </div>
       )}
     </div>
+  );
+}
+
+/* ─── List rows — laid out like the catalogue / "My Micro-credentials" cards ─── */
+
+function RowActions({ children }: { children: React.ReactNode }) {
+  // Clicking the card opens it; the buttons inside must not trigger that too.
+  return <div className="bms-admin-item-actions" onClick={e => e.stopPropagation()}>{children}</div>;
+}
+
+function RowThumb({ src, label }: { src: string; label: string }) {
+  return <span className="bms-admin-item-thumb">{src ? <img src={src} alt="" /> : <span>{label}</span>}</span>;
+}
+
+function ProgrammeRow({ programme: p, imageVersion, onEdit, onDelete }: { programme: MicroProgramme; imageVersion: number; onEdit: () => void; onDelete: () => void }) {
+  const creds = p.credentials || [];
+  return (
+    <li className="bms-admin-item" onClick={onEdit}>
+      <RowThumb src={p.hasImage ? `/api/images/programme/${p.id}?v=${imageVersion}` : p.image || ""} label={p.code} />
+      <div className="bms-admin-item-body">
+        <p className="bms-admin-item-meta">{p.code} | {p.project}</p>
+        <h3 className="bms-admin-item-title">{p.title}</h3>
+        <div className="bms-admin-chips">
+          {creds.length > 0 ? creds.map(c => <span key={c.id} className="bms-admin-chip">{c.code}</span>) : <span className="bms-admin-chip is-empty">No credentials</span>}
+        </div>
+      </div>
+      <RowActions>
+        <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
+        <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>
+      </RowActions>
+    </li>
+  );
+}
+
+function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, onDelete }: { credential: MicroCredential; programmeCodes: string[]; imageVersion: number; onEdit: () => void; onDelete: () => void }) {
+  const sections = c.sectionsCount ?? (c.sections || []).length;
+  return (
+    <li className="bms-admin-item" onClick={onEdit}>
+      <RowThumb src={c.hasImage ? `/api/images/credential/${c.id}?v=${imageVersion}` : c.image || ""} label={c.code} />
+      <div className="bms-admin-item-body">
+        {c.organisation && <p className="bms-admin-item-meta">{c.organisation}</p>}
+        <p className="bms-admin-item-meta">{c.code} | {c.project} · {sections} section{sections === 1 ? "" : "s"}{c.topic ? ` · ${c.topic}` : ""}</p>
+        <h3 className="bms-admin-item-title">{c.title}</h3>
+        <div className="bms-admin-chips">
+          {programmeCodes.length > 0 ? programmeCodes.map(code => <span key={code} className="bms-admin-chip">{code}</span>) : <span className="bms-admin-chip is-empty">Not in any programme</span>}
+        </div>
+      </div>
+      <RowActions>
+        <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
+        <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>
+      </RowActions>
+    </li>
+  );
+}
+
+function CertificateRow({ certificate: cert, onEdit, onDelete }: { certificate: Certificate; onEdit: () => void; onDelete: () => void }) {
+  return (
+    <li className="bms-admin-item is-compact" onClick={onEdit}>
+      <span className="bms-admin-item-thumb is-icon"><Award aria-hidden="true" size={28} /></span>
+      <div className="bms-admin-item-body">
+        <p className="bms-admin-item-meta">Certificate template · {cert.pdfName}</p>
+        <h3 className="bms-admin-item-title">{cert.project}</h3>
+      </div>
+      <RowActions>
+        <a href={`/api/certificates/${cert.id}/pdf`} target="_blank" rel="noopener noreferrer" className="bms-admin-link">Preview</a>
+        <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
+        <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>
+      </RowActions>
+    </li>
   );
 }
 
@@ -573,29 +637,8 @@ export default function AdminPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [confirmDialog]);
 
-  const [importFile, setImportFile] = useState<File | null>(null);
-  const [importFileKey, setImportFileKey] = useState("");
-  const [importUploadPct, setImportUploadPct] = useState<number | null>(null);
-  const [importPreview, setImportPreview] = useState<any>(null);
-  // Matches among credentials of the same project: `credential` = same name and
-  // number (re-import); `nameClash` / `codeClash` = only one of them matches.
-  const [importExisting, setImportExisting] = useState<{ credential: ImportMatch | null; nameClash: ImportMatch | null; codeClash: ImportMatch | null } | null>(null);
-  // Name / number the credential will be imported with — editable to resolve clashes.
-  const [importTitle, setImportTitle] = useState("");
-  const [importCode, setImportCode] = useState("");
-  const [importChecking, setImportChecking] = useState(false);
-  const importCheckSeq = useRef(0);
-  const importLastChecked = useRef("");
-  const [importBusy, setImportBusy] = useState(false);
-  const [importError, setImportError] = useState("");
-  const [importResult, setImportResult] = useState<any>(null);
-  const [credConflictChoice, setCredConflictChoice] = useState<"replace" | "skip">("skip");
-  // Programme attachment is always an explicit choice — the importer never
-  // creates or auto-picks one. "" means "don't attach to any programme".
-  const [importProgrammeId, setImportProgrammeId] = useState<string>("");
-
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
-  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", passGrade: "50" });
+  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
 
   /* ─── Browser back-button → return to list view ──────────
@@ -619,9 +662,6 @@ export default function AdminPage() {
         setEditingCert(null);
         setParentProgId(null);
         setFormError("");
-        setImportPreview(null);
-        setImportResult(null);
-        setImportError("");
         setTab(returnTab);
       }
     }
@@ -669,6 +709,8 @@ export default function AdminPage() {
   useEffect(() => { if (user) loadData(); }, [user, loadData]);
 
   const allProjects = Array.from(new Set([...programmes.map(p => p.project), ...credentials.map(c => c.project)].filter(Boolean))).sort();
+  const allOrganisations = Array.from(new Set([...Object.values(ORGANISATIONS), ...credentials.map(c => c.organisation)].filter((v): v is string => Boolean(v)))).sort();
+  const allTopics = Array.from(new Set(credentials.map(c => c.topic).filter((v): v is string => Boolean(v)))).sort();
 
   const filteredProgs = useMemo(() => {
     if (!adminSearch.trim()) return programmes;
@@ -679,7 +721,7 @@ export default function AdminPage() {
   const filteredCreds = useMemo(() => {
     if (!adminSearch.trim()) return credentials;
     const q = adminSearch.toLowerCase();
-    return credentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
+    return credentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.organisation || "").toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
   }, [credentials, adminSearch]);
 
   const filteredCerts = useMemo(() => {
@@ -709,14 +751,6 @@ export default function AdminPage() {
     setFormError("");
     setCredPickerOpen(false);
     setAddCredDropOpen(false);
-    setImportFile(null);
-    setImportFileKey("");
-    setImportPreview(null);
-    setImportExisting(null);
-    setImportTitle("");
-    setImportCode("");
-    setImportError("");
-    setImportResult(null);
     setTab(returnTab);
   }
 
@@ -724,8 +758,6 @@ export default function AdminPage() {
 
   function openImport() {
     pushAdminHistory("import");
-    setImportFile(null); setImportFileKey(""); setImportUploadPct(null); setImportPreview(null); setImportExisting(null);
-    setImportTitle(""); setImportCode(""); setImportError(""); setImportResult(null); setCredConflictChoice("skip"); setImportProgrammeId("");
     setReturnTab("credentials"); setView("import");
   }
 
@@ -759,102 +791,6 @@ export default function AdminPage() {
     });
 
     return presignData.key as string;
-  }
-
-  async function analyseImport(f: File) {
-    setImportFile(f); setImportFileKey("");
-    setImportBusy(true); setImportError(""); setImportPreview(null); setImportExisting(null); setImportResult(null); setImportProgrammeId("");
-    setImportUploadPct(0);
-    try {
-      const key = await uploadToStorage(f, "olx-import", setImportUploadPct);
-      setImportUploadPct(null);
-      setImportFileKey(key);
-      const r = await fetch("/api/admin/import-olx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ key, mode: "preview" }),
-      });
-      const d = await r.json();
-      if (!r.ok) { setImportError(d.error || "Could not read the archive."); setImportBusy(false); return; }
-      importLastChecked.current = importCheckKey(d.summary.title, d.summary.code);
-      setImportPreview(d.summary);
-      setImportTitle(d.summary.title);
-      setImportCode(d.summary.code);
-      setImportExisting(d.existing);
-      if (d.existing?.credential) setCredConflictChoice("skip");
-    } catch (err: any) { setImportError(err?.message || "Upload failed."); }
-    setImportUploadPct(null);
-    setImportBusy(false);
-  }
-
-  function importCheckKey(title: string, code: string) { return `${title.trim()}\n${code.trim().toUpperCase()}`; }
-
-  // Re-check the same-project name / number matches whenever the admin edits
-  // them (debounced; stale responses are dropped).
-  useEffect(() => {
-    const seq = ++importCheckSeq.current;
-    const checkKey = importCheckKey(importTitle, importCode);
-    if (!importPreview || !importTitle.trim() || !importCode.trim() || checkKey === importLastChecked.current) {
-      setImportChecking(false);
-      return;
-    }
-    setImportChecking(true);
-    const timer = setTimeout(async () => {
-      try {
-        const r = await fetch("/api/admin/import-olx", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ mode: "check", title: importTitle, code: importCode, project: importPreview.project }),
-        });
-        const d = await r.json();
-        if (seq !== importCheckSeq.current) return;
-        if (r.ok) {
-          importLastChecked.current = checkKey;
-          setImportExisting(d.existing);
-          setCredConflictChoice("skip");
-          setImportError("");
-        } else setImportError(d.error || "Could not check the name and number.");
-      } catch {
-        if (seq === importCheckSeq.current) setImportError("Could not check the name and number.");
-      }
-      if (seq === importCheckSeq.current) setImportChecking(false);
-    }, 400);
-    return () => clearTimeout(timer);
-  }, [importPreview, importTitle, importCode]);
-
-  async function runImport() {
-    if (!importFileKey) return;
-    setImportBusy(true); setImportError("");
-    try {
-      const r = await fetch("/api/admin/import-olx", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          key: importFileKey,
-          mode: "commit",
-          // Programme attachment is opt-in — the importer never creates or
-          // auto-links a micro-programme on its own.
-          programmeId: importProgrammeId || undefined,
-          title: importTitle,
-          code: importCode,
-          onExistingCredential: importExisting?.credential ? credConflictChoice : undefined,
-        }),
-      });
-      const d = await r.json();
-      if (!r.ok) {
-        // A 409 carries the up-to-date matches (e.g. someone imported a clashing course meanwhile).
-        if (r.status === 409 && d.existing) {
-          importLastChecked.current = importCheckKey(importTitle, importCode);
-          setImportExisting(d.existing);
-        }
-        setImportError(d.error || d.message || "Import failed.");
-        setImportBusy(false);
-        return;
-      }
-      setImportResult(d);
-      await loadData();
-    } catch { setImportError("Import failed."); }
-    setImportBusy(false);
   }
 
   async function refreshProg(id: string) {
@@ -934,7 +870,7 @@ export default function AdminPage() {
 
   function newCred(progId?: string) {
     pushAdminHistory("new-cred");
-    setCredForm({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", passGrade: "50" });
+    setCredForm({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
     setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("new-cred");
@@ -961,7 +897,7 @@ export default function AdminPage() {
     if (!full) { alert("Could not load this credential. Please try again."); return; }
     pushAdminHistory("edit-cred");
     const imgUrl = full.hasImage ? imageUrlFor("credential", full.id, imageVersion, null) : full.image || "";
-    setCredForm({ title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", passGrade: String(full.passGrade) });
+    setCredForm({ title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", organisation: full.organisation || "", topic: full.topic || "", passGrade: String(full.passGrade) });
     setSections(full.sections || []); setEditingCred(full); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("edit-cred");
@@ -1109,11 +1045,11 @@ export default function AdminPage() {
   function renderProgForm() {
     return (
       <div className="grid md:grid-cols-2 gap-4">
-        <div><label className="block text-sm font-medium text-brand-dark mb-1">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
-        <div><label className="block text-sm font-medium text-brand-dark mb-1">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
-        <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
+        <div><label className="bms-admin-label">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
+        <div><label className="bms-admin-label">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
+        <div className="md:col-span-2"><label className="bms-admin-label">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
+        <div className="md:col-span-2"><label className="bms-admin-label">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
+        <div className="md:col-span-2"><label className="bms-admin-label">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
       </div>
     );
   }
@@ -1123,7 +1059,7 @@ export default function AdminPage() {
     return (
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
-          <h3 className="font-bold text-lg" style={{ color: "var(--bms-green)" }}>Sections</h3>
+          <h3 className="bms-admin-section-title">Sections</h3>
           <div className="flex items-center gap-3">
             <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : totalWeight === 100 ? "bg-green-100 text-green-700" : "bg-gray-100 text-brand-muted"}`}>
               Total weight: {totalWeight}%
@@ -1267,7 +1203,7 @@ export default function AdminPage() {
                                     </>
                                   );
                                 })()}
-                                <p className="text-xs text-brand-muted mt-1">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
+                                <p className="bms-admin-help">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
                               </div>
                             )}
                           </div>
@@ -1324,222 +1260,119 @@ export default function AdminPage() {
 
           {view === "list" && (
             <>
-              <div className="flex items-center justify-between mb-6">
-                <h1 className="text-3xl font-bold text-brand-dark">Admin Panel</h1>
-                <div className="flex items-center gap-2">
-                  <button onClick={openImport} className="px-4 py-2.5 rounded-full text-sm font-medium flex items-center gap-1.5 border border-gray-300 text-brand-dark bg-white hover:border-gray-400 transition-colors">
-                    <svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
-                    Import course
+              <div className="bms-admin-head">
+                <h1 className="bms-admin-title">Admin Panel</h1>
+                <div className="bms-admin-head-actions">
+                  <button type="button" onClick={openImport} className="bms-admin-btn-secondary">
+                    <Download aria-hidden="true" size={18} /> Import courses
                   </button>
                   <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
                 </div>
               </div>
 
-              <div className="relative mb-6">
-                <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 pointer-events-none" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="#999" strokeWidth="2"><circle cx="11" cy="11" r="8" /><path d="m21 21-4.35-4.35" /></svg>
+              <label className="bms-admin-search">
+                <Search aria-hidden="true" size={20} strokeWidth={3} />
                 <input
                   type="text"
-                  className="w-full py-3 pl-10 pr-9 border border-gray-200 rounded-xl text-sm outline-none focus:border-[var(--bms-green)] transition-colors bg-white"
-                  placeholder="Search programmes, credentials and certificates..."
+                  aria-label="Search programmes, credentials and certificates"
+                  placeholder="Search programmes, credentials and certificates"
                   value={adminSearch}
                   onChange={e => setAdminSearch(e.target.value)}
                 />
-                {adminSearch && <button onClick={() => setAdminSearch("")} className="absolute right-3.5 top-1/2 -translate-y-1/2 text-brand-muted hover:text-brand-muted text-xs">✕</button>}
-              </div>
+                {adminSearch && (
+                  <button type="button" onClick={() => setAdminSearch("")} aria-label="Clear search" className="bms-admin-search-clear">
+                    <X aria-hidden="true" size={18} />
+                  </button>
+                )}
+              </label>
 
               {!adminSearch.trim() && (
-                <div className="flex gap-1 mb-6 border-b border-gray-200">
-                  <button onClick={() => setTab("programmes")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "programmes" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
-                    Micro-programmes ({programmes.length})
-                  </button>
-                  <button onClick={() => setTab("credentials")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "credentials" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
-                    Micro-credentials ({credentials.length})
-                  </button>
-                  <button onClick={() => setTab("certificates")} className={`px-6 py-3 text-sm font-medium border-b-2 transition-colors ${tab === "certificates" ? "border-brand-green text-brand-green" : "border-transparent text-brand-muted"}`}>
-                    Certificates ({certificates.length})
-                  </button>
+                <div className="bms-admin-tabs">
+                  {([["programmes", "Micro-programmes", programmes.length], ["credentials", "Micro-credentials", credentials.length], ["certificates", "Certificates", certificates.length]] as const).map(([key, label, count]) => (
+                    <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)} className={tab === key ? "is-active" : undefined}>
+                      {label} <span className="bms-admin-tab-count">{count}</span>
+                    </button>
+                  ))}
                 </div>
               )}
 
-              {loading ? <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div> : adminSearch.trim() ? (
+              {loading ? (
+                <div className="flex justify-center py-20"><div className="w-8 h-8 border-3 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" /></div>
+              ) : adminSearch.trim() ? (
                 /* ── Cross-category search results ── */
-                <>
-                  {filteredProgs.length === 0 && filteredCreds.length === 0 && filteredCerts.length === 0 ? (
-                    <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No results match your search.</p>
-                  ) : (
-                    <div className="space-y-6">
-                      {filteredProgs.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Micro-programmes ({filteredProgs.length})</p>
-                          <div className="space-y-3">{filteredProgs.map(p => (
-                            <div key={p.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editProg(p)}>
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-brand-muted">|</span><span className="text-xs text-brand-muted">{p.project}</span></div>
-                                  <h4 className="font-semibold mb-2 text-brand-dark">{p.title}</h4>
-                                  <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-brand-muted italic">No credentials</span>}</div>
-                                </div>
-                                <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                  <button onClick={() => editProg(p)} className="text-brand-green text-sm hover:underline">Edit</button>
-                                  <button onClick={() => delProg(p.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                                </div>
-                              </div>
-                            </div>
-                          ))}</div>
-                        </div>
-                      )}
-                      {filteredCreds.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Micro-credentials ({filteredCreds.length})</p>
-                          <div className="space-y-3">{filteredCreds.map(c => {
-                            const used = progsUsingCred(c.id);
-                            return (
-                              <div key={c.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editCred(c)}>
-                                <div className="flex items-start justify-between">
-                                  <div>
-                                    <div className="flex items-center gap-2 mb-1">
-                                      <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
-                                      <span className="text-xs text-brand-muted">|</span>
-                                      <span className="text-xs text-brand-muted">{c.project}</span>
-                                      <span className="text-xs text-brand-muted">|</span>
-                                      <span className="text-xs text-brand-muted">{c.sectionsCount ?? (c.sections || []).length} sections</span>
-                                    </div>
-                                    <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
-                                    <div className="flex flex-wrap gap-1">
-                                      {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-brand-muted italic">Not in any programme</span>}
-                                    </div>
-                                  </div>
-                                  <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                    <button onClick={() => editCred(c)} className="text-brand-green text-sm hover:underline">Edit</button>
-                                    <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                                  </div>
-                                </div>
-                              </div>
-                            );
-                          })}</div>
-                        </div>
-                      )}
-                      {filteredCerts.length > 0 && (
-                        <div>
-                          <p className="text-xs font-semibold text-brand-muted uppercase tracking-wide mb-2">Certificates ({filteredCerts.length})</p>
-                          <div className="space-y-3">{filteredCerts.map(cert => (
-                            <div key={cert.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
-                              <div className="flex items-center gap-2">
-                                <span className="w-2 h-2 rounded-full bg-red-500" />
-                                <span className="text-sm font-bold text-brand-dark">{cert.project}</span>
-                              </div>
-                              <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                                <a href={`/api/certificates/${cert.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm hover:underline">Preview</a>
-                                <button onClick={() => editCert(cert)} className="text-brand-green text-sm hover:underline">Edit</button>
-                                <button onClick={() => delCert(cert.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                              </div>
-                            </div>
-                          ))}</div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </>
+                filteredProgs.length === 0 && filteredCreds.length === 0 && filteredCerts.length === 0 ? (
+                  <p className="bms-admin-empty">No results match your search.</p>
+                ) : (
+                  <div className="bms-admin-results">
+                    {filteredProgs.length > 0 && (
+                      <section>
+                        <h2 className="bms-admin-group">Micro-programmes ({filteredProgs.length})</h2>
+                        <ul className="bms-admin-list">
+                          {filteredProgs.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={() => delProg(p.id)} />)}
+                        </ul>
+                      </section>
+                    )}
+                    {filteredCreds.length > 0 && (
+                      <section>
+                        <h2 className="bms-admin-group">Micro-credentials ({filteredCreds.length})</h2>
+                        <ul className="bms-admin-list">
+                          {filteredCreds.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={() => delCred(c.id)} />)}
+                        </ul>
+                      </section>
+                    )}
+                    {filteredCerts.length > 0 && (
+                      <section>
+                        <h2 className="bms-admin-group">Certificates ({filteredCerts.length})</h2>
+                        <ul className="bms-admin-list">
+                          {filteredCerts.map(cert => <CertificateRow key={cert.id} certificate={cert} onEdit={() => editCert(cert)} onDelete={() => delCert(cert.id)} />)}
+                        </ul>
+                      </section>
+                    )}
+                  </div>
+                )
               ) : tab === "programmes" ? (
-                <>
-                  {programmes.length === 0 ? <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No programmes yet.</p> : (
-                    <div className="space-y-3">{programmes.map(p => (
-                      <div key={p.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editProg(p)}>
-                        <div className="flex items-start justify-between">
-                          <div>
-                            <div className="flex items-center gap-2 mb-1"><span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{p.code}</span><span className="text-xs text-brand-muted">|</span><span className="text-xs text-brand-muted">{p.project}</span></div>
-                            <h4 className="font-semibold mb-2 text-brand-dark">{p.title}</h4>
-                            <div className="flex flex-wrap gap-1">{(p.credentials || []).map(c => <span key={c.id} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{c.code}</span>)}{(p.credentials || []).length === 0 && <span className="text-xs text-brand-muted italic">No credentials</span>}</div>
-                          </div>
-                          <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                            <button onClick={() => editProg(p)} className="text-brand-green text-sm hover:underline">Edit</button>
-                            <button onClick={() => delProg(p.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                          </div>
-                        </div>
-                      </div>
-                    ))}</div>
-                  )}
-                </>
+                programmes.length === 0 ? <p className="bms-admin-empty">No programmes yet.</p> : (
+                  <ul className="bms-admin-list">
+                    {programmes.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={() => delProg(p.id)} />)}
+                  </ul>
+                )
               ) : tab === "credentials" ? (
-                <>
-                  {credentials.length === 0 ? <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No credentials yet.</p> : (
-                    <div className="space-y-3">{credentials.map(c => {
-                      const used = progsUsingCred(c.id);
-                      return (
-                        <div key={c.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer" onClick={() => editCred(c)}>
-                          <div className="flex items-start justify-between">
-                            <div>
-                              <div className="flex items-center gap-2 mb-1">
-                                <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{c.code}</span>
-                                <span className="text-xs text-brand-muted">|</span>
-                                <span className="text-xs text-brand-muted">{c.project}</span>
-                                <span className="text-xs text-brand-muted">|</span>
-                                <span className="text-xs text-brand-muted">{c.sectionsCount ?? (c.sections || []).length} sections</span>
-                              </div>
-                              <h4 className="font-semibold mb-2 text-brand-dark">{c.title}</h4>
-                              <div className="flex flex-wrap gap-1">
-                                {used.length > 0 ? used.map(code => <span key={code} className="text-xs bg-[var(--bms-green-light)] text-brand-green px-2 py-0.5 rounded-full">{code}</span>) : <span className="text-xs text-brand-muted italic">Not in any programme</span>}
-                              </div>
-                            </div>
-                            <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                              <button onClick={() => editCred(c)} className="text-brand-green text-sm hover:underline">Edit</button>
-                              <button onClick={() => delCred(c.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                            </div>
-                          </div>
-                        </div>
-                      );
-                    })}</div>
-                  )}
-                </>
+                credentials.length === 0 ? <p className="bms-admin-empty">No credentials yet.</p> : (
+                  <ul className="bms-admin-list">
+                    {credentials.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={() => delCred(c.id)} />)}
+                  </ul>
+                )
               ) : (
-                /* Certificates tab */
-                <>
-                  {certificates.length === 0 ? (
-                    <p className="text-brand-muted text-sm py-6 text-center rounded-2xl border border-dashed border-brand-line">No certificates yet. Use Add → Certificate to create one.</p>
-                  ) : (
-                    <div className="space-y-3">{certificates.map(cert => (
-                      <div key={cert.id} className="rounded-2xl border border-brand-line bg-white p-5 transition-shadow hover:shadow-soft cursor-pointer flex items-center justify-between" onClick={() => editCert(cert)}>
-                        <div>
-                          <div className="flex items-center gap-2">
-                            <span className="w-2 h-2 rounded-full bg-red-500" />
-                            <span className="text-sm font-bold text-brand-dark">{cert.project}</span>
-                          </div>
-                        </div>
-                        <div className="flex gap-2" onClick={e => e.stopPropagation()}>
-                          <a href={`/api/certificates/${cert.id}/pdf`} target="_blank" rel="noopener noreferrer" className="text-blue-500 text-sm hover:underline">Preview</a>
-                          <button onClick={() => editCert(cert)} className="text-brand-green text-sm hover:underline">Edit</button>
-                          <button onClick={() => delCert(cert.id)} className="text-red-500 text-sm hover:underline">Delete</button>
-                        </div>
-                      </div>
-                    ))}</div>
-                  )}
-                </>
+                certificates.length === 0 ? <p className="bms-admin-empty">No certificates yet. Use Add → Certificate to create one.</p> : (
+                  <ul className="bms-admin-list">
+                    {certificates.map(cert => <CertificateRow key={cert.id} certificate={cert} onEdit={() => editCert(cert)} onDelete={() => delCert(cert.id)} />)}
+                  </ul>
+                )
               )}
             </>
           )}
 
           {(view === "new-prog" || view === "edit-prog") && (
             <>
-              <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
-              <h1 className="text-2xl font-bold mb-6 text-brand-dark">{editingProg ? editingProg.title : "New Micro-programme"}</h1>
-              {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-              <form onSubmit={saveProg} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6 mb-6">
+              <button onClick={goList} className="bms-admin-back">← Back</button>
+              <h1 className="bms-admin-title is-sub">{editingProg ? editingProg.title : "New Micro-programme"}</h1>
+              {formError && <div className="bms-admin-alert mb-4">{formError}</div>}
+              <form onSubmit={saveProg} autoComplete="off" className="bms-admin-panel mb-6">
                 {renderProgForm()}
                 <div className="mt-4 flex gap-3">
-                  <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>{formLoading ? "Saving…" : editingProg ? "Save" : "Create & Add Credentials"}</button>
-                  <button type="button" onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
+                  <button type="submit" className="bms-admin-btn" disabled={formLoading}>{formLoading ? "Saving…" : editingProg ? "Save" : "Create & Add Credentials"}</button>
+                  <button type="button" onClick={goList} className="bms-admin-btn-secondary">Cancel</button>
                 </div>
               </form>
 
               {editingProg && (
                 <div>
                   <div className="flex items-center justify-between mb-4">
-                    <h2 className="text-xl font-bold" style={{ color: "var(--bms-green)" }}>Sections (Credentials)</h2>
+                    <h2 className="bms-admin-section-title">Sections (Credentials)</h2>
                     <div className="relative" ref={addCredDropRef}>
                       <button
                         onClick={() => setAddCredDropOpen(o => !o)}
-                        className="px-4 py-2 rounded-full text-white text-sm font-medium flex items-center gap-1.5"
-                        style={{ background: "var(--bms-green)" }}
+                        className="bms-admin-btn"
                       >
                         <svg width="13" height="13" viewBox="0 0 24 24" fill="white"><path d="M19 13h-6v6h-2v-6H5v-2h6V5h2v6h6v2z"/></svg>
                         Credential
@@ -1606,17 +1439,16 @@ export default function AdminPage() {
                     );
                   })()}
 
-                  {(editingProg.credentials || []).length === 0 ? <p className="text-brand-muted text-sm py-4 text-center rounded-2xl border border-dashed border-brand-line">No credentials.</p> : (
+                  {(editingProg.credentials || []).length === 0 ? <p className="bms-admin-empty">No credentials.</p> : (
                     <div className="space-y-3">{(editingProg.credentials || []).map(c => (
-                      <div key={c.id} className="rounded-2xl border border-brand-line bg-white px-5 py-4 flex items-center justify-between">
+                      <div key={c.id} className="bms-admin-subitem">
                         <div className="flex-1 cursor-pointer" onClick={() => editCred(c, editingProg.id)}>
-                          <p className="font-medium text-brand-dark">{c.title}</p>
-                          <span className="text-xs text-brand-muted">{c.code} · {c.sectionsCount ?? (c.sections || []).length} sections</span>
-                          {progsUsingCred(c.id).length > 1 && <span className="text-xs text-blue-500 ml-2">Shared</span>}
+                          <p className="bms-admin-item-meta">{c.code} · {c.sectionsCount ?? (c.sections || []).length} sections{progsUsingCred(c.id).length > 1 && <span className="bms-admin-chip ml-2">Shared</span>}</p>
+                          <p className="bms-admin-subitem-title">{c.title}</p>
                         </div>
                         <div className="flex gap-2">
-                          <button onClick={() => editCred(c, editingProg.id)} className="text-brand-green text-sm hover:underline">Edit</button>
-                          <button onClick={() => removeCredFromProg(c.id)} className="text-red-400 text-xs hover:underline">Remove</button>
+                          <button onClick={() => editCred(c, editingProg.id)} className="bms-admin-link">Edit</button>
+                          <button onClick={() => removeCredFromProg(c.id)} className="bms-admin-link is-danger">Remove</button>
                         </div>
                       </div>
                     ))}</div>
@@ -1628,20 +1460,22 @@ export default function AdminPage() {
 
           {(view === "new-cred" || view === "edit-cred") && (
             <>
-              <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
-              <h1 className="text-2xl font-bold mb-6 text-brand-dark">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
-              {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-              <form onSubmit={saveCred} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6">
+              <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-back">← Back</button>
+              <h1 className="bms-admin-title is-sub">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
+              {formError && <div className="bms-admin-alert mb-4">{formError}</div>}
+              <form onSubmit={saveCred} autoComplete="off" className="bms-admin-panel">
                 <div className="grid md:grid-cols-2 gap-4">
-                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
-                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
-                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Organisation</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. TU Dublin" /></div>
-                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-                  <div><label className="block text-sm font-medium text-brand-dark mb-1">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value.replace(/^0+(\d)/, "$1") })} onKeyDown={e => e.key === "Enter" && e.preventDefault()} /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Short Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} placeholder="Brief summary shown on catalogue cards" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Context and overview</label><textarea className="auth-input" rows={4} value={credForm.overview} onChange={e => setCredForm({ ...credForm, overview: e.target.value })} placeholder="Full context and overview shown on the credential page" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Learning objectives</label><textarea className="auth-input" rows={4} value={credForm.objectives} onChange={e => setCredForm({ ...credForm, objectives: e.target.value })} placeholder="What learners will be able to do after this credential" /></div>
-                  <div className="md:col-span-2"><label className="block text-sm font-medium text-brand-dark mb-1">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
+                  <div><label className="bms-admin-label">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
+                  <div><label className="bms-admin-label">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
+                  <div><label className="bms-admin-label">University / organisation</label><input className="auth-input" list="organisation-options-cred" value={credForm.organisation} onChange={e => setCredForm({ ...credForm, organisation: e.target.value })} placeholder="e.g. Universitat Politècnica de València" /><datalist id="organisation-options-cred">{allOrganisations.map(o => <option key={o} value={o} />)}</datalist><p className="bms-admin-help">Shown at the top of the catalogue card and course page.</p></div>
+                  <div><label className="bms-admin-label">Created and delivered by</label><input className="auth-input" value={credForm.developedBy} onChange={e => setCredForm({ ...credForm, developedBy: e.target.value })} placeholder="e.g. Prof. Tomás Gómez, Universitat Politècnica de València" /><p className="bms-admin-help">Authors, shown in the course page sidebar.</p></div>
+                  <div><label className="bms-admin-label">Topic</label><input className="auth-input" list="topic-options-cred" value={credForm.topic} onChange={e => setCredForm({ ...credForm, topic: e.target.value })} placeholder="e.g. Renewable Energy" /><datalist id="topic-options-cred">{allTopics.map(t => <option key={t} value={t} />)}</datalist></div>
+                  <div><label className="bms-admin-label">Project Name</label><input className="auth-input" list="project-options-cred" value={credForm.project} onChange={e => setCredForm({ ...credForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options-cred">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
+                  <div><label className="bms-admin-label">Pass Grade (%)</label><input className="auth-input" type="number" min="0" max="100" value={credForm.passGrade} onChange={e => setCredForm({ ...credForm, passGrade: e.target.value.replace(/^0+(\d)/, "$1") })} onKeyDown={e => e.key === "Enter" && e.preventDefault()} /></div>
+                  <div className="md:col-span-2"><label className="bms-admin-label">Short Description</label><textarea className="auth-input" rows={2} value={credForm.description} onChange={e => setCredForm({ ...credForm, description: e.target.value })} placeholder="Brief summary shown on catalogue cards" /></div>
+                  <div className="md:col-span-2"><label className="bms-admin-label">Context and overview</label><textarea className="auth-input" rows={4} value={credForm.overview} onChange={e => setCredForm({ ...credForm, overview: e.target.value })} placeholder="Full context and overview shown on the credential page" /></div>
+                  <div className="md:col-span-2"><label className="bms-admin-label">Learning objectives</label><textarea className="auth-input" rows={4} value={credForm.objectives} onChange={e => setCredForm({ ...credForm, objectives: e.target.value })} placeholder="What learners will be able to do after this credential" /></div>
+                  <div className="md:col-span-2"><label className="bms-admin-label">Image</label><ImageUploader value={credForm.image} onChange={url => setCredForm({ ...credForm, image: url })} /></div>
                 </div>
 
                 {renderSectionEditor()}
@@ -1649,13 +1483,13 @@ export default function AdminPage() {
                 <div className="mt-6 flex gap-3">
                   <button
                     type="submit"
-                    className="auth-btn max-w-xs"
+                    className="bms-admin-btn"
                     disabled={formLoading || totalWeight > 100}
                   >
                     {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
                   </button>
-                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
-                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="px-5 py-2.5 rounded-full text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
+                  <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-btn-secondary">Cancel</button>
+                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="bms-admin-btn-danger">Delete</button>}
                 </div>
               </form>
             </>
@@ -1668,15 +1502,15 @@ export default function AdminPage() {
 
             return (
               <>
-                <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
-                <h1 className="text-2xl font-bold mb-6 text-brand-dark">
+                <button onClick={goList} className="bms-admin-back">← Back</button>
+                <h1 className="bms-admin-title is-sub">
                   {editingCert ? `Edit Certificate: ${editingCert.project}` : "New Certificate"}
                 </h1>
-                {formError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{formError}</div>}
-                <form onSubmit={saveCertificate} autoComplete="off" className="rounded-2xl border border-brand-line bg-white p-6 space-y-6">
+                {formError && <div className="bms-admin-alert mb-4">{formError}</div>}
+                <form onSubmit={saveCertificate} autoComplete="off" className="bms-admin-panel space-y-6">
                   {/* Project */}
                   <div>
-                    <label className="block text-sm font-medium text-brand-dark mb-1">Project *</label>
+                    <label className="bms-admin-label">Project *</label>
                     <input
                       className="auth-input"
                       list="cert-project-options"
@@ -1702,7 +1536,7 @@ export default function AdminPage() {
                     {/* Max text width */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
+                        <label className="bms-admin-label flex items-center gap-2 mb-2">
                           <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
                           Learner name — max width
                         </label>
@@ -1711,10 +1545,10 @@ export default function AdminPage() {
                           <input type="number" min="10" max="100" value={certForm.nameMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameMaxWidth: Math.min(100, Math.max(10, f.nameMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
                           <span className="text-sm text-brand-muted">%</span>
                         </div>
-                        <p className="text-xs text-brand-muted mt-1">Text shrinks automatically if the name is too long for this width.</p>
+                        <p className="bms-admin-help">Text shrinks automatically if the name is too long for this width.</p>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
+                        <label className="bms-admin-label flex items-center gap-2 mb-2">
                           <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
                           Course title — max width
                         </label>
@@ -1723,14 +1557,14 @@ export default function AdminPage() {
                           <input type="number" min="10" max="100" value={certForm.titleMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleMaxWidth: Math.min(100, Math.max(10, f.titleMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
                           <span className="text-sm text-brand-muted">%</span>
                         </div>
-                        <p className="text-xs text-brand-muted mt-1">Text shrinks automatically if the title is too long for this width.</p>
+                        <p className="bms-admin-help">Text shrinks automatically if the title is too long for this width.</p>
                       </div>
                     </div>
 
                     {/* Independent font sizes */}
                     <div className="grid md:grid-cols-2 gap-4">
                       <div>
-                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
+                        <label className="bms-admin-label flex items-center gap-2 mb-2">
                           <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
                           Learner name — text size
                         </label>
@@ -1755,7 +1589,7 @@ export default function AdminPage() {
                         </div>
                       </div>
                       <div>
-                        <label className="text-sm font-medium text-brand-dark mb-2 flex items-center gap-2">
+                        <label className="bms-admin-label flex items-center gap-2 mb-2">
                           <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
                           Course title — text size
                         </label>
@@ -1849,11 +1683,11 @@ export default function AdminPage() {
                   </>)}
 
                   <div className="flex gap-3">
-                    <button type="submit" className="auth-btn max-w-xs" disabled={formLoading}>
+                    <button type="submit" className="bms-admin-btn" disabled={formLoading}>
                       {formLoading ? "Saving…" : editingCert ? "Update" : "Create"}
                     </button>
-                    <button type="button" onClick={goList} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Cancel</button>
-                    {editingCert && <button type="button" onClick={() => delCert(editingCert.id)} className="px-5 py-2.5 rounded-full text-sm font-medium text-red-600 border border-red-300 hover:bg-red-50">Delete</button>}
+                    <button type="button" onClick={goList} className="bms-admin-btn-secondary">Cancel</button>
+                    {editingCert && <button type="button" onClick={() => delCert(editingCert.id)} className="bms-admin-btn-danger">Delete</button>}
                   </div>
                 </form>
               </>
@@ -1861,255 +1695,14 @@ export default function AdminPage() {
           })()}
 
           {view === "import" && (
-            <>
-              <button onClick={goList} className="text-sm text-brand-muted hover:text-brand-dark mb-4">← Back</button>
-              <h1 className="text-2xl font-bold mb-2 text-brand-dark">Import course from Open edX</h1>
-              <p className="text-sm text-brand-muted mb-6">
-                Upload an Open edX course export (<code className="text-xs bg-gray-100 px-1 py-0.5 rounded">.tar.gz</code>). Its sections, subsections,
-                videos, quizzes and PDF units become a micro-credential. No micro-programme is created or touched unless you pick one below.
-              </p>
-
-              {importError && <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-red-700 text-sm">{importError}</div>}
-
-              {importResult ? (
-                <div className="rounded-2xl border border-brand-line bg-white p-6">
-                  <div className="flex items-center gap-2 mb-3">
-                    <span className="w-8 h-8 rounded-full bg-green-100 text-green-700 flex items-center justify-center">✓</span>
-                    <h2 className="text-lg font-bold text-brand-dark">{importResult.credentialAction === "skipped" ? "Upload discarded" : "Import complete"}</h2>
-                  </div>
-                  <ul className="text-sm text-brand-dark space-y-1 mb-5">
-                    {importResult.credentialAction === "skipped" ? (
-                      <li>The existing micro-credential <strong>{importResult.summary?.title}</strong> was left unchanged.</li>
-                    ) : (
-                      <li>Micro-credential <strong>{importResult.summary?.title}</strong>{" "}
-                        {importResult.credentialAction === "replaced" ? "re-imported (the previous version was deleted)" : "created"}.</li>
-                    )}
-                    {importResult.programmeId ? (
-                      <li>Added to micro-programme <strong>{programmes.find(p => p.id === importResult.programmeId)?.title || "—"}</strong>.</li>
-                    ) : importResult.credentialAction !== "skipped" && (
-                      <li>Not attached to any micro-programme — add it yourself when you&apos;re ready.</li>
-                    )}
-                    {importResult.credentialAction !== "skipped" && (
-                      <li className="text-brand-muted">
-                        {importResult.summary?.counts?.sections} sections · {importResult.summary?.counts?.videos} videos ·{" "}
-                        {importResult.summary?.counts?.quizzes} quizzes ({importResult.summary?.counts?.questions} questions) ·{" "}
-                        {importResult.summary?.counts?.presentations} PDFs
-                      </li>
-                    )}
-                  </ul>
-                  <div className="flex gap-3">
-                    <button
-                      onClick={() => { const c = credentials.find(x => x.id === importResult.credentialId); if (c) editCred(c); else { setTab("credentials"); goList(); } }}
-                      className="auth-btn max-w-xs"
-                    >
-                      Open micro-credential
-                    </button>
-                    <button onClick={() => { setTab("credentials"); goList(); }} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50">Done</button>
-                  </div>
-                </div>
-              ) : (
-                <div className="rounded-2xl border border-brand-line bg-white p-6 space-y-6">
-                  <div>
-                    <label className="inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer bg-white text-brand-dark hover:border-gray-400 transition-colors">
-                      <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="17 8 12 3 7 8"/><line x1="12" y1="3" x2="12" y2="15"/></svg>
-                      {importFile ? "Choose a different file" : "Choose .tar.gz file"}
-                      <input
-                        type="file"
-                        accept=".tar.gz,.tgz,.gz,application/gzip,application/x-gzip"
-                        className="hidden"
-                        onChange={e => { const f = e.target.files?.[0]; if (f) analyseImport(f); e.target.value = ""; }}
-                      />
-                    </label>
-                    {importFile && <p className="text-xs text-brand-muted mt-2">{importFile.name} · {(importFile.size / 1024 / 1024).toFixed(1)} MB</p>}
-                  </div>
-
-                  {importBusy && !importPreview && (
-                    <div className="text-sm text-brand-muted">
-                      <div className="flex items-center gap-3">
-                        <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin" />
-                        {importUploadPct !== null ? `Uploading… ${importUploadPct}%` : "Reading archive…"}
-                      </div>
-                      {importUploadPct !== null && (
-                        <div className="mt-2 h-1.5 w-full max-w-xs rounded-full bg-gray-200 overflow-hidden">
-                          <div className="h-full rounded-full transition-all" style={{ width: `${importUploadPct}%`, background: "var(--bms-green)" }} />
-                        </div>
-                      )}
-                    </div>
-                  )}
-
-                  {importPreview && (
-                    <div className="space-y-5">
-                      <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                        <div className="flex items-center gap-2 mb-1">
-                          <span className="text-sm font-bold" style={{ color: "var(--bms-green)" }}>{importCode || importPreview.code}</span>
-                          <span className="text-xs text-brand-muted">|</span>
-                          <span className="text-xs text-brand-muted">{importPreview.project}</span>
-                        </div>
-                        <h3 className="font-semibold text-brand-dark">{importTitle || importPreview.title}</h3>
-                        {importPreview.developedBy && <p className="text-xs text-brand-muted mt-0.5">{importPreview.developedBy}</p>}
-                        <p className="text-sm text-brand-dark mt-3">
-                          {importPreview.counts.sections} sections · {importPreview.counts.subsections} subsections ·{" "}
-                          <strong>{importPreview.counts.units} units</strong> ({importPreview.counts.videos} videos,{" "}
-                          {importPreview.counts.quizzes} quizzes / {importPreview.counts.questions} questions,{" "}
-                          {importPreview.counts.presentations} PDFs)
-                        </p>
-                        <p className="text-xs text-brand-muted mt-1">
-                          Pass grade {importPreview.passGrade}% · {importPreview.hasImage ? `image ${importPreview.imageName}` : "no image"}
-                        </p>
-                      </div>
-
-                      <div>
-                        <label className="block text-sm font-medium text-brand-dark mb-1">Add to a micro-programme</label>
-                        <select
-                          className="auth-input"
-                          value={importProgrammeId}
-                          onChange={e => setImportProgrammeId(e.target.value)}
-                        >
-                          <option value="">— Don't attach to any programme —</option>
-                          {programmes.map(p => (
-                            <option key={p.id} value={p.id}>{p.title} ({p.code})</option>
-                          ))}
-                        </select>
-                        <p className="text-xs text-brand-muted mt-1">
-                          Nothing is created or linked automatically. Pick an existing micro-programme to add this credential to it, or leave it unset and add it yourself later.
-                        </p>
-                      </div>
-
-                      <details className="rounded-xl border border-gray-200 bg-white">
-                        <summary className="cursor-pointer px-4 py-2.5 text-sm font-medium text-brand-dark">Outline</summary>
-                        <div className="px-4 pb-4 space-y-3">
-                          {importPreview.outline.map((s: any, si: number) => (
-                            <div key={si}>
-                              <p className="text-sm font-semibold text-brand-green">{s.title}</p>
-                              {s.subsections.map((ss: any, ssi: number) => {
-                                const ssWeight = ss.units.reduce((n: number, u: any) => n + (Number(u.weight) || 0), 0);
-                                return (
-                                <div key={ssi} className="ml-4 mt-1">
-                                  <p className="text-sm text-brand-dark">
-                                    {ss.title}
-                                    {ssWeight > 0 && <span className="text-xs font-semibold text-brand-green ml-1.5">· {ssWeight}%</span>}
-                                  </p>
-                                  <ul className="ml-4">
-                                    {ss.units.map((u: any, ui: number) => (
-                                      <li key={ui} className="text-xs text-brand-muted">
-                                        <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${u.type === "VIDEO" ? "bg-blue-500" : u.type === "QUIZ" ? "bg-yellow-500" : "bg-purple-500"}`} />
-                                        {u.title} — <span className="text-brand-muted">{u.type.toLowerCase()}{u.type !== "VIDEO" ? ` · ${u.detail}` : ""}{u.weight > 0 ? ` · ${u.weight}%` : ""}</span>
-                                      </li>
-                                    ))}
-                                  </ul>
-                                </div>
-                                );
-                              })}
-                            </div>
-                          ))}
-                        </div>
-                      </details>
-
-                      {importPreview.warnings?.length > 0 && (
-                        <div className="rounded-xl border border-amber-200 bg-amber-50 p-4">
-                          <p className="text-sm font-semibold text-amber-800 mb-1">{importPreview.warnings.length} warning{importPreview.warnings.length === 1 ? "" : "s"}</p>
-                          <ul className="list-disc ml-5 text-xs text-amber-800 space-y-0.5">
-                            {importPreview.warnings.map((w: string, i: number) => <li key={i}>{w}</li>)}
-                          </ul>
-                        </div>
-                      )}
-
-                      {(() => {
-                        const clash = !!(importExisting?.nameClash || importExisting?.codeClash);
-                        const renamed = importTitle !== importPreview.title || importCode !== importPreview.code;
-                        if (!clash && !renamed) return null;
-                        const project = importPreview.project || "(no project)";
-                        return (
-                          <div className={`rounded-xl border p-4 ${clash ? "border-red-300 bg-red-50" : "border-gray-200 bg-white"}`}>
-                            {clash && (
-                              <>
-                                <p className="text-sm font-semibold text-red-800 mb-1">This name or number is already used in {project}.</p>
-                                <ul className="list-disc ml-5 text-sm text-red-800 space-y-0.5 mb-2">
-                                  {importExisting?.nameClash && (
-                                    <li>The name “{importExisting.nameClash.title}” is already used by <strong>{importExisting.nameClash.code}</strong>.</li>
-                                  )}
-                                  {importExisting?.codeClash && (
-                                    <li>The number <strong>{importExisting.codeClash.code}</strong> is already used by “{importExisting.codeClash.title}”.</li>
-                                  )}
-                                </ul>
-                                <p className="text-xs text-red-800 mb-3">Change the name or number of the course you&apos;re uploading before importing it.</p>
-                              </>
-                            )}
-                            <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-3">
-                              <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Number</label>
-                                <input className="auth-input" value={importCode} onChange={e => setImportCode(e.target.value.toUpperCase())} />
-                              </div>
-                              <div>
-                                <label className="block text-sm font-medium text-brand-dark mb-1">Name</label>
-                                <input className="auth-input" value={importTitle} onChange={e => setImportTitle(e.target.value)} />
-                              </div>
-                            </div>
-                            <p className="text-xs mt-2 text-brand-muted">
-                              {!importTitle.trim() || !importCode.trim()
-                                ? "Name and number can't be empty."
-                                : importChecking
-                                  ? "Checking…"
-                                  : !clash && !importExisting?.credential && <span className="text-green-700">✓ No clash in {project}. Ready to import.</span>}
-                            </p>
-                          </div>
-                        );
-                      })()}
-
-                      {importExisting?.credential && (() => {
-                        const inProgs = progsUsingCred(importExisting.credential.id);
-                        return (
-                          <div className="rounded-xl border border-amber-300 bg-amber-50 p-4">
-                            <p className="text-sm font-semibold text-amber-900 mb-2">
-                              “{importExisting.credential.title}” ({importExisting.credential.code}) has already been imported in {importPreview.project || "this project"}.
-                            </p>
-                            <label className="flex items-start gap-2 text-sm text-amber-900 mb-1.5">
-                              <input type="radio" name="credConflict" checked={credConflictChoice === "skip"} onChange={() => setCredConflictChoice("skip")} className="mt-0.5" />
-                              <span>
-                                <strong>Discard this upload</strong> and keep the existing micro-credential unchanged.
-                                {importProgrammeId && " It will still be added to the selected programme."}
-                              </span>
-                            </label>
-                            <label className="flex items-start gap-2 text-sm text-amber-900">
-                              <input type="radio" name="credConflict" checked={credConflictChoice === "replace"} onChange={() => setCredConflictChoice("replace")} className="mt-0.5" />
-                              <span>
-                                <strong>Re-import</strong> and replace the existing one with this file. This permanently deletes the current micro-credential, its units and every learner’s enrolment and progress for it
-                                {inProgs.length > 0 ? `, and removes it from ${inProgs.join(", ")}.` : "."}
-                              </span>
-                            </label>
-                          </div>
-                        );
-                      })()}
-
-                      <div className="flex gap-3">
-                        <button
-                          onClick={runImport}
-                          disabled={importBusy || importChecking || !importTitle.trim() || !importCode.trim() || !!importExisting?.nameClash || !!importExisting?.codeClash}
-                          className="auth-btn max-w-xs"
-                        >
-                          {importBusy ? "Importing…"
-                            : importExisting?.credential ? (credConflictChoice === "replace" ? "Re-import" : "Discard upload")
-                            : "Import"}
-                        </button>
-                        <button onClick={goList} disabled={importBusy} className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50 disabled:opacity-50">Cancel</button>
-                      </div>
-
-                      {importBusy && (
-                        <div className="rounded-xl border border-gray-200 bg-gray-50 p-4">
-                          <div className="flex items-center gap-3 text-sm text-brand-dark mb-2">
-                            <div className="w-5 h-5 border-2 border-[var(--bms-green)] border-t-transparent rounded-full animate-spin flex-shrink-0" />
-                            Saving your course — creating sections, units and quizzes. This can take a little while for larger courses, please don&apos;t close this tab.
-                          </div>
-                          <div className="h-1.5 w-full rounded-full bg-gray-200 overflow-hidden">
-                            <div className="h-full w-1/3 rounded-full animate-[indeterminate_1.2s_ease-in-out_infinite]" style={{ background: "var(--bms-green)" }} />
-                          </div>
-                        </div>
-                      )}
-                    </div>
-                  )}
-                </div>
-              )}
-            </>
+            <OlxImport
+              programmes={programmes}
+              progsUsingCred={progsUsingCred}
+              uploadToStorage={uploadToStorage}
+              onImported={loadData}
+              onOpenCredential={id => { const c = credentials.find(x => x.id === id); if (c) editCred(c); else { setTab("credentials"); goList(); } }}
+              onClose={() => { setTab("credentials"); goList(); }}
+            />
           )}
         </div>
       </main>
@@ -2122,28 +1715,28 @@ export default function AdminPage() {
           <div
             role="alertdialog"
             aria-modal="true"
-            className="w-full max-w-sm rounded-2xl border border-brand-line bg-white p-6 shadow-soft"
+            className="bms-admin-dialog"
             onClick={e => e.stopPropagation()}
           >
             <div className="flex items-start gap-3 mb-5">
               <span className="w-9 h-9 flex-shrink-0 rounded-full bg-red-100 text-red-600 flex items-center justify-center">
                 <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M3 6h18" /><path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" /><path d="M19 6l-1 14a2 2 0 0 1-2 2H8a2 2 0 0 1-2-2L5 6" /><line x1="10" y1="11" x2="10" y2="17" /><line x1="14" y1="11" x2="14" y2="17" /></svg>
               </span>
-              <p className="text-sm text-brand-dark pt-1.5">{confirmDialog.message}</p>
+              <p className="text-[1.05rem] leading-snug text-brand-dark pt-1.5">{confirmDialog.message}</p>
             </div>
             <div className="flex justify-end gap-3">
               <button
                 type="button"
                 autoFocus
                 onClick={() => { confirmDialog.resolve(false); setConfirmDialog(null); }}
-                className="px-5 py-2.5 rounded-full text-sm font-medium text-brand-muted border border-gray-300 hover:bg-gray-50"
+                className="bms-admin-btn-secondary"
               >
                 Cancel
               </button>
               <button
                 type="button"
                 onClick={() => { confirmDialog.resolve(true); setConfirmDialog(null); }}
-                className="px-5 py-2.5 rounded-full text-sm font-medium text-white bg-red-600 hover:bg-red-700"
+                className="bms-admin-btn is-danger"
               >
                 Delete
               </button>
