@@ -2,12 +2,13 @@ import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
 import bcrypt from "bcryptjs";
+import { RDS_CA } from "../src/lib/rds-ca.mjs";
 
 const { Pool } = pg;
 
 const pool = new Pool({
   connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
-  ssl: { rejectUnauthorized: false },
+  ssl: { ca: RDS_CA },
 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
