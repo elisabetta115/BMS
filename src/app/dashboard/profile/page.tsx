@@ -107,9 +107,16 @@ export default function ProfilePage() {
         setError(data.error || "Something went wrong.");
         return;
       }
-      setProfile({ ...next, email: next.email.toLowerCase() });
+      // A new email only applies once confirmed from that inbox; keep showing the current one.
+      setProfile({ ...next, email: data.pendingEmail ? profile.email : next.email.toLowerCase() });
       if (editing === "name" && !username) setUserName(next.name);
-      setSuccess(editing === "password" ? "Your password has been changed." : "Your changes have been saved.");
+      setSuccess(
+        data.pendingEmail
+          ? data.message
+          : editing === "password"
+            ? "Your password has been changed."
+            : "Your changes have been saved."
+      );
       setEditing(null);
     } catch {
       setError("Something went wrong. Please try again.");

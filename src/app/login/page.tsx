@@ -1,9 +1,11 @@
 "use client";
 
+import Link from "next/link";
 import { useState, FormEvent } from "react";
 import { useRouter } from "next/navigation";
 import { Eye, EyeOff, User } from "lucide-react";
 import { AuthShell, AuthField } from "@/components/auth/AuthShell";
+import { ResendConfirmation } from "@/components/auth/ResendConfirmation";
 
 export default function LoginPage() {
   const router = useRouter();
@@ -12,10 +14,12 @@ export default function LoginPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
+  const [notConfirmed, setNotConfirmed] = useState(false);
 
   async function handleSubmit(e: FormEvent) {
     e.preventDefault();
     setError("");
+    setNotConfirmed(false);
     setLoading(true);
 
     try {
@@ -27,6 +31,7 @@ export default function LoginPage() {
       const data = await res.json();
       if (!res.ok) {
         setError(data.error || "Login failed.");
+        setNotConfirmed(data.code === "EMAIL_NOT_VERIFIED");
         setLoading(false);
         return;
       }
@@ -70,10 +75,15 @@ export default function LoginPage() {
         />
 
         {error && <span className="bms-auth-error">{error}</span>}
+        {notConfirmed && <ResendConfirmation email={email} password={password} />}
 
         <button type="submit" className="bms-auth-submit bms-auth-submit-login" disabled={loading}>
           {loading ? "Signing in…" : "Sign in"}
         </button>
+
+        <Link href="/forgot-password" className="bms-auth-forgot">
+          Forgot password?
+        </Link>
       </form>
     </AuthShell>
   );

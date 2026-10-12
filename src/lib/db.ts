@@ -23,6 +23,8 @@ export interface DBUser {
   country: string | null;
   gender: string | null;
   role: "USER" | "ADMIN";
+  /** Null until the user confirms their email address. */
+  emailVerifiedAt: Date | null;
 }
 
 export interface DBMicroCredential {
@@ -52,7 +54,7 @@ export interface DBMicroProgramme {
 
 // ─── User queries ───────────────────────────────────────────
 
-const USER_COLUMNS = "id, name, username, email, password_hash, country, gender, role";
+const USER_COLUMNS = "id, name, username, email, password_hash, country, gender, role, email_verified_at";
 
 function toDBUser(data: any): DBUser {
   return {
@@ -64,6 +66,7 @@ function toDBUser(data: any): DBUser {
     country: data.country,
     gender: data.gender ?? null,
     role: data.role || "USER",
+    emailVerifiedAt: data.email_verified_at ? new Date(data.email_verified_at) : null,
   };
 }
 
@@ -99,6 +102,26 @@ export async function findUserByUsername(username: string): Promise<DBUser | nul
     .ilike("username", username.replace(/[\\%_]/g, "\\$&"))
     .maybeSingle();
   return data ? toDBUser(data) : null;
+}
+
+/** What people can type in the sign-in box: email, username, or (older accounts) full name. */
+export async function findUserByEmailOrName(identifier: string): Promise<DBUser | null> {
+  const byEmail = await findUserByEmail(identifier.toLowerCase().trim());
+  if (byEmail) return byEmail;
+
+  const byUsername = await findUserByUsername(identifier.trim());
+  if (byUsername) return byUsername;
+
+  // Accounts created before usernames existed: try by name (case-insensitive) via Prisma
+  if (prisma) {
+    return prisma.user.findFirst({
+      where: {
+        name: { equals: identifier.trim(), mode: "insensitive" },
+      },
+    });
+  }
+
+  return null;
 }
 
 export async function createUser(input: {

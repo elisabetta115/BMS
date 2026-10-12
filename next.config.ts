@@ -9,6 +9,11 @@ const nextConfig: NextConfig = {
     S3_SECRET_ACCESS_KEY: process.env.S3_SECRET_ACCESS_KEY,
     S3_REGION: process.env.S3_REGION,
     S3_UPLOAD_BUCKET: process.env.S3_UPLOAD_BUCKET,
+    SMTP_HOST: process.env.SMTP_HOST,
+    SMTP_PORT: process.env.SMTP_PORT,
+    SMTP_USER: process.env.SMTP_USER,
+    SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+    APP_URL: process.env.APP_URL,
   },
   experimental: {
     serverActions: {

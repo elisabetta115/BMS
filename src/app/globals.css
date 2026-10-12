@@ -3438,6 +3438,37 @@ input[type="number"].no-spin {
   padding: 1rem;
 }
 
+/* Email confirmation and password reset screens */
+.bms-auth-note {
+  color: #1a1a1a;
+  font-size: 1.05rem;
+  line-height: 1.5;
+  margin: 1.25rem 0 0;
+}
+
+.bms-auth-linkbtn {
+  background: none;
+  border: 0;
+  color: #1a1a1a;
+  cursor: pointer;
+  font: inherit;
+  padding: 0;
+  text-decoration: underline;
+}
+
+.bms-auth-linkbtn:disabled {
+  color: #767676;
+  cursor: default;
+}
+
+a.bms-auth-submit {
+  align-items: center;
+  display: flex;
+  justify-content: center;
+  margin-top: 1.5rem;
+  text-decoration: none;
+}
+
 .bms-contact {
   display: grid;
   gap: 3rem;

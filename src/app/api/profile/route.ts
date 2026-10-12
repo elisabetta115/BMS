@@ -1,6 +1,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession, hashPassword, verifyPassword, validatePassword, validateEmail, createSessionToken, setSessionCookie } from "@/lib/auth";
 import { findUserById, findUserByEmail, updateUser } from "@/lib/db";
+import { createEmailToken, sentRecently } from "@/lib/email-tokens";
+import { appUrl, emails, sendEmail } from "@/lib/email";
 
 export async function GET() {
   const session = await getSession();
@@ -34,9 +36,10 @@ export async function PUT(req: NextRequest) {
 
   // If email changed, check it's not taken
   const normalEmail = email.toLowerCase().trim();
-  if (normalEmail !== user.email) {
+  const emailChanged = normalEmail !== user.email;
+  if (emailChanged) {
     const existing = await findUserByEmail(normalEmail);
-    if (existing) return NextResponse.json({ error: "This email is already in use." }, { status: 409 });
+    if (existing?.emailVerifiedAt) return NextResponse.json({ error: "This email is already in use." }, { status: 409 });
   }
 
   // Always require current password
@@ -47,21 +50,48 @@ export async function PUT(req: NextRequest) {
   if (!valid) {
     return NextResponse.json({ error: "Current password is incorrect." }, { status: 400 });
   }
+  if (newPassword) {
+    const pwError = validatePassword(newPassword);
+    if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
+  }
+
+  // A new email only takes effect once confirmed from that inbox (see /api/auth/verify-email).
+  if (emailChanged) {
+    if (await sentRecently(user.id, "CHANGE_EMAIL")) {
+      return NextResponse.json(
+        { error: "We've just sent a confirmation email. Please wait a minute before trying again." },
+        { status: 429 }
+      );
+    }
+    try {
+      const token = await createEmailToken(user.id, "CHANGE_EMAIL", normalEmail);
+      await sendEmail(normalEmail, emails.confirmEmailChange(user.name, normalEmail, `${appUrl()}/verify-email?token=${token}`));
+    } catch (err) {
+      console.error("Profile: could not send email-change confirmation:", err);
+      return NextResponse.json(
+        { error: "We couldn't send the confirmation email right now. Please try again in a few minutes." },
+        { status: 503 }
+      );
+    }
+  }
 
   const patch: Parameters<typeof updateUser>[1] = {
     name: name.trim(),
-    email: normalEmail,
     country: country?.trim() || null,
   };
 
   // Set new password if provided
   if (newPassword) {
-    const pwError = validatePassword(newPassword);
-    if (pwError) return NextResponse.json({ error: pwError }, { status: 400 });
     patch.passwordHash = await hashPassword(newPassword);
   }
 
   const updated = await updateUser(session.userId, patch);
+
+  if (newPassword) {
+    await sendEmail(updated.email, emails.passwordChanged(updated.name)).catch((err) =>
+      console.error("Profile: could not send password-changed alert:", err)
+    );
+  }
 
   // Refresh session cookie so name/email changes are reflected immediately
   const token = await createSessionToken({
@@ -73,5 +103,11 @@ export async function PUT(req: NextRequest) {
   });
   await setSessionCookie(token);
 
+  if (emailChanged) {
+    return NextResponse.json({
+      message: `We've sent a confirmation link to ${normalEmail}. Your email will change once you click it.`,
+      pendingEmail: normalEmail,
+    });
+  }
   return NextResponse.json({ message: "Profile updated successfully." });
 }

@@ -10,13 +10,22 @@ const globalForPrisma = globalThis as unknown as {
   pool: pg.Pool | undefined;
 };
 
+// A database on this computer (local development) has no TLS; anything else must be RDS.
+function isLocalDatabase(url: string | undefined): boolean {
+  try {
+    return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(url ?? "").hostname);
+  } catch {
+    return false;
+  }
+}
+
 const pool =
   globalForPrisma.pool ??
   new Pool({
     connectionString: process.env.DATABASE_URL,
     // RDS requires TLS; verify the server against the Amazon RDS CAs so a
     // spoofed host can't receive the password.
-    ssl: { ca: RDS_CA },
+    ssl: isLocalDatabase(process.env.DATABASE_URL) ? false : { ca: RDS_CA },
     // Amplify SSR runs on short-lived serverless instances; keep each pool small
     // so many concurrent instances don't exhaust the db.t4g.micro connection cap.
     max: 5,

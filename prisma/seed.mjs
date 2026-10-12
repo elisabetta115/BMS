@@ -6,9 +6,14 @@ import { RDS_CA } from "../src/lib/rds-ca.mjs";
 
 const { Pool } = pg;
 
+const connectionString = process.env.DIRECT_URL ?? process.env.DATABASE_URL;
+// Same rule as src/lib/prisma.ts: no TLS only for a database on this computer.
+const isLocal = (() => {
+  try { return ["localhost", "127.0.0.1", "[::1]"].includes(new URL(connectionString).hostname); } catch { return false; }
+})();
 const pool = new Pool({
-  connectionString: process.env.DIRECT_URL ?? process.env.DATABASE_URL,
-  ssl: { ca: RDS_CA },
+  connectionString,
+  ssl: isLocal ? false : { ca: RDS_CA },
 });
 const adapter = new PrismaPg(pool);
 const prisma = new PrismaClient({ adapter });
@@ -28,7 +33,7 @@ async function main() {
   await prisma.user.upsert({
     where: { email },
     update: { role: "ADMIN", passwordHash },
-    create: { email, name, passwordHash, role: "ADMIN" },
+    create: { email, name, passwordHash, role: "ADMIN", emailVerifiedAt: new Date() },
   });
 
   console.log(`✓ Admin user ${email} is ready.`);

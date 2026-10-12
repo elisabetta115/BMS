@@ -1,13 +1,10 @@
 import { NextRequest, NextResponse } from "next/server";
 import { findUserByEmail, findUserByUsername, createUser } from "@/lib/db";
-import {
-  hashPassword,
-  validatePassword,
-  validateEmail,
-  createSessionToken,
-  setSessionCookie,
-} from "@/lib/auth";
+import { hashPassword, validatePassword, validateEmail } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
+import { prisma } from "@/lib/prisma";
+import { createEmailToken } from "@/lib/email-tokens";
+import { appUrl, emails, sendEmail } from "@/lib/email";
 
 // Same choices as the live registration form.
 const GENDERS = ["m", "f", "nb", "pn", "o"];
@@ -59,38 +56,50 @@ export async function POST(req: NextRequest) {
       return NextResponse.json({ error: passwordError }, { status: 400 });
     }
 
-    const existing = await findUserByEmail(email.toLowerCase().trim());
-    if (existing) {
+    const normalEmail = email.toLowerCase().trim();
+    const existing = await findUserByEmail(normalEmail);
+    if (existing?.emailVerifiedAt) {
       return NextResponse.json({ error: "An account with this email already exists." }, { status: 409 });
     }
-    if (await findUserByUsername(username)) {
+    const byUsername = await findUserByUsername(username);
+    if (byUsername && byUsername.id !== existing?.id) {
       return NextResponse.json(
         { error: `It looks like ${username} belongs to an existing account. Try again with a different username.` },
         { status: 409 }
       );
+    }
+    // An earlier sign-up with this email that was never confirmed (lost email, typo,
+    // or someone else's address): replace it so the address isn't blocked forever.
+    if (existing) {
+      await prisma.user.delete({ where: { id: existing.id } });
     }
 
     const passwordHash = await hashPassword(password);
     const user = await createUser({
       name: name.trim(),
       username,
-      email: email.toLowerCase().trim(),
+      email: normalEmail,
       passwordHash,
       country: country.trim(),
       gender: gender || null,
     });
 
-    const token = await createSessionToken({
-      userId: user.id,
-      email: user.email,
-      name: user.name,
-      username: user.username,
-      role: user.role,
-    });
-    await setSessionCookie(token);
+    // No sign-in until the address is confirmed: the user gets a link by email instead.
+    try {
+      const token = await createEmailToken(user.id, "VERIFY_EMAIL");
+      await sendEmail(user.email, emails.verifyEmail(user.name, `${appUrl()}/verify-email?token=${token}`));
+    } catch (err) {
+      console.error("Register: could not send confirmation email:", err);
+      // Remove the account so the person can simply try again.
+      await prisma.user.delete({ where: { id: user.id } }).catch(() => {});
+      return NextResponse.json(
+        { error: "We couldn't send the confirmation email right now. Please try again in a few minutes." },
+        { status: 503 }
+      );
+    }
 
     return NextResponse.json(
-      { message: "Account created successfully.", user: { id: user.id, name: user.name, email: user.email, role: user.role } },
+      { message: "Account created. Check your email to confirm your address.", email: user.email },
       { status: 201 }
     );
   } catch (err) {

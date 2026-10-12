@@ -1,29 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
-import { findUserByEmail, findUserByUsername } from "@/lib/db";
+import { findUserByEmailOrName } from "@/lib/db";
 import { verifyPassword, createSessionToken, setSessionCookie } from "@/lib/auth";
 import { rateLimit } from "@/lib/rate-limit";
-import { prisma } from "@/lib/prisma";
-
-async function findUserByEmailOrName(identifier: string) {
-  // Try email first
-  const byEmail = await findUserByEmail(identifier.toLowerCase().trim());
-  if (byEmail) return byEmail;
-
-  const byUsername = await findUserByUsername(identifier.trim());
-  if (byUsername) return byUsername;
-
-  // Accounts created before usernames existed: try by name (case-insensitive) via Prisma
-  if (prisma) {
-    const byName = await prisma.user.findFirst({
-      where: {
-        name: { equals: identifier.trim(), mode: "insensitive" },
-      },
-    });
-    return byName;
-  }
-
-  return null;
-}
 
 export async function POST(req: NextRequest) {
   const ip = req.headers.get("x-forwarded-for") ?? "unknown";
@@ -51,6 +29,17 @@ export async function POST(req: NextRequest) {
     const valid = await verifyPassword(password, user.passwordHash);
     if (!valid) {
       return NextResponse.json({ error: "Invalid email/name or password." }, { status: 401 });
+    }
+
+    // Checked only after the password, so this doesn't reveal anything to someone guessing.
+    if (!user.emailVerifiedAt) {
+      return NextResponse.json(
+        {
+          error: `Please confirm your email address first. We sent a link to ${user.email} when you registered.`,
+          code: "EMAIL_NOT_VERIFIED",
+        },
+        { status: 403 }
+      );
     }
 
     const token = await createSessionToken({

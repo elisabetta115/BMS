@@ -2,9 +2,9 @@
 
 import Link from "next/link";
 import { useState, useEffect, FormEvent } from "react";
-import { useRouter } from "next/navigation";
 import { ExternalLink, Eye, EyeOff, Info, Mail, User } from "lucide-react";
 import { AuthShell, AuthField } from "@/components/auth/AuthShell";
+import { ResendConfirmation } from "@/components/auth/ResendConfirmation";
 
 const COUNTRIES = [
   "Afghanistan", "Albania", "Algeria", "Andorra", "Angola", "Argentina", "Armenia", "Australia",
@@ -48,13 +48,14 @@ function guessCountry(): string {
 }
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [form, setForm] = useState({ name: "", username: "", email: "", password: "", country: "", gender: "" });
   const [termsAccepted, setTermsAccepted] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [error, setError] = useState("");
   const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [loading, setLoading] = useState(false);
+  /** Address the confirmation email went to; set once the account is created. */
+  const [sentTo, setSentTo] = useState("");
 
   useEffect(() => {
     const country = guessCountry();
@@ -106,7 +107,8 @@ export default function RegisterPage() {
         setLoading(false);
         return;
       }
-      router.push("/dashboard");
+      setSentTo(data.email || form.email.trim());
+      setLoading(false);
     } catch {
       setError("Network error. Please try again.");
       setLoading(false);
@@ -126,6 +128,23 @@ export default function RegisterPage() {
   function update(field: string, value: string) {
     setForm((prev) => ({ ...prev, [field]: value }));
     clearError(field);
+  }
+
+  if (sentTo) {
+    return (
+      <AuthShell active="register">
+        <div className="bms-auth-form-anim">
+          <p className="bms-auth-status" role="status">
+            Almost done! We&apos;ve sent a confirmation link to {sentTo}. Click it to activate your account, then
+            sign in.
+          </p>
+          <ResendConfirmation email={sentTo} password={form.password} />
+          <Link href="/login" className="bms-auth-submit">
+            Go to sign in
+          </Link>
+        </div>
+      </AuthShell>
+    );
   }
 
   return (
