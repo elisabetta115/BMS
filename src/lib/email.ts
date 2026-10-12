@@ -3,12 +3,15 @@ import { siteConfig } from "@/data/site";
 import { TOKEN_TTL_HOURS } from "@/lib/email-tokens";
 
 // Emails go out through the info@boostmyskills.org mailbox (Tophost/Seeweb):
-// SMTP_HOST=mail.tophost.it, SMTP_USER=info@boostmyskills.org, SMTP_PASSWORD=<its password>.
+// SMTP_HOST=mail.tophost.it, SMTP_USER=<the Mailbox name>, SMTP_PASSWORD=<its password>,
+// SMTP_FROM=info@boostmyskills.org. Tophost mail logins use the Mailbox name shown in
+// its control panel, not the email address (the webmail accepts either).
 // Tophost allows about 500 emails an hour and 1000 a day for the whole domain.
 const host = process.env.SMTP_HOST;
 const port = Number(process.env.SMTP_PORT || 587);
 const user = process.env.SMTP_USER;
 const password = process.env.SMTP_PASSWORD;
+const from = process.env.SMTP_FROM || (user?.includes("@") ? user : undefined);
 
 let _transport: Transporter | null = null;
 
@@ -47,18 +50,18 @@ export interface EmailMessage {
 }
 
 export async function sendEmail(to: string, message: EmailMessage): Promise<void> {
-  if (!host || !user || !password) {
+  if (!host || !user || !password || !from) {
     // Local development without a mailbox: print the email so its link can be opened from the terminal.
     if (process.env.NODE_ENV !== "production") {
       console.log(`\n──── Email (SMTP not configured, not sent) ────\nTo: ${to}\nSubject: ${message.subject}\n\n${message.text}\n───────────────────────────────────────────────\n`);
       return;
     }
-    throw new Error("Email is not configured: set SMTP_HOST, SMTP_USER and SMTP_PASSWORD.");
+    throw new Error("Email is not configured: set SMTP_HOST, SMTP_USER, SMTP_PASSWORD and SMTP_FROM.");
   }
 
   await getTransport().sendMail({
-    // The mailbox sends as itself; replies land in the same inbox.
-    from: { name: siteConfig.name, address: user },
+    // Sent as the mailbox's own address, so replies land in the same inbox.
+    from: { name: siteConfig.name, address: from },
     to,
     subject: message.subject,
     html: message.html,

@@ -13,6 +13,7 @@ const nextConfig: NextConfig = {
     SMTP_PORT: process.env.SMTP_PORT,
     SMTP_USER: process.env.SMTP_USER,
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
+    SMTP_FROM: process.env.SMTP_FROM,
     APP_URL: process.env.APP_URL,
   },
   experimental: {
