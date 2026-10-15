@@ -16,46 +16,53 @@ export default function CookiePolicyPage() {
           </h1>
 
           <div className="bms-legal-body">
-            {/* Section 1: Introduction */}
+            {/* Introduction */}
             <section>
-              <h2 className="bms-legal-heading">
-                1. Introduction
-              </h2>
               <p className="bms-legal-paragraph">
                 This document informs Users about the technologies that help this Website to achieve
                 the purposes described below. Such technologies allow BoostMySkills to access and
                 store information (for example by using a Cookie) or use resources (for example by
-                running a script) on a User's device as they interact with this Website. For
-                simplicity, all such technologies are defined as "Trackers" within this document –
+                running a script) on a User's device as they interact with this Website.
+              </p>
+              <p className="bms-legal-paragraph">
+                For simplicity, all such technologies are defined as "Trackers" within this document –
                 unless there is a reason to differentiate. For example, while Cookies can be used on
                 both web and mobile browsers, it would be inaccurate to talk about Cookies in the
                 context of mobile apps as they are a browser-based Tracker. For this reason, within
                 this document, the term Cookies is only used where it is specifically meant to
-                indicate that particular type of Tracker.
+                indicate that particular type of Tracker. Some of the purposes for which Trackers are
+                used may also require the User's consent.
               </p>
               <p className="bms-legal-paragraph">
-                Some of the purposes for which Trackers are used may also require the User's
-                consent. Whenever consent is given, it can be freely withdrawn at any time
-                following the instructions provided in this document. This Website uses Trackers
-                managed directly by BoostMySkills (so-called "first-party" Trackers) and Trackers
-                that enable services provided by a third-party (so-called "third-party" Trackers).
-                Unless otherwise specified within this document, third-party providers may access
-                the Trackers managed by them.
+                Whenever consent is given, it can be freely withdrawn at any time following the
+                instructions provided in this document. This Website uses Trackers managed directly
+                by BoostMySkills (so-called "first-party" Trackers) and Trackers that enable services
+                provided by a third-party (so-called "third-party" Trackers). Unless otherwise
+                specified within this document, third-party providers may access the Trackers managed
+                by them. The validity and expiration periods of Cookies and other similar Trackers may
+                vary depending on the lifetime set by BoostMySkills or the relevant provider. Some of
+                them expire upon termination of the User's browsing session. This Website uses cookies
+                that store and retrieve information when the user browses.
+              </p>
+              <p className="bms-legal-paragraph">
+                In general, these technologies can serve very diverse purposes such as, for example,
+                recognizing the user, obtaining information about their browsing habits or customizing
+                the way the content is displayed. The specific uses made of these technologies are
+                described below.
               </p>
             </section>
 
-            {/* Section 2: Types and purposes of cookies */}
+            {/* What type of cookies are used on this Website and for what purpose? */}
             <section>
               <h2 className="bms-legal-heading">
-                2. What type of cookies are used on this Website and for what purpose?
+                What type of cookies are used on this Website and for what purpose?
               </h2>
               <p className="bms-legal-paragraph">
-                This Website uses its own and third party cookies.
-                <br />
-                <strong>Own cookies:</strong> are those that are sent to the user's terminal equipment from a
-                computer or domain managed by the website Owner and from which the service requested by
-                the user is provided.
-                <br />
+                This Website uses its own and third party cookies. <strong>Own cookies:</strong> are
+                those that are sent to the user's terminal equipment from a computer or domain managed
+                by the website Owner and from which the service requested by the user is provided.
+              </p>
+              <p className="bms-legal-paragraph">
                 <strong>Third-party cookies:</strong> are those that are sent to the user's terminal equipment
                 from a computer or domain that is not managed by the publisher, but by another entity
                 that processes the data obtained through cookies.
@@ -90,10 +97,10 @@ export default function CookiePolicyPage() {
               </ul>
             </section>
 
-            {/* Section 3: Who uses cookies on this Website? */}
+            {/* Who uses cookies on this Website? */}
             <section>
               <h2 className="bms-legal-heading">
-                3. Who uses cookies on this Website?
+                Who uses cookies on this Website?
               </h2>
               <p className="bms-legal-paragraph">The following entities use the cookies described below for these purposes:</p>
               <ul className="bms-legal-list">
@@ -120,17 +127,17 @@ export default function CookiePolicyPage() {
               </ul>
             </section>
 
-            {/* Section 4: How are the cookies on this Website accepted, rejected, revoked, or limited? */}
+            {/* How are the cookies on this Website accepted, rejected, revoked, or limited? */}
             <section>
               <h2 className="bms-legal-heading">
-                4. How are the cookies on this Website accepted, rejected, revoked, or limited?
+                How are the cookies on this Website accepted, rejected, revoked, or limited?
               </h2>
               <p className="bms-legal-paragraph">
                 Through the different options included in the notice of the use of cookies that is
                 displayed when accessing this Website for the first time, the user can accept or
                 reject the use of cookies on this Site and the international transfer of their data.
-                For these purposes:
               </p>
+              <p className="bms-legal-paragraph">For these purposes:</p>
               <ul className="bms-legal-list">
                 <li>
                   <strong>To accept all cookies:</strong> you must click on the ACCEPT COOKIES button.
@@ -164,28 +171,29 @@ export default function CookiePolicyPage() {
               </ul>
             </section>
 
-            {/* Section 5: International data transfers */}
+            {/* International data transfers */}
             <section>
               <h2 className="bms-legal-heading">
-                5. Are international data transfers made from this Website?
+                Are international data transfers made from this Website?
               </h2>
               <p className="bms-legal-paragraph">
                 Yes. The following third-party publisher carries out international transfers of data
                 derived from cookies from this Website: Google, Inc. transfers data to the United
-                States based on this adequacy, guarantee or exception decision:
-                <br />
-                User consent when accepting cookies by clicking the ACCEPT COOKIES button. When the
-                user has accepted the use of cookies, they will be consenting that their data,
+                States based on this adequacy, guarantee or exception decision: User consent when
+                accepting cookies by clicking the ACCEPT COOKIES button.
+              </p>
+              <p className="bms-legal-paragraph">
+                When the user has accepted the use of cookies, they will be consenting that their data,
                 collected through the loading and reading of cookies, be transferred to the United
                 States, a country that currently does not offer an adequate level of protection
-                according to the European Commission.
-                <br />
-                Therefore, if the user does not consent to this international transfer of their data
-                to the United States, when accessing this Website for the first time and viewing the
-                notice of the use of cookies, they must press the CONFIGURATION button to access the
-                types of cookies that can be accepted or rejected. If cookies are rejected, the
-                functionalities or services offered through the use of these cookies will not be
-                provided or obtained.
+                according to the European Commission. Therefore, if the user does not consent to this
+                international transfer of their data to the United States, when accessing this Website
+                for the first time and viewing the notice of the use of cookies, they must press the
+                CONFIGURATION button to access the types of cookies that can be accepted or rejected.
+              </p>
+              <p className="bms-legal-paragraph">
+                If cookies are rejected, the functionalities or services offered through the use of
+                these cookies will not be provided or obtained.
               </p>
             </section>
           </div>

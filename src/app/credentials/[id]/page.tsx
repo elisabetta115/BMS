@@ -5,7 +5,7 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { useRouter, useParams } from "next/navigation";
-import { ArrowRight, Info } from "lucide-react";
+import { ArrowRight, Clock3, Info } from "lucide-react";
 import type { CourseCredential } from "@/components/course/types";
 import { siteConfig } from "@/data/site";
 
@@ -50,6 +50,29 @@ function RichText({ text }: { text: string }) {
       )}
     </>
   );
+}
+
+/** Every course on the live site shows this same study time, so it isn't stored per course. */
+const EFFORT = "Up to 15hrs per week for 5 weeks";
+
+/** Some imported section names are all capitals ("FINAL EXAM"); the live page lists them in title case. */
+function sectionTitle(title: string): string {
+  if (/\p{Ll}/u.test(title) || !/\s/.test(title.trim())) return title;
+  return title.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_m, space: string, letter: string) => space + letter.toUpperCase());
+}
+
+/**
+ * "Created and delivered by" is stored as "Authors, University" (the importer joins
+ * the live sidebar's two lines that way). Split it back so the university gets its
+ * own smaller line, as on the live page.
+ */
+function splitDevelopedBy(developedBy: string, organisation: string | null): { author: string; university: string | null } {
+  if (organisation && developedBy.endsWith(`, ${organisation}`)) {
+    return { author: developedBy.slice(0, -(organisation.length + 2)), university: organisation };
+  }
+  const i = developedBy.lastIndexOf(", ");
+  if (i === -1) return { author: developedBy, university: null };
+  return { author: developedBy.slice(0, i), university: developedBy.slice(i + 2) };
 }
 
 const shareIcons = {
@@ -158,6 +181,7 @@ export default function CredentialDetailPage() {
 
   const { context, background } = splitOverview(credential.overview);
   const overviewText = context || credential.description;
+  const createdBy = credential.developedBy ? splitDevelopedBy(credential.developedBy, credential.organisation) : null;
   const shareUrl = encodeURIComponent(`${siteConfig.url}/credentials/${credential.id}`);
   const shareLinks = [
     { label: "Share on Twitter", icon: shareIcons.twitter, href: `https://twitter.com/intent/tweet?url=${shareUrl}` },
@@ -167,7 +191,12 @@ export default function CredentialDetailPage() {
 
   return (
     <>
-      <Header course={{ meta: `${credential.code} | ${credential.project}`, title: credential.title }} />
+      <Header
+        course={{
+          meta: `${credential.organisation ? `${credential.organisation}: ` : ""}${credential.code} | ${credential.project}`,
+          title: credential.title,
+        }}
+      />
       <main id="main" className="bms-cd">
         <section className="bms-cd-hero">
           <div className="bms-cd-hero-image">
@@ -211,7 +240,7 @@ export default function CredentialDetailPage() {
           <div className="bms-cd-main">
             {overviewText && (
               <section>
-                <h2 className="bms-cd-heading">Context and overview</h2>
+                <h2 className="bms-cd-heading">Context and Overview</h2>
                 <RichText text={overviewText} />
               </section>
             )}
@@ -240,9 +269,13 @@ export default function CredentialDetailPage() {
                   </strong>
                 </span>
               </p>
+              <p>
+                <Clock3 aria-hidden="true" size={22} />
+                <span className="bms-cd-effort">{EFFORT}</span>
+              </p>
             </div>
 
-            {(credential.sections.length > 0 || credential.developedBy) && (
+            {(credential.sections.length > 0 || createdBy) && (
               <div className="bms-cd-sections">
                 {credential.sections.length > 0 && (
                   <>
@@ -251,16 +284,17 @@ export default function CredentialDetailPage() {
                       {credential.sections.map((s, i) => (
                         <li key={s.id}>
                           <span className="bms-cd-section-num">{i + 1}</span>
-                          <span>{s.title}</span>
+                          <span>{sectionTitle(s.title)}</span>
                         </li>
                       ))}
                     </ol>
                   </>
                 )}
-                {credential.developedBy && (
+                {createdBy && (
                   <>
                     <p className="bms-cd-createdby">Created and delivered by:</p>
-                    <p className="bms-cd-author">{credential.developedBy}</p>
+                    <p className="bms-cd-author">{createdBy.author}</p>
+                    {createdBy.university && <p className="bms-cd-university">{createdBy.university}</p>}
                   </>
                 )}
               </div>

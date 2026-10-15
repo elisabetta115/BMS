@@ -463,9 +463,11 @@ input[type="number"].no-spin {
   margin-bottom: 3rem;
 }
 
+/* Same rule as the live page: as many 500px cards as fit, centred, so two per row
+   on wide screens and one per row below about 1150px. */
 .bms-catalogue .bms-program-grid {
   gap: 2rem;
-  grid-template-columns: repeat(2, minmax(0, 500px));
+  grid-template-columns: repeat(auto-fit, minmax(250px, 500px));
   justify-content: center;
   margin-top: 0;
 }
@@ -564,7 +566,7 @@ input[type="number"].no-spin {
 /* Courses / Micro-credentials discovery page (/courses) */
 .bms-courses {
   margin: 0 auto;
-  max-width: 2000px;
+  max-width: 1786px; /* where the live page stops growing */
   padding: 7rem 10px 5rem;
   width: 92.8%;
 }
@@ -585,10 +587,12 @@ input[type="number"].no-spin {
   row-gap: 2rem;
 }
 
+/* Same rule as the live page: as many cards of at least 362px as fit beside the
+   sidebar, which gives three per row on wide screens (about 1700px and up) and two on laptops. */
 .bms-courses-grid {
   display: grid;
-  gap: 2rem 3rem;
-  grid-template-columns: repeat(2, minmax(0, 1fr));
+  gap: 4.8rem 2rem;
+  grid-template-columns: repeat(auto-fill, minmax(362px, 1fr));
 }
 
 @media screen and (max-width: 760px) {
@@ -2310,7 +2314,7 @@ input[type="number"].no-spin {
    theme's course_header / course_h2 / sections_sidebar rules. */
 .bms-cd {
   margin: 0 auto;
-  max-width: 1180px;
+  max-width: calc(1180px + 2.5rem);
   padding: 1.5rem 1.25rem 5rem;
   width: 100%;
 }
@@ -2322,27 +2326,29 @@ input[type="number"].no-spin {
 }
 
 .bms-cd-hero-image {
-  align-items: center;
-  aspect-ratio: 3 / 2;
-  background: #fafafa;
   border-radius: 1.81rem;
-  display: flex;
-  justify-content: center;
   max-width: 462px;
   overflow: hidden;
   width: 100%;
 }
 
+/* Like live: the picture keeps its own shape, with no frame around it */
 .bms-cd-hero-image img {
-  height: 100%;
-  object-fit: contain;
+  display: block;
+  height: auto;
   width: 100%;
 }
 
+/* Placeholder for a course without a picture */
 .bms-cd-hero-image span {
+  align-items: center;
+  aspect-ratio: 3 / 2;
+  background: #fafafa;
   color: rgba(7, 152, 69, 0.3);
+  display: flex;
   font-size: 3rem;
   font-weight: 700;
+  justify-content: center;
 }
 
 .bms-cd-intro {
@@ -2435,7 +2441,7 @@ input[type="number"].no-spin {
 .bms-cd-body {
   align-items: start;
   display: grid;
-  gap: 10%;
+  gap: 8.3%;
   grid-template-columns: 56% 33.6%;
 }
 
@@ -2489,6 +2495,10 @@ input[type="number"].no-spin {
   margin: 0;
 }
 
+.bms-cd-meta p + p {
+  margin-top: 0.8rem;
+}
+
 .bms-cd-meta p svg {
   flex-shrink: 0;
   margin-top: 0.3rem;
@@ -2498,6 +2508,10 @@ input[type="number"].no-spin {
 .bms-cd-meta strong {
   font-weight: 700;
   white-space: nowrap;
+}
+
+.bms-cd-effort {
+  font-weight: 700;
 }
 
 .bms-cd-sections {
@@ -2560,6 +2574,14 @@ input[type="number"].no-spin {
   font-weight: 500;
   line-height: 1.8rem;
   margin: 0.8rem 0 0;
+}
+
+.bms-cd-university {
+  color: #767676;
+  font-size: 0.95rem;
+  font-weight: 400;
+  line-height: 1.2rem;
+  margin: 0.5rem 0 0;
 }
 
 @media screen and (max-width: 890px) {
@@ -3587,6 +3609,19 @@ a.bms-auth-submit {
   opacity: 0.7;
 }
 
+.bms-contact-field + .bms-contact-field {
+  margin-top: 1.75rem;
+}
+
+/* Spam trap: off-screen rather than display:none, so bots still fill it in. */
+.bms-contact-trap {
+  height: 1px;
+  left: -10000px;
+  overflow: hidden;
+  position: absolute;
+  width: 1px;
+}
+
 @media screen and (min-width: 800px) {
   .bms-hero {
     align-items: start;
@@ -3715,7 +3750,8 @@ a.bms-auth-submit {
     margin-top: 4rem;
   }
 
-  .bms-contact form {
+  .bms-contact form,
+  .bms-contact-sent {
     padding-top: 3.5rem;
   }
 

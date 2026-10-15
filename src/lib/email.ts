@@ -49,7 +49,7 @@ export interface EmailMessage {
   text: string;
 }
 
-export async function sendEmail(to: string, message: EmailMessage): Promise<void> {
+export async function sendEmail(to: string, message: EmailMessage, options: { replyTo?: { name: string; address: string } } = {}): Promise<void> {
   if (!host || !user || !password || !from) {
     // Local development without a mailbox: print the email so its link can be opened from the terminal.
     if (process.env.NODE_ENV !== "production") {
@@ -63,10 +63,19 @@ export async function sendEmail(to: string, message: EmailMessage): Promise<void
     // Sent as the mailbox's own address, so replies land in the same inbox.
     from: { name: siteConfig.name, address: from },
     to,
+    replyTo: options.replyTo,
     subject: message.subject,
     html: message.html,
     text: message.text,
   });
+}
+
+/**
+ * Sends a message to the site's own mailbox (the one the sign-in emails come from),
+ * with Reply-To set to the visitor so answering it from the inbox goes back to them.
+ */
+export async function sendToInbox(message: EmailMessage, replyTo: { name: string; address: string }): Promise<void> {
+  await sendEmail(from ?? "(site mailbox)", message, { replyTo });
 }
 
 /* ─── Templates ─────────────────────────────────────────── */
@@ -79,17 +88,22 @@ function hours(n: number): string {
   return n === 1 ? "1 hour" : `${n} hours`;
 }
 
-/** One layout for every email: logo, heading, paragraphs, optional green button. Paragraphs are plain text. */
+/**
+ * One layout for every email: logo, heading, paragraphs, optional quoted block, optional green button.
+ * Paragraphs and the quote are plain text; the quote keeps its line breaks.
+ */
 function render({
   subject,
   heading,
   paragraphs,
+  quote,
   button,
   footer,
 }: {
   subject: string;
   heading: string;
   paragraphs: string[];
+  quote?: string;
   button?: { label: string; url: string };
   footer: string;
 }): EmailMessage {
@@ -98,6 +112,9 @@ function render({
   const buttonHtml = button
     ? `<p style="margin:28px 0"><a href="${escapeHtml(button.url)}" style="background:#079845;border-radius:8px;color:#ffffff;display:inline-block;font-size:16px;font-weight:bold;padding:14px 26px;text-decoration:none">${escapeHtml(button.label)}</a></p>
 <p style="color:#767676;font-size:13px;line-height:1.5;margin:0 0 16px">If the button doesn't work, copy this link into your browser:<br><a href="${escapeHtml(button.url)}" style="color:#079845;word-break:break-all">${escapeHtml(button.url)}</a></p>`
+    : "";
+  const quoteHtml = quote
+    ? `<div style="background:#f4f4f4;border-left:4px solid #079845;font-size:16px;line-height:1.5;margin:0 0 16px;padding:12px 16px;white-space:pre-wrap">${escapeHtml(quote)}</div>`
     : "";
 
   const html = `<!doctype html>
@@ -108,6 +125,7 @@ function render({
 <img src="${escapeHtml(base)}/logos/boostmyskills-logo.png" alt="${escapeHtml(siteConfig.name)}" width="122" height="56" style="display:block;margin:0 0 24px">
 <h1 style="font-size:22px;margin:0 0 16px">${escapeHtml(heading)}</h1>
 ${paragraphs.map(p).join("\n")}
+${quoteHtml}
 ${buttonHtml}
 <p style="border-top:1px solid #e5e5e5;color:#767676;font-size:13px;line-height:1.5;margin:24px 0 0;padding-top:16px">${escapeHtml(footer)}</p>
 </td></tr></table>
@@ -118,6 +136,7 @@ ${buttonHtml}
     heading,
     "",
     ...paragraphs.flatMap((t) => [t, ""]),
+    ...(quote ? [quote, ""] : []),
     ...(button ? [`${button.label}: ${button.url}`, ""] : []),
     footer,
   ].join("\n");
@@ -182,6 +201,17 @@ export const emails = {
       paragraphs: [`Hi ${name},`, `The password of your ${siteConfig.name} account was just changed.`],
       button: { label: "I didn't do this: reset my password", url: `${appUrl()}/forgot-password` },
       footer: "If you changed it yourself, you don't need to do anything. If not, reset your password with the button above and reply to this email to let us know.",
+    });
+  },
+
+  /** A message from the contact page, delivered to the site's own mailbox. */
+  contactMessage(name: string, email: string, message: string): EmailMessage {
+    return render({
+      subject: `Contact form: message from ${name}`,
+      heading: "New message from the contact form",
+      paragraphs: [`From: ${name} (${email})`],
+      quote: message,
+      footer: `Sent from ${appUrl()}/contact. Reply to this email to answer ${name} directly.`,
     });
   },
 };

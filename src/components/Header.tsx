@@ -101,10 +101,11 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
             />
           </Link>
 
+          {/* Live course-header: 20px from the logo, lined up a little below its middle */}
           {course && (
-            <div className="hidden min-w-0 max-w-sm flex-col items-center text-center xl:flex">
-              <span className="text-sm leading-tight text-[#454545]">{course.meta}</span>
-              <span className="truncate text-base font-medium leading-snug text-brand-dark">{course.title}</span>
+            <div className="-ml-5 mt-4 hidden min-w-0 max-w-sm flex-col items-center self-start text-center text-[#313131] xl:flex">
+              <span className="text-sm leading-[14px]">{course.meta}</span>
+              <span className="mt-[5px] max-w-full truncate text-base font-semibold leading-[18px]">{course.title}</span>
             </div>
           )}
 

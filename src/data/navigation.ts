@@ -40,6 +40,9 @@ export const footerColumns: FooterColumn[] = [
   {
     heading: "Get in touch",
     social: true,
-    links: [{ label: "About us", href: "/about" }],
+    links: [
+      { label: "Contact Us", href: "/contact" },
+      { label: "About us", href: "/about" },
+    ],
   },
 ];

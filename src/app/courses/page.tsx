@@ -5,7 +5,6 @@ import Footer from "@/components/Footer";
 import Link from "next/link";
 import { ArrowRight, Search, X } from "lucide-react";
 import { useState, useEffect, useMemo } from "react";
-import { useRouter } from "next/navigation";
 import { cn } from "@/lib/utils/cn";
 
 interface MicroCredential {
@@ -99,54 +98,6 @@ export default function CoursesPage() {
   const [topicFilter, setTopicFilter] = useState("");
   const [programmeFilter, setProgrammeFilter] = useState("");
   const [credProgrammes, setCredProgrammes] = useState<Record<string, string[]>>({});
-  const router = useRouter();
-  const [isLoggedIn, setIsLoggedIn] = useState(false);
-  const [enrolledIds, setEnrolledIds] = useState<Set<string>>(new Set());
-  const [enrollingId, setEnrollingId] = useState<string | null>(null);
-  const [enrolError, setEnrolError] = useState<{ id: string; message: string } | null>(null);
-
-  useEffect(() => {
-    fetch("/api/auth/session")
-      .then((r) => (r.ok ? r.json() : null))
-      .then((d) => {
-        if (!d?.user) return;
-        setIsLoggedIn(true);
-        return fetch("/api/enrollments")
-          .then((r) => (r.ok ? r.json() : { credentials: [] }))
-          .then((e) => setEnrolledIds(new Set((e.credentials || []).map((c: { id: string }) => c.id))));
-      })
-      .catch(() => {});
-  }, []);
-
-  // Live behaviour: "Enrol" enrols straight away and lands on "My Micro-credentials".
-  async function handleEnrol(id: string) {
-    if (!isLoggedIn) {
-      router.push(`/login?redirect=/credentials/${id}`);
-      return;
-    }
-    if (enrolledIds.has(id)) {
-      router.push(`/dashboard/credentials/${id}`);
-      return;
-    }
-    setEnrollingId(id);
-    setEnrolError(null);
-    try {
-      const r = await fetch("/api/enrollments", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ type: "credential", id }),
-      });
-      if (r.ok) {
-        router.push("/dashboard/my-credentials");
-        return;
-      }
-      const d = await r.json().catch(() => ({}));
-      setEnrolError({ id, message: d.error || "Failed to enrol." });
-    } catch {
-      setEnrolError({ id, message: "Network error. Please try again." });
-    }
-    setEnrollingId(null);
-  }
 
   useEffect(() => {
     fetch("/api/micro-credentials")
@@ -262,21 +213,17 @@ export default function CoursesPage() {
                         <h2 className="bms-course-title">
                           <Link href={href}>{c.title}</Link>
                         </h2>
+                        {/* Live behaviour: both buttons open the course page, signed in or not;
+                            learners enrol from there. */}
                         <div className="bms-course-actions">
-                          <button
-                            type="button"
-                            className="bms-course-enrol"
-                            onClick={() => handleEnrol(c.id)}
-                            disabled={enrollingId === c.id}
-                          >
-                            {enrollingId === c.id ? "Enrolling…" : "Enrol"}
+                          <Link className="bms-course-enrol" href={href}>
+                            Enrol
                             <ArrowRight aria-hidden="true" size={18} strokeWidth={2.5} />
-                          </button>
+                          </Link>
                           <Link className="bms-course-more" href={href}>
                             More info <ArrowRight aria-hidden="true" size={20} />
                           </Link>
                         </div>
-                        {enrolError?.id === c.id && <p className="bms-enrol-error mt-3">{enrolError.message}</p>}
                       </div>
                     </article>
                   );
