@@ -522,8 +522,11 @@ function positiveInt(value: unknown): number | null {
  * Turn the OLX grading policy (`GRADER: [{ type: "TEST 10", weight: 0.2, ... }]`)
  * into per-unit weights. Each subsection's `format` names a GRADER type; edX
  * splits that type's overall weight evenly across every subsection sharing it,
- * so we do the same, then hand the whole subsection's share to its quiz —
- * videos/PDFs aren't graded in edX either. Shares are kept exact, not rounded
+ * so we do the same, then hand the whole subsection's share to its quizzes —
+ * videos/PDFs aren't graded in edX either. Within a subsection edX counts every
+ * question as one point, so each quiz gets the share in proportion to its
+ * number of questions (1, 2 and 1 questions → 25%, 50%, 25% of the
+ * subsection), not an equal split per quiz. Shares are kept exact, not rounded
  * (50% over 9 subsections is 5.5555…% each), so they add up to what the policy
  * says. Mutates the parsed units in place.
  */
@@ -570,8 +573,11 @@ function assignGradedWeights(
       }
       continue;
     }
-    const each = subPct / quizUnits.length;
-    for (const u of quizUnits) { u.weight = each; totalAssigned += each; }
+    const questions = quizUnits.reduce((n, u) => n + (u.questions?.length || 0), 0);
+    for (const u of quizUnits) {
+      u.weight = questions ? (subPct * (u.questions?.length || 0)) / questions : subPct / quizUnits.length;
+      totalAssigned += u.weight;
+    }
   }
 
   if (exceedsFullWeight(totalAssigned)) {
