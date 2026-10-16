@@ -143,14 +143,32 @@ const ENTITIES: Record<string, string> = {
   "&hellip;": "…", "&deg;": "°",
 };
 
-export function htmlToText(html: string): string {
-  return html
-    .replace(/<br\s*\/?>/gi, "\n")
-    .replace(/<li\b[^>]*>/gi, "\n• ")
-    .replace(/<\/(p|li|div|section|h[1-6]|tr)>/gi, "\n")
-    .replace(/<[^>]+>/g, "")
+/** "Demand &amp; Supply" → "Demand & Supply", "&#10;" → a line break. */
+function decodeEntities(text: string): string {
+  return text
+    .replace(/&#x([0-9a-f]+);/gi, (_, n) => String.fromCodePoint(parseInt(n, 16)))
     .replace(/&#(\d+);/g, (_, n) => String.fromCodePoint(Number(n)))
-    .replace(/&[a-z]+;/gi, (e) => ENTITIES[e.toLowerCase()] ?? e)
+    .replace(/&[a-z]+;/gi, (e) => ENTITIES[e.toLowerCase()] ?? e);
+}
+
+/**
+ * A display name from an XML attribute, as learners should see it: codes such as
+ * "&amp;" and "&quot;" turned back into characters, and the tabs / line breaks
+ * some exports have at the start or end ("&#10;Expected role of auctions ") removed.
+ */
+function displayName(xml: string): string | null {
+  const raw = attr(xml, "display_name");
+  return raw ? decodeEntities(raw).replace(/\s+/g, " ").trim() || null : null;
+}
+
+export function htmlToText(html: string): string {
+  return decodeEntities(
+    html
+      .replace(/<br\s*\/?>/gi, "\n")
+      .replace(/<li\b[^>]*>/gi, "\n• ")
+      .replace(/<\/(p|li|div|section|h[1-6]|tr)>/gi, "\n")
+      .replace(/<[^>]+>/g, "")
+  )
     .replace(/\r/g, "")
     .replace(/[ \t]+/g, " ")
     .replace(/[ \t]+\n/g, "\n")
@@ -204,7 +222,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   // Some exports end the name with stray tabs / spaces, or have it all in
   // capitals ("SERIOUS GAME"); live shows it trimmed and in title case.
   const title = fixAllCapsTitle(
-    String(policy.display_name || attr(courseNode, "display_name") || courseId || "Imported course")
+    String(policy.display_name || displayName(courseNode) || courseId || "Imported course")
       .replace(/\s+/g, " ")
       .trim()
   );
@@ -284,8 +302,8 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   let university: string | null = null;
   const sidebar = text(`${prefix}about/about_sidebar_html.html`);
   if (sidebar) {
-    const author = sidebar.match(/class="course_author">([^<]+)</)?.[1]?.trim();
-    const uni = sidebar.match(/class="university_info">([^<]+)</)?.[1]?.trim();
+    const author = htmlToText(sidebar.match(/class="course_author">([^<]+)</)?.[1] ?? "") || undefined;
+    const uni = htmlToText(sidebar.match(/class="university_info">([^<]+)</)?.[1] ?? "") || undefined;
     university = uni ? organisationName(uni) : null;
     developedBy = [author, university].filter(Boolean).join(", ") || null;
   }
@@ -320,7 +338,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
     if (!chapXml) { warnings.push(`Missing chapter/${chapRef}.xml`); continue; }
 
     const section: ParsedSection = {
-      title: attr(chapXml, "display_name") || `Section ${sections.length + 1}`,
+      title: displayName(chapXml) || `Section ${sections.length + 1}`,
       subsections: [],
     };
 
@@ -329,7 +347,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
       if (!seqXml) { warnings.push(`Missing sequential/${seqRef}.xml`); continue; }
 
       const subsection: ParsedSubsection = {
-        title: attr(seqXml, "display_name") || `Subsection ${section.subsections.length + 1}`,
+        title: displayName(seqXml) || `Subsection ${section.subsections.length + 1}`,
         units: [],
       };
 
@@ -337,7 +355,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
         const vertXml = text(`${prefix}vertical/${vertRef}.xml`);
         if (!vertXml) { warnings.push(`Missing vertical/${vertRef}.xml`); continue; }
 
-        const vertTitle = attr(vertXml, "display_name") || `Unit ${subsection.units.length + 1}`;
+        const vertTitle = displayName(vertXml) || `Unit ${subsection.units.length + 1}`;
         const children = verticalChildren(vertXml);
         if (children.length === 0) { warnings.push(`Unit "${vertTitle}" has no recognised content — skipped.`); continue; }
 
