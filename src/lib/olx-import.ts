@@ -560,7 +560,14 @@ function assignGradedWeights(
     const subPct = graderPct.get(format)! / (formatCounts.get(format) || 1);
     const quizUnits = sub.units.filter((u) => u.type === "QUIZ");
     if (quizUnits.length === 0) {
-      if (subPct > 0) warnings.push(`Subsection "${sub.title}" is worth ${formatWeight(subPct)}% of the grade in the source course but has no quiz to carry that weight — it was left at 0%.`);
+      // A graded subsection with only videos / PDFs: its last unit carries the
+      // share, earned (like any video or PDF) as soon as learners open it.
+      const last = sub.units[sub.units.length - 1];
+      if (subPct > 0 && last) {
+        last.weight = subPct;
+        totalAssigned += subPct;
+        warnings.push(`Subsection "${sub.title}" is worth ${formatWeight(subPct)}% of the grade but has no quiz — its last unit, "${last.title}", carries that ${formatWeight(subPct)}% and counts once learners open it.`);
+      }
       continue;
     }
     const each = subPct / quizUnits.length;
