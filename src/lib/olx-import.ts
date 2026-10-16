@@ -21,6 +21,8 @@ import zlib from "zlib";
 import { Readable } from "stream";
 import * as tar from "tar-stream";
 import { ORGANISATIONS, organisationName } from "@/data/organisations";
+import { exceedsFullWeight, formatWeight } from "@/lib/weights";
+import { fixAllCapsTitle } from "@/lib/utils/title-case";
 
 /* ─── Output shape ─────────────────────────────────────────── */
 
@@ -40,7 +42,7 @@ export interface ParsedUnit {
   videoUrl?: string;
   file?: { base64: string; mime: string; name: string };
   questions?: ParsedQuestion[];
-  /** % of the credential's overall grade this unit is worth (0 if ungraded). */
+  /** % of the credential's overall grade this unit is worth (0 if ungraded); can be a fraction. */
   weight?: number;
 }
 
@@ -199,11 +201,13 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   // Course-wide default for problems that don't set their own max_attempts.
   const courseMaxAttempts = positiveInt(policy.max_attempts ?? attr(courseNode, "max_attempts"));
 
-  const title =
-    policy.display_name ||
-    attr(courseNode, "display_name") ||
-    courseId ||
-    "Imported course";
+  // Some exports end the name with stray tabs / spaces, or have it all in
+  // capitals ("SERIOUS GAME"); live shows it trimmed and in title case.
+  const title = fixAllCapsTitle(
+    String(policy.display_name || attr(courseNode, "display_name") || courseId || "Imported course")
+      .replace(/\s+/g, " ")
+      .trim()
+  );
 
   // Custom course settings ({"project": "RESSKILL", "topic": "Renewable Energy"}):
   // in policy.json, or as an attribute on the course node in older exports.
@@ -221,8 +225,20 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   const project = setting("project");
   const topic = setting("topic") || null;
 
-  // Code: "MC09_RESSKILL" → "MC09"; else the whole course id.
-  const code = (courseId.split(/[_\-]/)[0] || courseId || "MC").toUpperCase();
+  // Code, as the live catalogue shows it: the course's display number when set
+  // ("MC01 | COSS" → "MC01"); else the MC/VET/SC number in the course id, which
+  // can come after a prefix or carry a suffix ("SC-MC02" → "MC02", "MC17v1" →
+  // "MC17", "MC2_RESSKILL" → "MC02"); else the part before the first "_" / "-".
+  const displayNumber = String(policy.display_coursenumber || attr(courseNode, "display_coursenumber") || "")
+    .split("|")[0]
+    .trim();
+  const numbered = courseId.match(/(MC|VET|SC)[\s_-]*(\d+)/i);
+  const code = (
+    displayNumber ||
+    (numbered ? `${numbered[1]}${numbered[2].padStart(2, "0")}` : courseId.split(/[_\-]/)[0]) ||
+    courseId ||
+    "MC"
+  ).toUpperCase();
 
   // Pass grade from grading_policy GRADE_CUTOFFS.Pass (fraction → %).
   let passGrade = 50;
@@ -489,7 +505,9 @@ function positiveInt(value: unknown): number | null {
  * into per-unit weights. Each subsection's `format` names a GRADER type; edX
  * splits that type's overall weight evenly across every subsection sharing it,
  * so we do the same, then hand the whole subsection's share to its quiz —
- * videos/PDFs aren't graded in edX either. Mutates the parsed units in place.
+ * videos/PDFs aren't graded in edX either. Shares are kept exact, not rounded
+ * (50% over 9 subsections is 5.5555…% each), so they add up to what the policy
+ * says. Mutates the parsed units in place.
  */
 function assignGradedWeights(
   subsectionFormats: { sub: ParsedSubsection; format: string | null }[],
@@ -524,19 +542,19 @@ function assignGradedWeights(
     const subPct = graderPct.get(format)! / (formatCounts.get(format) || 1);
     const quizUnits = sub.units.filter((u) => u.type === "QUIZ");
     if (quizUnits.length === 0) {
-      if (subPct > 0) warnings.push(`Subsection "${sub.title}" is worth ${Math.round(subPct)}% of the grade in the source course but has no quiz to carry that weight — it was left at 0%.`);
+      if (subPct > 0) warnings.push(`Subsection "${sub.title}" is worth ${formatWeight(subPct)}% of the grade in the source course but has no quiz to carry that weight — it was left at 0%.`);
       continue;
     }
-    const each = Math.round(subPct / quizUnits.length);
+    const each = subPct / quizUnits.length;
     for (const u of quizUnits) { u.weight = each; totalAssigned += each; }
   }
 
-  if (totalAssigned > 100) {
+  if (exceedsFullWeight(totalAssigned)) {
     const scale = 100 / totalAssigned;
     for (const { sub } of subsectionFormats) {
-      for (const u of sub.units) if (u.weight) u.weight = Math.round(u.weight * scale);
+      for (const u of sub.units) if (u.weight) u.weight *= scale;
     }
-    warnings.push(`Imported unit weights summed to ${totalAssigned}% and were scaled down to fit 100%.`);
+    warnings.push(`Imported unit weights summed to ${formatWeight(totalAssigned)}% and were scaled down to fit 100%.`);
   }
 }
 

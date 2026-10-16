@@ -85,7 +85,7 @@ CREATE TABLE "credential_units" (
     "title" TEXT NOT NULL,
     "type" "UnitType" NOT NULL,
     "order" INTEGER NOT NULL DEFAULT 0,
-    "weight" INTEGER NOT NULL DEFAULT 0,
+    "weight" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "video_url" TEXT,
     "file_data" BYTEA,
     "file_mime" TEXT,

@@ -6,6 +6,7 @@ import { useRouter } from "next/navigation";
 import { Award, Download, Plus, Search, X } from "lucide-react";
 import { ORGANISATIONS } from "@/data/organisations";
 import OlxImport from "@/components/admin/OlxImport";
+import { exceedsFullWeight, formatWeight, isFullWeight } from "@/lib/weights";
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -15,7 +16,8 @@ interface CredentialUnit {
   title: string;
   type: "VIDEO" | "QUIZ" | "PRESENTATION";
   order: number;
-  weight?: number;
+  /** % of the grade; can be a fraction. Held as the typed text while being edited ("5."). */
+  weight?: number | string;
   videoUrl?: string;
   fileBase64?: string;
   fileKey?: string;
@@ -906,7 +908,7 @@ export default function AdminPage() {
   async function saveCred(e: React.FormEvent) {
     e.preventDefault(); setFormError("");
     if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return; }
-    if (totalWeight > 100) { setFormError(`Total unit weight is ${totalWeight}%. It must not exceed 100%.`); return; }
+    if (exceedsFullWeight(totalWeight)) { setFormError(`Total unit weight is ${formatWeight(totalWeight)}%. It must not exceed 100%.`); return; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
@@ -1055,14 +1057,14 @@ export default function AdminPage() {
   }
 
   function renderSectionEditor() {
-    const overWeight = totalWeight > 100;
+    const overWeight = exceedsFullWeight(totalWeight);
     return (
       <div className="mt-6">
         <div className="flex items-center justify-between mb-3">
           <h3 className="bms-admin-section-title">Sections</h3>
           <div className="flex items-center gap-3">
-            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : totalWeight === 100 ? "bg-green-100 text-green-700" : "bg-gray-100 text-brand-muted"}`}>
-              Total weight: {totalWeight}%
+            <span className={`text-xs font-semibold px-2.5 py-1 rounded-full ${overWeight ? "bg-red-100 text-red-700" : isFullWeight(totalWeight) ? "bg-green-100 text-green-700" : "bg-gray-100 text-brand-muted"}`}>
+              Total weight: {formatWeight(totalWeight)}%
             </span>
             <button type="button" onClick={addSection} className="text-sm text-brand-green font-medium hover:underline">+ Add Section</button>
           </div>
@@ -1094,7 +1096,7 @@ export default function AdminPage() {
                       const subWeight = sub.units.reduce((n, u) => n + (Number(u.weight) || 0), 0);
                       return subWeight > 0 ? (
                         <span className="text-xs font-semibold px-2 py-0.5 rounded-full bg-gray-100 text-brand-muted whitespace-nowrap" title="Sum of this subsection's unit weights">
-                          {subWeight}%
+                          {formatWeight(subWeight)}%
                         </span>
                       ) : null;
                     })()}
@@ -1113,16 +1115,17 @@ export default function AdminPage() {
                           <div className="flex items-center gap-1">
                             <input
                               type="text"
-                              inputMode="numeric"
+                              inputMode="decimal"
                               className="auth-input text-sm"
                               style={{ width: "70px", textAlign: "right" }}
                               placeholder="0"
-                              value={unit.weight ?? 0}
+                              value={typeof unit.weight === "number" ? formatWeight(unit.weight) : unit.weight ?? 0}
                               onFocus={e => e.target.select()}
                               onChange={e => {
-                                const digits = e.target.value.replace(/[^0-9]/g, "");
-                                const v = digits === "" ? 0 : Math.max(0, Math.min(100, parseInt(digits) || 0));
-                                updateUnit(si, ssi, ui, "weight", v);
+                                // Whole numbers or up to 4 decimals; kept as typed so "5." can be finished.
+                                const v = e.target.value.replace(",", ".");
+                                if (!/^\d{0,3}(\.\d{0,4})?$/.test(v)) return;
+                                updateUnit(si, ssi, ui, "weight", v === "" ? 0 : Number(v) > 100 ? 100 : v);
                               }}
                               onKeyDown={e => e.key === "Enter" && e.preventDefault()}
                               title="Weight (% of total grade)"

@@ -6,6 +6,7 @@
 // or replace / discard a re-import) before everything is imported in one go.
 
 import { useEffect, useRef, useState } from "react";
+import { formatWeight } from "@/lib/weights";
 
 interface ImportMatch { id: string; title: string; code: string; }
 interface Existing { credential: ImportMatch | null; nameClash: ImportMatch | null; codeClash: ImportMatch | null; }
@@ -551,13 +552,13 @@ function ImportCard({
                         <div key={ssi} className="ml-4 mt-1">
                           <p className="text-sm text-brand-dark">
                             {ss.title}
-                            {ssWeight > 0 && <span className="text-xs font-semibold text-brand-green ml-1.5">· {ssWeight}%</span>}
+                            {ssWeight > 0 && <span className="text-xs font-semibold text-brand-green ml-1.5">· {formatWeight(ssWeight)}%</span>}
                           </p>
                           <ul className="ml-4">
                             {ss.units.map((u: any, ui: number) => (
                               <li key={ui} className="text-xs text-brand-muted">
                                 <span className={`inline-block w-2 h-2 rounded-full mr-1.5 ${u.type === "VIDEO" ? "bg-blue-500" : u.type === "QUIZ" ? "bg-yellow-500" : "bg-purple-500"}`} />
-                                {u.title} — <span className="text-brand-muted">{u.type.toLowerCase()}{u.type !== "VIDEO" ? ` · ${u.detail}` : ""}{u.weight > 0 ? ` · ${u.weight}%` : ""}</span>
+                                {u.title} — <span className="text-brand-muted">{u.type.toLowerCase()}{u.type !== "VIDEO" ? ` · ${u.detail}` : ""}{u.weight > 0 ? ` · ${formatWeight(u.weight)}%` : ""}</span>
                               </li>
                             ))}
                           </ul>

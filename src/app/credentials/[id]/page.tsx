@@ -8,6 +8,7 @@ import { useRouter, useParams } from "next/navigation";
 import { ArrowRight, Clock3, Info } from "lucide-react";
 import type { CourseCredential } from "@/components/course/types";
 import { siteConfig } from "@/data/site";
+import { fixAllCapsTitle } from "@/lib/utils/title-case";
 
 /**
  * The importer stores the course "about" text as plain text: one paragraph per
@@ -55,11 +56,6 @@ function RichText({ text }: { text: string }) {
 /** Every course on the live site shows this same study time, so it isn't stored per course. */
 const EFFORT = "Up to 15hrs per week for 5 weeks";
 
-/** Some imported section names are all capitals ("FINAL EXAM"); the live page lists them in title case. */
-function sectionTitle(title: string): string {
-  if (/\p{Ll}/u.test(title) || !/\s/.test(title.trim())) return title;
-  return title.toLowerCase().replace(/(^|\s)(\p{L})/gu, (_m, space: string, letter: string) => space + letter.toUpperCase());
-}
 
 /**
  * "Created and delivered by" is stored as "Authors, University" (the importer joins
@@ -284,7 +280,8 @@ export default function CredentialDetailPage() {
                       {credential.sections.map((s, i) => (
                         <li key={s.id}>
                           <span className="bms-cd-section-num">{i + 1}</span>
-                          <span>{sectionTitle(s.title)}</span>
+                          {/* Some imported section names are all capitals ("FINAL EXAM"); live shows them in title case. */}
+                          <span>{fixAllCapsTitle(s.title)}</span>
                         </li>
                       ))}
                     </ol>

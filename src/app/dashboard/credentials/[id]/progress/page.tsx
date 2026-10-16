@@ -5,6 +5,7 @@ import Footer from "@/components/Footer";
 import CourseHeader, { CourseFallback } from "@/components/course/CourseHeader";
 import { useCourse } from "@/components/course/useCourse";
 import { flatUnits, type Answer, type Unit } from "@/components/course/types";
+import { formatWeight } from "@/lib/weights";
 import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useParams } from "next/navigation";
@@ -202,7 +203,7 @@ export default function CourseProgressPage() {
                   {summary.map((row) => (
                     <tr key={row.type}>
                       <td>{TYPE_LABELS[row.type]}</td>
-                      <td>{row.weight}%</td>
+                      <td>{formatWeight(row.weight)}%</td>
                       <td>{row.grade}%</td>
                       <td>
                         <strong>{row.earned}%</strong>

@@ -2,6 +2,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
+import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 
 function stripBinaryFromCredential(c: any) {
   return {
@@ -34,7 +35,7 @@ function validateWeights(sections: any[]): string | null {
       }
     }
   }
-  if (total > 100) return `Total unit weight is ${total}%. It must not exceed 100%.`;
+  if (exceedsFullWeight(total)) return `Total unit weight is ${formatWeight(total)}%. It must not exceed 100%.`;
   return null;
 }
 

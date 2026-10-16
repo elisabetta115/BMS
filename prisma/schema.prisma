@@ -125,7 +125,8 @@ model CredentialUnit {
   title        String
   type         UnitType
   order        Int      @default(0)
-  weight       Int      @default(0)
+  /// % of the credential's grade; can be a fraction (50% shared by 9 quizzes = 5.5555… each).
+  weight       Float    @default(0)
   videoUrl     String?  @map("video_url")
   fileData     Bytes?   @map("file_data")
   fileKey      String?  @map("file_key")
