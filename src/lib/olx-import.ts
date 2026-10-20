@@ -505,7 +505,7 @@ function videoUrlFrom(xml: string): string | null {
  * problem's name is shown once, above the first one.
  */
 function parseProblemQuestions(xml: string, courseMaxAttempts: number | null): ParsedQuestion[] {
-  const blocks = [...xml.matchAll(/<(multiplechoiceresponse|choiceresponse)\b[\s\S]*?<\/\1>/gi)];
+  const blocks = [...xml.matchAll(/<(multiplechoiceresponse|choiceresponse|optionresponse)\b[\s\S]*?<\/\1>/gi)];
   if (blocks.length <= 1) {
     const q = parseProblem(xml, courseMaxAttempts);
     return q ? [q] : [];
@@ -530,15 +530,20 @@ function parseProblemQuestions(xml: string, courseMaxAttempts: number | null): P
 function parseProblem(xml: string, courseMaxAttempts: number | null): ParsedQuestion | null {
   const isMC = /<multiplechoiceresponse\b/.test(xml);
   const isChoice = /<choiceresponse\b/.test(xml);
-  if (!isMC && !isChoice) return null;
+  // A drop-down ("Yes / No") has a single right answer too, so it becomes a
+  // multiple-choice question with the same options.
+  const isDropdown = !isMC && !isChoice && /<optionresponse\b/.test(xml);
+  if (!isMC && !isChoice && !isDropdown) return null;
 
-  const stem = xml.split(/<(?:multiplechoiceresponse|choiceresponse)\b/i)[0];
+  const stem = xml.split(isDropdown ? /<optionresponse\b/i : /<(?:multiplechoiceresponse|choiceresponse)\b/i)[0];
   let question = htmlToText(stem);
   // Courses made with newer Studio versions put the question inside the answer
   // block, in a <label> or <p> before the choices. Leave out any <description>:
   // it holds Studio's hint text ("You can add an optional tip…").
   if (!question) {
-    const inside = xml.match(/<(?:multiplechoiceresponse|choiceresponse)\b[^>]*>([\s\S]*?)<(?:choicegroup|checkboxgroup)\b/i)?.[1] ?? "";
+    const inside = xml.match(isDropdown
+      ? /<optionresponse\b[^>]*>([\s\S]*?)<optioninput\b/i
+      : /<(?:multiplechoiceresponse|choiceresponse)\b[^>]*>([\s\S]*?)<(?:choicegroup|checkboxgroup)\b/i)?.[1] ?? "";
     question = htmlToText(inside.replace(/<description\b[\s\S]*?<\/description>/gi, ""));
   }
   // Drop a leading generic display name if that's all the stem had.
@@ -548,13 +553,21 @@ function parseProblem(xml: string, courseMaxAttempts: number | null): ParsedQues
 
   const options: string[] = [];
   let correctIndex = -1;
-  const choiceRe = /<choice\b([^>]*)>([\s\S]*?)<\/choice>/gi;
+  const choiceRe = isDropdown ? /<option\b([^>]*)>([\s\S]*?)<\/option>/gi : /<choice\b([^>]*)>([\s\S]*?)<\/choice>/gi;
   let m: RegExpExecArray | null;
   while ((m = choiceRe.exec(xml))) {
     const isCorrect = /\bcorrect\s*=\s*"true"/i.test(m[1]);
     const label = htmlToText(m[2]);
     if (isCorrect && correctIndex === -1) correctIndex = options.length;
     options.push(label);
+  }
+  // Older drop-downs list their options in attributes instead:
+  // <optioninput options="('Yes','No')" correct="Yes"/>.
+  if (isDropdown && options.length === 0) {
+    const input = xml.match(/<optioninput\b[^>]*>/i)?.[0] ?? "";
+    const correct = decodeEntities(attr(input, "correct") ?? "").trim();
+    for (const o of decodeEntities(attr(input, "options") ?? "").matchAll(/'((?:[^'\\]|\\.)*)'/g)) options.push(o[1].replace(/\\'/g, "'").trim());
+    correctIndex = options.indexOf(correct);
   }
 
   if (options.length < 2) return null;
