@@ -371,8 +371,8 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
           for (const pRef of problemRefs) {
             const pXml = text(`${prefix}problem/${pRef}.xml`);
             if (!pXml) { warnings.push(`Missing problem/${pRef}.xml`); continue; }
-            const q = parseProblem(pXml, courseMaxAttempts);
-            if (q) questions.push(q);
+            const qs = parseProblemQuestions(pXml, courseMaxAttempts);
+            if (qs.length) questions.push(...qs);
             else warnings.push(`Question in "${vertTitle}" is not multiple-choice — skipped.`);
           }
           if (questions.length) {
@@ -496,6 +496,34 @@ function videoUrlFrom(xml: string): string | null {
   }
   const encoded = xml.match(/<encoded_video\b[^>]*\burl\s*=\s*"([^"]+)"/)?.[1];
   return encoded || null;
+}
+
+/**
+ * The questions in a `<problem>`. Usually one, but some exports paste several
+ * complete problems into one (nested `<problem>`s, each with its text and its own
+ * answer block); each becomes a separate question, as on the live site. The
+ * problem's name is shown once, above the first one.
+ */
+function parseProblemQuestions(xml: string, courseMaxAttempts: number | null): ParsedQuestion[] {
+  const blocks = [...xml.matchAll(/<(multiplechoiceresponse|choiceresponse)\b[\s\S]*?<\/\1>/gi)];
+  if (blocks.length <= 1) {
+    const q = parseProblem(xml, courseMaxAttempts);
+    return q ? [q] : [];
+  }
+  const outer = xml.match(/<problem\b[^>]*>/i)?.[0] ?? "";
+  const title = htmlToText(attr(outer, "display_name") || "") || null;
+  const ownMax = attr(outer, "max_attempts");
+  const maxAttempts = ownMax !== null && ownMax !== "" ? positiveInt(ownMax) : courseMaxAttempts;
+  const questions: ParsedQuestion[] = [];
+  let from = 0;
+  for (const b of blocks) {
+    // Each question is the text since the previous answer block, plus its own.
+    const end = b.index! + b[0].length;
+    const q = parseProblem(xml.slice(from, end), courseMaxAttempts);
+    if (q) questions.push({ ...q, title: questions.length ? null : title, maxAttempts });
+    from = end;
+  }
+  return questions;
 }
 
 /** Parse a `<problem>` with a single-answer multiple-choice response. */
