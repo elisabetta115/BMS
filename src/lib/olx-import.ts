@@ -400,6 +400,24 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
           const body = text(`${prefix}html/${hRef}.html`) ?? "";
           const src = body.match(/(?:src|href)\s*=\s*["']([^"']*\/static\/[^"']+|\/static\/[^"']+)["']/i)?.[1]
             || body.match(/\/static\/([^\s"'<>]+\.pdf)/i)?.[0];
+          // Some pages show their PDF from an Open edX server by its asset address
+          // (".../asset-v1:ORG+COURSE+RUN+type@asset+block@Unit_1._Name.pdf"); the
+          // file itself is in static/ under its original name ("Unit 1. Name.pdf").
+          const assetName = src ? null : body.match(/asset-v1:[^"'\s<>]*?type@asset\+block@([^"'\s<>?#]+\.pdf)/i)?.[1];
+          if (assetName) {
+            const name = safeDecode(assetName);
+            const key = findStaticAsset(files, prefix, name);
+            if (!key) { warnings.push(`Unit "${vertTitle}" shows "${name}" from another site, and that file is missing from static/.`); return; }
+            const fileName = key.slice(`${prefix}static/`.length);
+            subsection.units.push({
+              title: vertTitle,
+              type: "PRESENTATION",
+              file: { base64: files.get(key)!.toString("base64"), mime: mimeForFile(key), name: fileName },
+            });
+            counts.presentations++;
+            counts.units++;
+            return;
+          }
           if (!src) {
             const asText = htmlToText(body);
             warnings.push(
@@ -488,6 +506,13 @@ function parseProblem(xml: string, courseMaxAttempts: number | null): ParsedQues
 
   const stem = xml.split(/<(?:multiplechoiceresponse|choiceresponse)\b/i)[0];
   let question = htmlToText(stem);
+  // Courses made with newer Studio versions put the question inside the answer
+  // block, in a <label> or <p> before the choices. Leave out any <description>:
+  // it holds Studio's hint text ("You can add an optional tip…").
+  if (!question) {
+    const inside = xml.match(/<(?:multiplechoiceresponse|choiceresponse)\b[^>]*>([\s\S]*?)<(?:choicegroup|checkboxgroup)\b/i)?.[1] ?? "";
+    question = htmlToText(inside.replace(/<description\b[\s\S]*?<\/description>/gi, ""));
+  }
   // Drop a leading generic display name if that's all the stem had.
   if (!question) {
     question = htmlToText(attr(xml, "display_name") || "") || "Question";
@@ -587,6 +612,23 @@ function assignGradedWeights(
     }
     warnings.push(`Imported unit weights summed to ${formatWeight(totalAssigned)}% and were scaled down to fit 100%.`);
   }
+}
+
+/**
+ * A file in `<prefix>static/` by its Open edX asset name, in which spaces and
+ * other symbols became "_" ("Unit_1._Name.pdf" for "Unit 1. Name.pdf").
+ * Only a single match counts.
+ */
+function findStaticAsset(files: Map<string, Buffer>, prefix: string, assetName: string): string | null {
+  const norm = (s: string) => s.replace(/[^A-Za-z0-9._-]/g, "_").toLowerCase();
+  const dir = `${prefix}static/`;
+  const want = norm(assetName);
+  const hits = [...files.keys()].filter((k) => k.startsWith(dir) && norm(k.slice(dir.length)) === want);
+  return hits.length === 1 ? hits[0] : null;
+}
+
+function safeDecode(s: string): string {
+  try { return decodeURIComponent(s); } catch { return s; }
 }
 
 /** Case-insensitive lookup inside `<prefix>static/`. */
