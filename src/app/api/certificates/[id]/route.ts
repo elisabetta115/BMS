@@ -18,15 +18,11 @@ export async function GET(
         id: true,
         project: true,
         pdfName: true,
-        nameX: true,
-        nameY: true,
-        titleX: true,
-        titleY: true,
-        fontSize: true,
-        nameFontSize: true,
-        titleFontSize: true,
-        nameMaxWidth: true,
-        titleMaxWidth: true,
+        introText: true,
+        closingText: true,
+        contentTop: true,
+        contentBottom: true,
+        contentWidth: true,
       },
     });
     if (!certificate) return NextResponse.json({ error: "Not found." }, { status: 404 });
@@ -47,19 +43,15 @@ export async function PATCH(
   try {
     if (!prisma) return NextResponse.json({ error: "Not configured." }, { status: 500 });
     const { id } = await params;
-    const { project, pdfBase64, pdfMime, pdfName, nameX, nameY, titleX, titleY, fontSize, nameFontSize, titleFontSize, nameMaxWidth, titleMaxWidth } = await req.json();
+    const { project, pdfBase64, pdfMime, pdfName, introText, closingText, contentTop, contentBottom, contentWidth } = await req.json();
 
     const updateData: any = {};
     if (project !== undefined) updateData.project = project;
-    if (nameX !== undefined) updateData.nameX = nameX;
-    if (nameY !== undefined) updateData.nameY = nameY;
-    if (titleX !== undefined) updateData.titleX = titleX;
-    if (titleY !== undefined) updateData.titleY = titleY;
-    if (fontSize !== undefined) updateData.fontSize = fontSize;
-    if (nameFontSize !== undefined) updateData.nameFontSize = nameFontSize;
-    if (titleFontSize !== undefined) updateData.titleFontSize = titleFontSize;
-    if (nameMaxWidth !== undefined) updateData.nameMaxWidth = nameMaxWidth;
-    if (titleMaxWidth !== undefined) updateData.titleMaxWidth = titleMaxWidth;
+    if (introText !== undefined) updateData.introText = introText;
+    if (closingText !== undefined) updateData.closingText = closingText;
+    if (contentTop !== undefined) updateData.contentTop = contentTop;
+    if (contentBottom !== undefined) updateData.contentBottom = contentBottom;
+    if (contentWidth !== undefined) updateData.contentWidth = contentWidth;
     if (pdfBase64) {
       const raw = Buffer.from(pdfBase64, "base64");
       const srcDoc = await PDFDocument.load(raw);
@@ -78,15 +70,11 @@ export async function PATCH(
         id: true,
         project: true,
         pdfName: true,
-        nameX: true,
-        nameY: true,
-        titleX: true,
-        titleY: true,
-        fontSize: true,
-        nameFontSize: true,
-        titleFontSize: true,
-        nameMaxWidth: true,
-        titleMaxWidth: true,
+        introText: true,
+        closingText: true,
+        contentTop: true,
+        contentBottom: true,
+        contentWidth: true,
       },
     });
 

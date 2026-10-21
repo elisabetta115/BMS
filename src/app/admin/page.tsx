@@ -6,6 +6,8 @@ import { useRouter } from "next/navigation";
 import { Award, Download, Plus, Search, X } from "lucide-react";
 import { ORGANISATIONS } from "@/data/organisations";
 import OlxImport from "@/components/admin/OlxImport";
+import CertificatePreview from "@/components/admin/CertificatePreview";
+import { DEFAULT_CONTENT_BOX, defaultIntroText } from "@/lib/certificate-defaults";
 import { exceedsFullWeight, formatWeight, isFullWeight } from "@/lib/weights";
 
 /* ─── Types ────────────────────────────────────────────── */
@@ -45,17 +47,15 @@ interface MicroProgramme {
 
 interface Certificate {
   id: string; project: string; pdfName: string;
-  nameX: number; nameY: number; titleX: number; titleY: number;
-  nameFontSize: number; titleFontSize: number;
-  nameMaxWidth: number; titleMaxWidth: number;
+  introText: string; closingText: string;
+  contentTop: number; contentBottom: number; contentWidth: number;
   hasPdf?: boolean;
 }
 
 interface CertForm {
   project: string; pdfBase64: string; pdfMime: string; pdfName: string;
-  nameX: number; nameY: number; titleX: number; titleY: number;
-  nameFontSize: number; titleFontSize: number;
-  nameMaxWidth: number; titleMaxWidth: number;
+  introText: string; closingText: string;
+  contentTop: number; contentBottom: number; contentWidth: number;
 }
 
 function ImageUploader({ value, onChange }: { value: string; onChange: (dataUrl: string) => void }) {
@@ -201,198 +201,6 @@ function CertificatePdfUploader({ value, name, onChange }: {
       <p className="bms-admin-help">PDF only, max 4 MB</p>
       {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
       {!value && !name && <p className="text-xs text-orange-500 mt-1">A PDF template is required.</p>}
-    </div>
-  );
-}
-
-function CertificatePositioner({ pdfSrc, nameX, nameY, titleX, titleY, nameFontSize, titleFontSize, nameMaxWidth, titleMaxWidth, onName, onTitle }: {
-  pdfSrc: string;
-  nameX: number; nameY: number;
-  titleX: number; titleY: number;
-  nameFontSize: number; titleFontSize: number;
-  nameMaxWidth: number; titleMaxWidth: number;
-  onName: (x: number, y: number) => void;
-  onTitle: (x: number, y: number) => void;
-}) {
-  const [dragging, setDragging] = useState<"name" | "title" | null>(null);
-  const [rendered, setRendered] = useState(false);
-  const canvasRef = useRef<HTMLCanvasElement>(null);
-  const overlayRef = useRef<HTMLCanvasElement>(null);
-  const containerRef = useRef<HTMLDivElement>(null);
-  const onNameRef = useRef(onName);
-  const onTitleRef = useRef(onTitle);
-  const [pdfPageWidth, setPdfPageWidth] = useState(595);
-  const [pdfAspect, setPdfAspect] = useState("595 / 842");
-  const [canvasDims, setCanvasDims] = useState({ w: 0, h: 0 });
-
-  // Keep callback refs fresh so global listeners don't capture stale closures
-  useEffect(() => { onNameRef.current = onName; }, [onName]);
-  useEffect(() => { onTitleRef.current = onTitle; }, [onTitle]);
-
-  useEffect(() => {
-    if (!pdfSrc) return;
-    setRendered(false);
-    let cancelled = false;
-    (async () => {
-      try {
-        const pdfjs = await import("pdfjs-dist");
-        pdfjs.GlobalWorkerOptions.workerSrc = "/pdf.worker.min.mjs";
-        const pdf = await pdfjs.getDocument({ url: pdfSrc }).promise;
-        if (cancelled) return;
-        const page = await pdf.getPage(1);
-        if (cancelled) return;
-        const vp1 = page.getViewport({ scale: 1 });
-        const viewport = page.getViewport({ scale: 2 });
-        const canvas = canvasRef.current;
-        if (!canvas || cancelled) return;
-        canvas.width = viewport.width;
-        canvas.height = viewport.height;
-        await page.render({ canvas, viewport }).promise;
-        if (!cancelled) {
-          setPdfPageWidth(vp1.width);
-          setPdfAspect(`${vp1.width} / ${vp1.height}`);
-          setCanvasDims({ w: viewport.width, h: viewport.height });
-          setRendered(true);
-        }
-      } catch (e) {
-        console.error("PDF preview render error:", e);
-      }
-    })();
-    return () => { cancelled = true; };
-  }, [pdfSrc]);
-
-  useEffect(() => {
-    const canvas = overlayRef.current;
-    if (!canvas || canvasDims.w === 0) return;
-    canvas.width = canvasDims.w;
-    canvas.height = canvasDims.h;
-    const w = canvasDims.w;
-    const h = canvasDims.h;
-    const ctx = canvas.getContext("2d");
-    if (!ctx) return;
-    ctx.clearRect(0, 0, w, h);
-
-    const s = w / pdfPageWidth;
-    const CAP = 0.72;
-
-    function stampWithBox(text: string, xPct: number, yPct: number, fontPx: number, maxWidthPct: number, color: string) {
-      const cx = (xPct / 100) * w;
-      const ty = (yPct / 100) * h;
-      const boxW = (maxWidthPct / 100) * w;
-      const boxH = fontPx * 1.1;
-
-      // Draw bounding box
-      ctx!.save();
-      ctx!.strokeStyle = color;
-      ctx!.lineWidth = 1.5;
-      ctx!.setLineDash([5, 4]);
-      ctx!.globalAlpha = 0.55;
-      ctx!.strokeRect(cx - boxW / 2, ty, boxW, boxH);
-      ctx!.fillStyle = color;
-      ctx!.globalAlpha = 0.06;
-      ctx!.fillRect(cx - boxW / 2, ty, boxW, boxH);
-      ctx!.restore();
-
-      // Auto-shrink font to fit box
-      ctx!.font = `bold ${fontPx}px Helvetica, Arial, sans-serif`;
-      let actualFont = fontPx;
-      if (ctx!.measureText(text).width > boxW) {
-        actualFont = fontPx * (boxW / ctx!.measureText(text).width);
-        ctx!.font = `bold ${actualFont}px Helvetica, Arial, sans-serif`;
-      }
-
-      // Draw text centered in the box
-      ctx!.textAlign = "center";
-      ctx!.textBaseline = "middle";
-      ctx!.shadowColor = "rgba(255,255,255,0.9)";
-      ctx!.shadowBlur = 4 * s;
-      ctx!.fillStyle = color;
-      ctx!.globalAlpha = 0.85;
-      ctx!.fillText(text, cx, ty + boxH / 2);
-      ctx!.shadowBlur = 0;
-      ctx!.globalAlpha = 1;
-      ctx!.textAlign = "left";
-      ctx!.textBaseline = "alphabetic";
-    }
-
-    stampWithBox("Sample Name",      nameX,  nameY,  nameFontSize * s,  nameMaxWidth,  "rgba(37,99,235,1)");
-    stampWithBox("Credential Title", titleX, titleY, titleFontSize * s, titleMaxWidth, "rgba(234,88,12,1)");
-  }, [nameX, nameY, titleX, titleY, nameFontSize, titleFontSize, nameMaxWidth, titleMaxWidth, canvasDims, pdfPageWidth]);
-
-  // Global mouse listeners so dragging works even when cursor leaves the PDF box
-  useEffect(() => {
-    if (!dragging) return;
-
-    function onMove(e: MouseEvent) {
-      const container = containerRef.current;
-      if (!container) return;
-      const rect = container.getBoundingClientRect();
-      const x = Math.min(100, Math.max(0, Math.round(((e.clientX - rect.left) / rect.width) * 1000) / 10));
-      const y = Math.min(100, Math.max(0, Math.round(((e.clientY - rect.top) / rect.height) * 1000) / 10));
-      if (dragging === "name") onNameRef.current(x, y);
-      else onTitleRef.current(x, y);
-    }
-
-    function onUp() { setDragging(null); }
-
-    document.addEventListener("mousemove", onMove);
-    document.addEventListener("mouseup", onUp);
-    return () => {
-      document.removeEventListener("mousemove", onMove);
-      document.removeEventListener("mouseup", onUp);
-    };
-  }, [dragging]); // eslint-disable-line react-hooks/exhaustive-deps
-
-  return (
-    <div>
-      {/* Loading skeleton — same aspect ratio, hidden once rendered */}
-      {!rendered && (
-        <div
-          className="w-full rounded-xl border border-gray-200 bg-gray-100 flex items-center justify-center"
-          style={{ aspectRatio: pdfAspect }}
-        >
-          <div className="flex flex-col items-center gap-3 text-brand-muted">
-            <div className="w-8 h-8 border-2 border-gray-300 border-t-[var(--bms-green)] rounded-full animate-spin" />
-            <span className="text-xs">Loading certificate…</span>
-          </div>
-        </div>
-      )}
-
-      <div
-        ref={containerRef}
-        className="relative w-full border border-gray-200 rounded-xl overflow-hidden bg-gray-100"
-        style={{ aspectRatio: pdfAspect, cursor: dragging ? "grabbing" : "default", display: rendered ? undefined : "none" }}
-      >
-        <canvas ref={canvasRef} className="absolute inset-0 w-full h-full" />
-        <canvas ref={overlayRef} className="absolute inset-0 w-full h-full" style={{ pointerEvents: "none" }} />
-
-        {/* Draggable handle — Learner name */}
-        <div
-          style={{ position: "absolute", left: `${nameX}%`, top: `${nameY}%`, transform: "translate(-50%, -50%)", zIndex: 20, cursor: dragging === "name" ? "grabbing" : "grab", userSelect: "none" }}
-          onMouseDown={e => { e.preventDefault(); setDragging("name"); }}
-        >
-          <div className="flex items-center gap-1.5 bg-blue-600 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap" style={{ opacity: dragging === "name" ? 1 : 0.82 }}>
-            <span className="w-2 h-2 rounded-full bg-white flex-shrink-0" />
-            Learner name
-          </div>
-        </div>
-
-        {/* Draggable handle — Course title */}
-        <div
-          style={{ position: "absolute", left: `${titleX}%`, top: `${titleY}%`, transform: "translate(-50%, -50%)", zIndex: 20, cursor: dragging === "title" ? "grabbing" : "grab", userSelect: "none" }}
-          onMouseDown={e => { e.preventDefault(); setDragging("title"); }}
-        >
-          <div className="flex items-center gap-1.5 bg-orange-500 text-white text-xs font-bold px-2.5 py-1 rounded-full shadow-lg whitespace-nowrap" style={{ opacity: dragging === "title" ? 1 : 0.82 }}>
-            <span className="w-2 h-2 rounded-full bg-white flex-shrink-0" />
-            Course title
-          </div>
-        </div>
-      </div>
-      {rendered && (
-        <p className="text-xs text-brand-muted mt-1.5">
-          Drag the coloured labels to reposition. The text preview shows the actual size and placement on the certificate.
-        </p>
-      )}
     </div>
   );
 }
@@ -610,7 +418,7 @@ export default function AdminPage() {
   const [editingCred, setEditingCred] = useState<MicroCredential | null>(null);
   const [editingCert, setEditingCert] = useState<Certificate | null>(null);
   const [parentProgId, setParentProgId] = useState<string | null>(null);
-  const [certForm, setCertForm] = useState<CertForm>({ project: "", pdfBase64: "", pdfMime: "", pdfName: "", nameX: 50, nameY: 40, titleX: 50, titleY: 55, nameFontSize: 28, titleFontSize: 21, nameMaxWidth: 80, titleMaxWidth: 80 });
+  const [certForm, setCertForm] = useState<CertForm>({ project: "", pdfBase64: "", pdfMime: "", pdfName: "", introText: defaultIntroText(""), closingText: "", ...DEFAULT_CONTENT_BOX });
 
   const [returnTab, setReturnTab] = useState<Tab>("programmes");
   const [imageVersion, setImageVersion] = useState(1);
@@ -947,13 +755,13 @@ export default function AdminPage() {
 
   function newCert() {
     pushAdminHistory("new-cert");
-    setCertForm({ project: "", pdfBase64: "", pdfMime: "", pdfName: "", nameX: 50, nameY: 40, titleX: 50, titleY: 55, nameFontSize: 28, titleFontSize: 21, nameMaxWidth: 80, titleMaxWidth: 80 });
+    setCertForm({ project: "", pdfBase64: "", pdfMime: "", pdfName: "", introText: defaultIntroText(""), closingText: "", ...DEFAULT_CONTENT_BOX });
     setEditingCert(null); setFormError(""); setReturnTab("certificates"); setView("new-cert");
   }
 
   function editCert(c: Certificate) {
     pushAdminHistory("edit-cert");
-    setCertForm({ project: c.project, pdfBase64: "", pdfMime: "", pdfName: c.pdfName, nameX: c.nameX, nameY: c.nameY, titleX: c.titleX, titleY: c.titleY, nameFontSize: c.nameFontSize, titleFontSize: c.titleFontSize, nameMaxWidth: c.nameMaxWidth ?? 80, titleMaxWidth: c.titleMaxWidth ?? 80 });
+    setCertForm({ project: c.project, pdfBase64: "", pdfMime: "", pdfName: c.pdfName, introText: c.introText, closingText: c.closingText, contentTop: c.contentTop, contentBottom: c.contentBottom, contentWidth: c.contentWidth });
     setEditingCert(c); setFormError(""); setReturnTab("certificates"); setView("edit-cert");
   }
 
@@ -965,14 +773,11 @@ export default function AdminPage() {
     try {
       const payload: any = {
         project: certForm.project,
-        nameX: certForm.nameX,
-        nameY: certForm.nameY,
-        titleX: certForm.titleX,
-        titleY: certForm.titleY,
-        nameFontSize: certForm.nameFontSize,
-        titleFontSize: certForm.titleFontSize,
-        nameMaxWidth: certForm.nameMaxWidth,
-        titleMaxWidth: certForm.titleMaxWidth,
+        introText: certForm.introText,
+        closingText: certForm.closingText,
+        contentTop: certForm.contentTop,
+        contentBottom: certForm.contentBottom,
+        contentWidth: certForm.contentWidth,
       };
       if (certForm.pdfBase64) {
         payload.pdfBase64 = certForm.pdfBase64;
@@ -1502,6 +1307,8 @@ export default function AdminPage() {
             const pdfSrc = certForm.pdfBase64
               ? `data:${certForm.pdfMime || "application/pdf"};base64,${certForm.pdfBase64}`
               : editingCert ? `/api/certificates/${editingCert.id}/pdf` : "";
+            const projectTitles = [...credentials, ...programmes].filter(x => x.project === certForm.project).map(x => x.title);
+            const sampleTitle = projectTitles.reduce((a, b) => (b.length > a.length ? b : a), "") || "Sample Micro-credential Title";
 
             return (
               <>
@@ -1518,7 +1325,10 @@ export default function AdminPage() {
                       className="auth-input"
                       list="cert-project-options"
                       value={certForm.project}
-                      onChange={e => setCertForm({ ...certForm, project: e.target.value })}
+                      onChange={e => {
+                        const project = e.target.value;
+                        setCertForm(f => ({ ...f, project, introText: f.introText === defaultIntroText(f.project) ? defaultIntroText(project) : f.introText }));
+                      }}
                       placeholder="Select or type a project name"
                       required
                     />
@@ -1533,157 +1343,35 @@ export default function AdminPage() {
                       name={certForm.pdfName}
                       onChange={(base64, mime, filename) => setCertForm({ ...certForm, pdfBase64: base64, pdfMime: mime, pdfName: filename })}
                     />
+                    <p className="bms-admin-help">
+                      The template holds this project&apos;s frame, badge, signature and partner logos. Leave the area above the
+                      signature blank: the BoostMySkills logo and the certificate text are added there.
+                    </p>
                   </div>
 
-                  {certForm.pdfName && (<>
-                    {/* Max text width */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="bms-admin-label flex items-center gap-2 mb-2">
-                          <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
-                          Learner name — max width
-                        </label>
-                        <div className="flex items-center gap-2 mt-2">
-                          <input type="range" min="10" max="100" step="1" value={certForm.nameMaxWidth} onChange={e => setCertForm(f => ({ ...f, nameMaxWidth: parseInt(e.target.value) }))} className="flex-1 accent-blue-500" />
-                          <input type="number" min="10" max="100" value={certForm.nameMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameMaxWidth: Math.min(100, Math.max(10, f.nameMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                          <span className="text-sm text-brand-muted">%</span>
-                        </div>
-                        <p className="bms-admin-help">Text shrinks automatically if the name is too long for this width.</p>
-                      </div>
-                      <div>
-                        <label className="bms-admin-label flex items-center gap-2 mb-2">
-                          <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
-                          Course title — max width
-                        </label>
-                        <div className="flex items-center gap-2 mt-2">
-                          <input type="range" min="10" max="100" step="1" value={certForm.titleMaxWidth} onChange={e => setCertForm(f => ({ ...f, titleMaxWidth: parseInt(e.target.value) }))} className="flex-1 accent-orange-500" />
-                          <input type="number" min="10" max="100" value={certForm.titleMaxWidth} onFocus={e => e.target.select()} onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleMaxWidth: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleMaxWidth: Math.min(100, Math.max(10, f.titleMaxWidth || 10)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                          <span className="text-sm text-brand-muted">%</span>
-                        </div>
-                        <p className="bms-admin-help">Text shrinks automatically if the title is too long for this width.</p>
-                      </div>
-                    </div>
+                  {/* Project texts */}
+                  <div>
+                    <label className="bms-admin-label" htmlFor="cert-intro-text">Text above the course title</label>
+                    <textarea id="cert-intro-text" className="auth-input" rows={3} value={certForm.introText} onChange={e => setCertForm({ ...certForm, introText: e.target.value })} />
+                    <p className="bms-admin-help">Shown under the learner&apos;s name. Line breaks are kept; long lines wrap.</p>
+                  </div>
+                  <div>
+                    <label className="bms-admin-label" htmlFor="cert-closing-text">Text below the course title</label>
+                    <textarea id="cert-closing-text" className="auth-input" rows={3} value={certForm.closingText} onChange={e => setCertForm({ ...certForm, closingText: e.target.value })} placeholder="a course of study offered by …, an online learning initiative funded by …" />
+                    <p className="bms-admin-help">Who offers and funds the course. Line breaks are kept; long lines wrap.</p>
+                  </div>
 
-                    {/* Independent font sizes */}
-                    <div className="grid md:grid-cols-2 gap-4">
-                      <div>
-                        <label className="bms-admin-label flex items-center gap-2 mb-2">
-                          <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
-                          Learner name — text size
-                        </label>
-                        <div className="flex items-center gap-2 mt-2">
-                          <input
-                            type="range" min="10" max="100" step="1"
-                            value={certForm.nameFontSize}
-                            onChange={e => setCertForm(f => ({ ...f, nameFontSize: parseInt(e.target.value) }))}
-                            className="flex-1 accent-blue-500"
-                          />
-                          <input
-                            type="number" min="10" max="100"
-                            value={certForm.nameFontSize}
-                            onFocus={e => e.target.select()}
-                            onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameFontSize: v })); }}
-                            onBlur={() => setCertForm(f => ({ ...f, nameFontSize: Math.min(100, Math.max(10, f.nameFontSize || 10)) }))}
-                            onKeyDown={e => e.key === "Enter" && e.preventDefault()}
-                            className="auth-input no-spin text-sm text-right"
-                            style={{ width: "64px" }}
-                          />
-                          <span className="text-sm text-brand-muted">pt</span>
-                        </div>
-                      </div>
-                      <div>
-                        <label className="bms-admin-label flex items-center gap-2 mb-2">
-                          <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
-                          Course title — text size
-                        </label>
-                        <div className="flex items-center gap-2 mt-2">
-                          <input
-                            type="range" min="10" max="100" step="1"
-                            value={certForm.titleFontSize}
-                            onChange={e => setCertForm(f => ({ ...f, titleFontSize: parseInt(e.target.value) }))}
-                            className="flex-1 accent-orange-500"
-                          />
-                          <input
-                            type="number" min="10" max="100"
-                            value={certForm.titleFontSize}
-                            onFocus={e => e.target.select()}
-                            onChange={e => { const v = parseInt(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleFontSize: v })); }}
-                            onBlur={() => setCertForm(f => ({ ...f, titleFontSize: Math.min(100, Math.max(10, f.titleFontSize || 10)) }))}
-                            onKeyDown={e => e.key === "Enter" && e.preventDefault()}
-                            className="auth-input no-spin text-sm text-right"
-                            style={{ width: "64px" }}
-                          />
-                          <span className="text-sm text-brand-muted">pt</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Visual position picker */}
+                  {pdfSrc && (
                     <div>
-                      <label className="block text-sm font-medium text-brand-dark mb-2">Text Positions</label>
-                      <CertificatePositioner
+                      <label className="block text-sm font-medium text-brand-dark mb-2">Preview and text area</label>
+                      <CertificatePreview
                         pdfSrc={pdfSrc}
-                        nameX={certForm.nameX}
-                        nameY={certForm.nameY}
-                        titleX={certForm.titleX}
-                        titleY={certForm.titleY}
-                        nameFontSize={certForm.nameFontSize}
-                        titleFontSize={certForm.titleFontSize}
-                        nameMaxWidth={certForm.nameMaxWidth}
-                        titleMaxWidth={certForm.titleMaxWidth}
-                        onName={(x, y) => setCertForm(f => ({ ...f, nameX: x, nameY: y }))}
-                        onTitle={(x, y) => setCertForm(f => ({ ...f, titleX: x, titleY: y }))}
+                        layout={certForm}
+                        sampleTitle={sampleTitle}
+                        onBoxChange={box => setCertForm(f => ({ ...f, ...box }))}
                       />
                     </div>
-
-                    {/* Fine-tuning sliders + number inputs */}
-                    <div className="grid md:grid-cols-2 gap-6">
-                      <div className="space-y-3">
-                        <p className="text-sm font-semibold text-blue-700 flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-full bg-blue-500 flex-shrink-0" />
-                          Learner name position
-                        </p>
-                        <div>
-                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>← Left</span><span>Right →</span></div>
-                          <div className="flex items-center gap-2">
-                            <input type="range" min="0" max="100" step="0.5" value={certForm.nameX} onChange={e => setCertForm(f => ({ ...f, nameX: parseFloat(e.target.value) }))} className="flex-1 accent-blue-500" />
-                            <input type="number" min="0" max="100" step="any" value={certForm.nameX} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameX: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameX: Math.min(100, Math.max(0, f.nameX)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-brand-muted">%</span>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
-                          <div className="flex items-center gap-2">
-                            <input type="range" min="0" max="100" step="0.5" value={certForm.nameY} onChange={e => setCertForm(f => ({ ...f, nameY: parseFloat(e.target.value) }))} className="flex-1 accent-blue-500" />
-                            <input type="number" min="0" max="100" step="any" value={certForm.nameY} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, nameY: v })); }} onBlur={() => setCertForm(f => ({ ...f, nameY: Math.min(100, Math.max(0, f.nameY)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-brand-muted">%</span>
-                          </div>
-                        </div>
-                      </div>
-                      <div className="space-y-3">
-                        <p className="text-sm font-semibold text-orange-700 flex items-center gap-1.5">
-                          <span className="w-3 h-3 rounded-full bg-orange-500 flex-shrink-0" />
-                          Credential / programme title position
-                        </p>
-                        <div>
-                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>← Left</span><span>Right →</span></div>
-                          <div className="flex items-center gap-2">
-                            <input type="range" min="0" max="100" step="0.5" value={certForm.titleX} onChange={e => setCertForm(f => ({ ...f, titleX: parseFloat(e.target.value) }))} className="flex-1 accent-orange-500" />
-                            <input type="number" min="0" max="100" step="any" value={certForm.titleX} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleX: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleX: Math.min(100, Math.max(0, f.titleX)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-brand-muted">%</span>
-                          </div>
-                        </div>
-                        <div>
-                          <div className="flex justify-between text-xs text-brand-muted mb-1"><span>↑ Top</span><span>Bottom ↓</span></div>
-                          <div className="flex items-center gap-2">
-                            <input type="range" min="0" max="100" step="0.5" value={certForm.titleY} onChange={e => setCertForm(f => ({ ...f, titleY: parseFloat(e.target.value) }))} className="flex-1 accent-orange-500" />
-                            <input type="number" min="0" max="100" step="any" value={certForm.titleY} onFocus={e => e.target.select()} onChange={e => { const v = parseFloat(e.target.value); if (!isNaN(v)) setCertForm(f => ({ ...f, titleY: v })); }} onBlur={() => setCertForm(f => ({ ...f, titleY: Math.min(100, Math.max(0, f.titleY)) }))} onKeyDown={e => e.key === "Enter" && e.preventDefault()} className="auth-input no-spin text-sm text-right" style={{ width: "64px" }} />
-                            <span className="text-xs text-brand-muted">%</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </>)}
+                  )}
 
                   <div className="flex gap-3">
                     <button type="submit" className="bms-admin-btn" disabled={formLoading}>

@@ -16,6 +16,10 @@ const nextConfig: NextConfig = {
     SMTP_FROM: process.env.SMTP_FROM,
     APP_URL: process.env.APP_URL,
   },
+  // Fonts and logo read from public/ when stamping certificates (src/lib/certificate-assets.ts).
+  outputFileTracingIncludes: {
+    "/api/certificates/download": ["./public/certificate/**/*", "./public/logos/boostmyskills-logo.png"],
+  },
   experimental: {
     serverActions: {
       bodySizeLimit: "1gb",
