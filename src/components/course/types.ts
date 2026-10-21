@@ -30,6 +30,7 @@ export interface Unit {
   videoUrl: string | null;
   hasFile: boolean;
   fileMime?: string | null;
+  fileName?: string | null;
   questions: Question[];
 }
 

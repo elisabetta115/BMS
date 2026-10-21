@@ -4798,17 +4798,19 @@ a.bms-auth-submit {
   color: #fff;
 }
 
+/* Section.subsection.unit, numbered as in the admin; a pill so "1.1.1" fits. */
 .bms-unit-seq-num {
   align-items: center;
   background: #079845;
-  border-radius: 50%;
+  border-radius: 999px;
   color: #fff;
   display: inline-flex;
   flex-shrink: 0;
   font-size: 1.05rem;
   height: 2.25rem;
   justify-content: center;
-  width: 2.25rem;
+  min-width: 2.25rem;
+  padding: 0 0.6rem;
 }
 
 .bms-unit-seq li a.is-active .bms-unit-seq-num {
@@ -5085,6 +5087,11 @@ a.bms-auth-submit {
 
   .bms-unit-seq li a svg {
     display: none;
+  }
+
+  .bms-unit-seq-num {
+    font-size: 0.9rem;
+    padding: 0 0.4rem;
   }
 
   .bms-unit-breadcrumb a {

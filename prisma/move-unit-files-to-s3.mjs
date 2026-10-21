@@ -16,9 +16,9 @@
 import { PrismaClient } from "@prisma/client";
 import { PrismaPg } from "@prisma/adapter-pg";
 import pg from "pg";
-import { randomUUID } from "crypto";
 import { S3Client, PutObjectCommand } from "@aws-sdk/client-s3";
 import { RDS_CA } from "../src/lib/rds-ca.mjs";
+import { newFileKey } from "../src/lib/file-key.mjs";
 
 const dryRun = process.argv.includes("--dry-run");
 
@@ -65,7 +65,7 @@ async function main() {
     }
 
     const { fileData } = await prisma.credentialUnit.findUniqueOrThrow({ where: { id: u.id }, select: { fileData: true } });
-    const key = `unit-files/${randomUUID()}-${(u.file_name || "file").replace(/[^a-zA-Z0-9._-]/g, "_")}`;
+    const key = newFileKey("unit-files", u.file_name || "file");
     await s3.send(
       new PutObjectCommand({ Bucket: bucket, Key: key, Body: fileData, ContentType: u.file_mime || "application/octet-stream" })
     );

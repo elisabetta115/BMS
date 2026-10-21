@@ -249,6 +249,9 @@ function VideoPlayer({ unit, onComplete }: { unit: Unit; onComplete: () => void 
 }
 
 /* ── Presentation viewer ────────────────────────────────────── */
+/** File types Microsoft's Office Online viewer can show. */
+const OFFICE_EXTENSIONS = ["doc", "docx", "xls", "xlsx", "xlsm", "ppt", "pptx"];
+
 function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () => void }) {
   // Like videos, a presentation counts as complete as soon as it is opened.
   useEffect(() => {
@@ -259,10 +262,28 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
 
   // The frame loads the file itself rather than fetching it first: files in S3
   // come straight from there (the routes redirect), never through our server,
-  // whose responses Amplify cuts off above 5.72 MB. PowerPoint files open in
-  // Microsoft's Office Online viewer.
-  const isPdf = unit.fileMime === "application/pdf";
-  const viewUrl = isPdf ? `/api/units/${unit.id}/file` : `/api/units/${unit.id}/slides`;
+  // whose responses Amplify cuts off above 5.72 MB. Word, Excel and PowerPoint
+  // files open in Microsoft's Office Online viewer. Imported ones are typed
+  // application/octet-stream, so the file name decides.
+  const ext = (unit.fileName || "").toLowerCase().split(".").pop() || "";
+  const isPdf = unit.fileMime === "application/pdf" || ext === "pdf";
+  const isOffice = OFFICE_EXTENSIONS.includes(ext) || /officedocument|ms-powerpoint|ms-excel|msword/.test(unit.fileMime || "");
+  const viewUrl = isPdf ? `/api/units/${unit.id}/file` : isOffice ? `/api/units/${unit.id}/office` : null;
+  const downloadUrl = `/pptx/${unit.id}`;
+
+  // Anything else (e.g. an EnergyPlus .idf model) can only be downloaded.
+  if (!viewUrl) {
+    return (
+      <div className="flex flex-col items-center justify-center gap-4 rounded-xl border border-brand-line bg-brand-wash px-8 py-12 text-center">
+        <p className="bms-learn-text" style={{ margin: 0 }}>
+          This file can&apos;t be shown in the browser. Download it to open it on your device.
+        </p>
+        <a href={downloadUrl} download className="bms-learn-check">
+          <FileDown aria-hidden="true" size={16} /> Download {unit.fileName || "file"}
+        </a>
+      </div>
+    );
+  }
 
   return (
     <div>
@@ -276,8 +297,8 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
         <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="bms-learn-nav">
           <ExternalLink aria-hidden="true" size={16} /> Open in new tab
         </a>
-        <a href={`/pptx/${unit.id}`} download className="bms-learn-nav">
-          <FileDown aria-hidden="true" size={16} /> {isPdf ? "Download PDF" : "Download PowerPoint"}
+        <a href={downloadUrl} download className="bms-learn-nav">
+          <FileDown aria-hidden="true" size={16} /> {isPdf ? "Download PDF" : "Download file"}
         </a>
       </div>
     </div>
@@ -351,7 +372,8 @@ export default function UnitViewerPage() {
     s.subsections.some((ss) => ss.units.some((u) => u.id === unitId))
   );
   const section = credential.sections[sectionIdx];
-  const subsection = section.subsections.find((ss) => ss.units.some((u) => u.id === unitId))!;
+  const subsectionIdx = section.subsections.findIndex((ss) => ss.units.some((u) => u.id === unitId));
+  const subsection = section.subsections[subsectionIdx];
 
   const allUnits = flatUnits(credential);
   const currentIdx = allUnits.findIndex((u) => u.id === unitId);
@@ -390,7 +412,7 @@ export default function UnitViewerPage() {
                   title={u.title}
                 >
                   <span className="bms-unit-seq-num">
-                    {sectionIdx + 1}.{i + 1}
+                    {sectionIdx + 1}.{subsectionIdx + 1}.{i + 1}
                   </span>
                   <UnitTypeIcon type={u.type} />
                 </Link>

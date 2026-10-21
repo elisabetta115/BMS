@@ -1,6 +1,6 @@
-// app/api/units/[unitId]/slides/route.ts
-// Shows a PowerPoint unit in Microsoft's Office Online viewer, which draws the
-// slides as PowerPoint does. (They used to be converted to PDF with
+// app/api/units/[unitId]/office/route.ts
+// Shows a Word, Excel or PowerPoint unit in Microsoft's Office Online viewer,
+// which draws it as Office does. (Such files used to be converted to PDF with
 // LibreOffice, which Amplify doesn't have.) The viewer downloads the file
 // itself from Microsoft's servers, so it gets a link anyone can open: a
 // presigned S3 URL, or for a file still kept in the database, /pptx/:unitId.
@@ -37,7 +37,7 @@ export async function GET(
 
     return NextResponse.redirect(OFFICE_VIEWER + encodeURIComponent(fileUrl));
   } catch (err) {
-    console.error("Slides viewer error:", err);
+    console.error("Office viewer error:", err);
     return new NextResponse("Error", { status: 500 });
   }
 }
