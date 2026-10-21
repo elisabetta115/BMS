@@ -21,7 +21,7 @@ export async function GET(
     }
 
     if (unit.fileKey) {
-      const url = await createDownloadUrl(unit.fileKey);
+      const url = await createDownloadUrl(unit.fileKey, { disposition: "attachment" });
       if (!url) return new NextResponse("File storage isn't configured.", { status: 500 });
       return NextResponse.redirect(url);
     }

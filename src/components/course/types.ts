@@ -29,6 +29,7 @@ export interface Unit {
   weight: number;
   videoUrl: string | null;
   hasFile: boolean;
+  fileMime?: string | null;
   questions: Question[];
 }
 

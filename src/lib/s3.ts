@@ -20,6 +20,11 @@ export function isS3Configured(): boolean {
   return getClient() !== null;
 }
 
+function newKey(prefix: string, filename: string): string {
+  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
+  return `${prefix}/${randomUUID()}-${safeName}`;
+}
+
 /**
  * A presigned URL the browser can PUT the file to directly, bypassing our
  * server entirely. Returns null if S3 isn't configured.
@@ -32,8 +37,7 @@ export async function createUploadUrl(
   const client = getClient();
   if (!client || !bucket) return null;
 
-  const safeName = filename.replace(/[^a-zA-Z0-9._-]/g, "_");
-  const key = `${prefix}/${randomUUID()}-${safeName}`;
+  const key = newKey(prefix, filename);
 
   const uploadUrl = await getSignedUrl(
     client,
@@ -42,6 +46,24 @@ export async function createUploadUrl(
   );
 
   return { uploadUrl, key };
+}
+
+/**
+ * Uploads bytes from the server (e.g. a file unpacked from an imported course)
+ * under a new key, named like createUploadUrl's. Returns null if S3 isn't configured.
+ */
+export async function uploadObject(
+  body: Buffer,
+  filename: string,
+  contentType: string,
+  prefix: string
+): Promise<string | null> {
+  const client = getClient();
+  if (!client || !bucket) return null;
+
+  const key = newKey(prefix, filename);
+  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+  return key;
 }
 
 /** Fetches an object's bytes server-side — not subject to any client request size limit. */
@@ -58,11 +80,22 @@ export async function getObjectBuffer(key: string): Promise<Buffer | null> {
   return Buffer.concat(chunks);
 }
 
-/** A short-lived URL the browser can GET the file from directly (for serving unit files). */
-export async function createDownloadUrl(key: string): Promise<string | null> {
+/**
+ * A short-lived URL the browser can GET the file from directly (for serving unit files).
+ * `disposition` ("inline" / "attachment") overrides how the browser treats it;
+ * `expiresIn` is in seconds.
+ */
+export async function createDownloadUrl(
+  key: string,
+  { disposition, expiresIn = 300 }: { disposition?: "inline" | "attachment"; expiresIn?: number } = {}
+): Promise<string | null> {
   const client = getClient();
   if (!client || !bucket) return null;
-  return getSignedUrl(client, new GetObjectCommand({ Bucket: bucket, Key: key }), { expiresIn: 300 });
+  return getSignedUrl(
+    client,
+    new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: disposition }),
+    { expiresIn }
+  );
 }
 
 export async function deleteObject(key: string): Promise<void> {

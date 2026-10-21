@@ -39,8 +39,8 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
-import { getObjectBuffer, deleteObject } from "@/lib/s3";
-import { extractTarGz, parseOlx, type ParsedCourse } from "@/lib/olx-import";
+import { getObjectBuffer, deleteObject, uploadObject } from "@/lib/s3";
+import { extractTarGz, parseOlx, type ParsedCourse, type ParsedUnit } from "@/lib/olx-import";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -227,6 +227,7 @@ export async function POST(req: NextRequest) {
   // fails so a half-finished import doesn't linger.
   let credentialId = "";
   let credentialAction: "created" | "replaced" | "skipped" = "created";
+  const uploadedKeys: string[] = [];
 
   try {
     // 1. Credential.
@@ -234,6 +235,19 @@ export async function POST(req: NextRequest) {
       credentialId = existingCredential.id;
       credentialAction = "skipped";
     } else {
+      // Presentation files go to S3, like files uploaded in the admin: learners'
+      // browsers load them from there, because Amplify cuts off any response
+      // from our server above 5.72 MB and course PDFs are often bigger.
+      const fileKeys = new Map<ParsedUnit, string>();
+      for (const u of course.sections.flatMap((s) => s.subsections.flatMap((ss) => ss.units))) {
+        if (u.type !== "PRESENTATION" || !u.file) continue;
+        const fileKey = await uploadObject(Buffer.from(u.file.base64, "base64"), u.file.name, u.file.mime, "unit-files");
+        if (fileKey) {
+          fileKeys.set(u, fileKey);
+          uploadedKeys.push(fileKey);
+        }
+      }
+
       const sectionsCreate = course.sections.map((s, si) => ({
         title: s.title,
         order: si,
@@ -246,7 +260,9 @@ export async function POST(req: NextRequest) {
                 const unit: any = { title: u.title, type: u.type, order: ui, weight: Number(u.weight) || 0 };
                 if (u.type === "VIDEO") unit.videoUrl = u.videoUrl || null;
                 if (u.type === "PRESENTATION" && u.file) {
-                  unit.fileData = Buffer.from(u.file.base64, "base64");
+                  const fileKey = fileKeys.get(u);
+                  if (fileKey) unit.fileKey = fileKey;
+                  else unit.fileData = Buffer.from(u.file.base64, "base64");
                   unit.fileMime = u.file.mime;
                   unit.fileName = u.file.name;
                 }
@@ -269,7 +285,13 @@ export async function POST(req: NextRequest) {
         },
       }));
 
+      let staleKeys: string[] = [];
       if (existingCredential && onExistingCredential === "replace") {
+        const oldUnits = await prisma.credentialUnit.findMany({
+          where: { subsection: { section: { credentialId: existingCredential.id } }, fileKey: { not: null } },
+          select: { fileKey: true },
+        });
+        staleKeys = oldUnits.map((u) => u.fileKey!);
         await prisma.microCredential.delete({ where: { id: existingCredential.id } });
       }
 
@@ -294,6 +316,7 @@ export async function POST(req: NextRequest) {
       });
       credentialId = cred.id;
       credentialAction = existingCredential ? "replaced" : "created";
+      await Promise.all(staleKeys.map((k) => deleteObject(k).catch(() => {})));
     }
 
     // 2. Link credential ↔ programme — only if the admin explicitly picked one.
@@ -317,6 +340,7 @@ export async function POST(req: NextRequest) {
     if (credentialId && credentialAction !== "skipped") {
       await prisma.microCredential.delete({ where: { id: credentialId } }).catch(() => {});
     }
+    await Promise.all(uploadedKeys.map((k) => deleteObject(k).catch(() => {})));
     return NextResponse.json({ error: err?.message || "Import failed." }, { status: 500 });
   }
 }

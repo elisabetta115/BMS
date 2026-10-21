@@ -57,15 +57,24 @@ function RichText({ text }: { text: string }) {
 const EFFORT = "Up to 15hrs per week for 5 weeks";
 
 
+/** Words that start a university's or institute's name, in the languages of the partners. */
+const INSTITUTION = /(universit|univerzit|universitet|institut|polytechn|politecn|politècnic|college|school of|academy|laborator)/i;
+
 /**
  * "Created and delivered by" is stored as "Authors, University" (the importer joins
  * the live sidebar's two lines that way). Split it back so the university gets its
- * own smaller line, as on the live page.
+ * own smaller line, as on the live page. University names can contain commas
+ * ("Polytechnic University of Valencia, Institute of Energy Engineering (UPV, IIE)"),
+ * so the university starts at the first part that names an institution; failing
+ * that, after the last comma.
  */
 function splitDevelopedBy(developedBy: string, organisation: string | null): { author: string; university: string | null } {
   if (organisation && developedBy.endsWith(`, ${organisation}`)) {
     return { author: developedBy.slice(0, -(organisation.length + 2)), university: organisation };
   }
+  const parts = developedBy.split(", ");
+  const start = parts.findIndex((p, i) => i > 0 && INSTITUTION.test(p));
+  if (start > 0) return { author: parts.slice(0, start).join(", "), university: parts.slice(start).join(", ") };
   const i = developedBy.lastIndexOf(", ");
   if (i === -1) return { author: developedBy, university: null };
   return { author: developedBy.slice(0, i), university: developedBy.slice(i + 2) };

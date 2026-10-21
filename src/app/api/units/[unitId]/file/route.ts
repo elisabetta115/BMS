@@ -30,7 +30,9 @@ export async function GET(
     // served by redirecting the browser there directly, rather than
     // streaming the bytes back through this route.
     if (unit.fileKey) {
-      const url = await createDownloadUrl(unit.fileKey);
+      const url = await createDownloadUrl(unit.fileKey, {
+        disposition: unit.fileMime === "application/pdf" ? "inline" : "attachment",
+      });
       if (!url) return new NextResponse("File storage isn't configured.", { status: 500 });
       return NextResponse.redirect(url);
     }

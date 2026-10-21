@@ -250,64 +250,19 @@ function VideoPlayer({ unit, onComplete }: { unit: Unit; onComplete: () => void 
 
 /* ── Presentation viewer ────────────────────────────────────── */
 function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () => void }) {
-  const [status, setStatus] = useState<"loading" | "ok" | "error">("loading");
-  const [blobUrl, setBlobUrl] = useState<string | null>(null);
-
   // Like videos, a presentation counts as complete as soon as it is opened.
   useEffect(() => {
     onComplete();
   }, [onComplete]);
 
-  useEffect(() => {
-    if (!unit.hasFile) return;
-    let objectUrl: string | null = null;
-    fetch(`/api/units/${unit.id}/pdf`)
-      .then((res) => {
-        if (!res.ok) throw new Error(`HTTP ${res.status}`);
-        return res.blob();
-      })
-      .then((blob) => {
-        objectUrl = URL.createObjectURL(blob);
-        setBlobUrl(objectUrl);
-        setStatus("ok");
-      })
-      .catch(() => setStatus("error"));
-    return () => {
-      if (objectUrl) URL.revokeObjectURL(objectUrl);
-    };
-  }, [unit.id, unit.hasFile]);
-
   if (!unit.hasFile) return <p className="bms-learn-text">No presentation file uploaded for this unit.</p>;
 
-  const downloadUrl = `/pptx/${unit.id}`;
-
-  if (status === "loading") {
-    return (
-      <div
-        className="flex flex-col items-center justify-center gap-3 rounded-xl border border-brand-line bg-brand-wash"
-        style={{ height: "70vh", minHeight: 460 }}
-      >
-        <div className="h-8 w-8 animate-spin rounded-full border-[3px] border-brand-green border-t-transparent" />
-        <p className="bms-learn-video-hint">Preparing presentation…</p>
-      </div>
-    );
-  }
-
-  if (status === "error") {
-    return (
-      <div
-        className="flex flex-col items-center justify-center gap-4 rounded-xl border border-brand-line bg-brand-wash px-8 text-center"
-        style={{ height: "70vh", minHeight: 460 }}
-      >
-        <p className="bms-learn-text" style={{ margin: 0 }}>
-          The presentation could not be displayed. Download it to view on your device.
-        </p>
-        <a href={downloadUrl} download onClick={onComplete} className="bms-learn-check">
-          <FileDown aria-hidden="true" size={16} /> Download presentation
-        </a>
-      </div>
-    );
-  }
+  // The frame loads the file itself rather than fetching it first: files in S3
+  // come straight from there (the routes redirect), never through our server,
+  // whose responses Amplify cuts off above 5.72 MB. PowerPoint files open in
+  // Microsoft's Office Online viewer.
+  const isPdf = unit.fileMime === "application/pdf";
+  const viewUrl = isPdf ? `/api/units/${unit.id}/file` : `/api/units/${unit.id}/slides`;
 
   return (
     <div>
@@ -315,14 +270,14 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
         className="overflow-hidden rounded-xl border border-brand-line bg-brand-wash"
         style={{ height: "70vh", minHeight: 460 }}
       >
-        <iframe src={blobUrl!} className="h-full w-full border-0" title={unit.title} />
+        <iframe src={viewUrl} className="h-full w-full border-0" title={unit.title} allowFullScreen />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
-        <a href={blobUrl!} target="_blank" rel="noopener noreferrer" className="bms-learn-nav">
+        <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="bms-learn-nav">
           <ExternalLink aria-hidden="true" size={16} /> Open in new tab
         </a>
-        <a href={downloadUrl} download onClick={onComplete} className="bms-learn-nav">
-          <FileDown aria-hidden="true" size={16} /> Download .pptx
+        <a href={`/pptx/${unit.id}`} download className="bms-learn-nav">
+          <FileDown aria-hidden="true" size={16} /> {isPdf ? "Download PDF" : "Download PowerPoint"}
         </a>
       </div>
     </div>

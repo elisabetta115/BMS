@@ -39,3 +39,5 @@ yarn-error.log*
 # local only: screenshots of the live site (personal data) and test course exports
 /screenshot/
 /test-imports/
+/input.png
+/output.png
