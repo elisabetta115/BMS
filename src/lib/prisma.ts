@@ -26,9 +26,11 @@ const pool =
     // RDS requires TLS; verify the server against the Amazon RDS CAs so a
     // spoofed host can't receive the password.
     ssl: isLocalDatabase(process.env.DATABASE_URL) ? false : { ca: RDS_CA },
-    // Amplify SSR runs on short-lived serverless instances; keep each pool small
-    // so many concurrent instances don't exhaust the db.t4g.micro connection cap.
-    max: 5,
+    // Amplify SSR runs each request on its own serverless instance, and idle
+    // instances keep their connections open for minutes. With 5 per instance the
+    // db.t4g.micro ran out of connections (P2037, 2026-10-27); an instance only
+    // serves one request at a time, so one connection is enough.
+    max: 1,
     idleTimeoutMillis: 10_000,
   });
 

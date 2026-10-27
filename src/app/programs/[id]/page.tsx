@@ -352,19 +352,6 @@ export default function ProgrammeDetailPage() {
                       strokeDashoffset={-(segment * i + 3)}
                     />
                   ))}
-                  {programme.credentials.map((c, i) => (
-                    <circle
-                      key={`tick-${c.id}`}
-                      cx="125"
-                      cy="125"
-                      r={ringRadius}
-                      fill="none"
-                      stroke="#079845"
-                      strokeWidth="28"
-                      strokeDasharray={`6 ${2 * Math.PI * ringRadius}`}
-                      strokeDashoffset={-(segment * i - 3)}
-                    />
-                  ))}
                 </svg>
                 <span>
                   {completedCount} / {totalCourses}

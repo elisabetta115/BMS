@@ -109,8 +109,8 @@ export default function CourseProgressPage() {
     });
   }
 
-  // Donut ring for course completion.
-  const ringRadius = 64;
+  // Donut ring for course completion; the hole (2 × 75px) is wide enough for "100%".
+  const ringRadius = 87;
   const ringCircumference = 2 * Math.PI * ringRadius;
   const gradeBar = Math.min(currentGrade, 100);
 
@@ -131,16 +131,16 @@ export default function CourseProgressPage() {
                 </p>
               </div>
               <div className="bms-progress-ring" aria-label={`${completion}% of the course completed`}>
-                <svg width="160" height="160" viewBox="0 0 160 160" className="-rotate-90" aria-hidden="true">
-                  <circle cx="80" cy="80" r={ringRadius} fill="none" stroke="#d5e7d0" strokeWidth="26" />
+                <svg width="200" height="200" viewBox="0 0 200 200" className="-rotate-90" aria-hidden="true">
+                  <circle cx="100" cy="100" r={ringRadius} fill="none" stroke="#d5e7d0" strokeWidth="24" />
                   {completion > 0 && (
                     <circle
-                      cx="80"
-                      cy="80"
+                      cx="100"
+                      cy="100"
                       r={ringRadius}
                       fill="none"
                       stroke="#079845"
-                      strokeWidth="26"
+                      strokeWidth="24"
                       strokeDasharray={`${(ringCircumference * completion) / 100} ${ringCircumference}`}
                     />
                   )}

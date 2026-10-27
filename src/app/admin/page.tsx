@@ -1025,9 +1025,16 @@ export default function AdminPage() {
                                   <span className="text-xs font-medium text-brand-muted">Q{qi + 1}</span>
                                   <button type="button" onClick={() => removeUnitQ(si, ssi, ui, qi)} className="text-xs text-red-500 hover:underline">Remove</button>
                                 </div>
+                                {/* Widths go on the wrappers: .auth-input's width: 100% overrides Tailwind width classes. */}
                                 <div className="flex gap-2 mb-2">
-                                  <input className="auth-input flex-1 text-sm" placeholder="Name shown above the question (optional)" value={q.title ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "title", e.target.value || null)} />
-                                  <input className="auth-input w-48 text-sm" type="number" min={1} placeholder="Tries (empty = unlimited)" value={q.maxAttempts ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "maxAttempts", e.target.value ? Math.max(1, parseInt(e.target.value, 10) || 1) : null)} />
+                                  <div className="flex-1 min-w-0">
+                                    <label className="bms-admin-label">Heading (optional)</label>
+                                    <input className="auth-input text-sm" placeholder={qi === 0 ? "Empty = the unit name" : "Shown above the question"} value={q.title ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "title", e.target.value || null)} />
+                                  </div>
+                                  <div className="w-48 shrink-0">
+                                    <label className="bms-admin-label">Tries allowed</label>
+                                    <input className="auth-input text-sm" type="number" min={1} placeholder="Unlimited" value={q.maxAttempts ?? ""} onChange={e => updateUnitQ(si, ssi, ui, qi, "maxAttempts", e.target.value ? Math.max(1, parseInt(e.target.value, 10) || 1) : null)} />
+                                  </div>
                                 </div>
                                 <input className="auth-input text-sm mb-2" placeholder="Question" value={q.question} onChange={e => updateUnitQ(si, ssi, ui, qi, "question", e.target.value)} />
                                 {q.options.map((opt, oi) => (
