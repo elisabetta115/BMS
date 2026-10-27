@@ -47,7 +47,7 @@ export async function POST(req: NextRequest) {
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, imageBase64, imageMime } = await req.json();
+    const { title, slug, code, project, imageBase64, imageMime } = await req.json();
     if (!title || !code) return NextResponse.json({ error: "Title and code required." }, { status: 400 });
 
     const baseSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
@@ -63,7 +63,6 @@ export async function POST(req: NextRequest) {
     const data: any = {
       title, slug: finalSlug, code,
       project: project || "",
-      description: description || null,
     };
 
     if (imageBase64 && imageMime) {

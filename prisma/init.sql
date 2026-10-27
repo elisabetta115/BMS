@@ -141,7 +141,6 @@ CREATE TABLE "micro_programmes" (
     "slug" TEXT NOT NULL,
     "code" TEXT NOT NULL,
     "project" TEXT NOT NULL,
-    "description" TEXT,
     "image" TEXT,
     "image_data" BYTEA,
     "image_mime" TEXT,

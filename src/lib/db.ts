@@ -46,7 +46,6 @@ export interface DBMicroProgramme {
   slug: string;
   code: string;
   project: string;
-  description: string | null;
   image: string | null;
   hasImage?: boolean;
   credentials?: DBMicroCredential[];
@@ -369,7 +368,7 @@ export async function getAllMicroProgrammes(): Promise<DBMicroProgramme[]> {
   if (!supabase) throw new Error("No database configured.");
   const { data, error } = await supabase
     .from("micro_programmes")
-    .select("id, title, slug, code, project, description, image")
+    .select("id, title, slug, code, project, image")
     .order("code");
   if (error) throw error;
   return (data || []).map((d: any) => ({
@@ -378,7 +377,6 @@ export async function getAllMicroProgrammes(): Promise<DBMicroProgramme[]> {
     slug: d.slug,
     code: d.code,
     project: d.project,
-    description: d.description,
     image: d.image,
   }));
 }
@@ -407,7 +405,7 @@ export async function getMicroProgrammeById(
   if (!supabase) throw new Error("No database configured.");
   const { data } = await supabase
     .from("micro_programmes")
-    .select("id, title, slug, code, project, description, image")
+    .select("id, title, slug, code, project, image")
     .eq("id", id)
     .single();
   if (!data) return null;
@@ -417,7 +415,6 @@ export async function getMicroProgrammeById(
     slug: data.slug,
     code: data.code,
     project: data.project,
-    description: data.description,
     image: data.image,
   };
 }
@@ -427,7 +424,6 @@ export async function createMicroProgramme(input: {
   slug: string;
   code: string;
   project: string;
-  description?: string;
   image?: string;
 }): Promise<DBMicroProgramme> {
   if (prisma) {
@@ -442,10 +438,9 @@ export async function createMicroProgramme(input: {
       slug: input.slug,
       code: input.code,
       project: input.project,
-      description: input.description || null,
       image: input.image || null,
     })
-    .select("id, title, slug, code, project, description, image")
+    .select("id, title, slug, code, project, image")
     .single();
   if (error) throw error;
   return {
@@ -454,7 +449,6 @@ export async function createMicroProgramme(input: {
     slug: data.slug,
     code: data.code,
     project: data.project,
-    description: data.description,
     image: data.image,
   };
 }
@@ -466,7 +460,6 @@ export async function updateMicroProgramme(
     slug: string;
     code: string;
     project: string;
-    description: string;
     image: string;
   }>
 ): Promise<DBMicroProgramme> {
@@ -479,7 +472,7 @@ export async function updateMicroProgramme(
     .from("micro_programmes")
     .update(input)
     .eq("id", id)
-    .select("id, title, slug, code, project, description, image")
+    .select("id, title, slug, code, project, image")
     .single();
   if (error) throw error;
   return {
@@ -488,7 +481,6 @@ export async function updateMicroProgramme(
     slug: data.slug,
     code: data.code,
     project: data.project,
-    description: data.description,
     image: data.image,
   };
 }
@@ -582,7 +574,7 @@ export async function getUserEnrolledProgrammes(userId: string): Promise<DBMicro
   if (!supabase) throw new Error("No database configured.");
   const { data, error } = await supabase
     .from("programme_enrollments")
-    .select("programme_id, micro_programmes(id, title, slug, code, project, description, image)")
+    .select("programme_id, micro_programmes(id, title, slug, code, project, image)")
     .eq("user_id", userId)
     .order("enrolled_at", { ascending: false });
   if (error) throw error;

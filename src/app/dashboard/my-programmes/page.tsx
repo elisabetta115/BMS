@@ -23,7 +23,6 @@ interface MicroProgramme {
   slug: string;
   code: string;
   project: string;
-  description: string | null;
   image: string | null;
   hasImage?: boolean;
   credentials?: MicroCredential[];

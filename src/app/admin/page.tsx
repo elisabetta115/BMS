@@ -42,7 +42,7 @@ interface MicroCredential {
 
 interface MicroProgramme {
   id: string; title: string; slug: string; code: string; project: string;
-  description: string | null; image: string | null; hasImage: boolean; credentials?: MicroCredential[];
+  image: string | null; hasImage: boolean; credentials?: MicroCredential[];
 }
 
 interface Certificate {
@@ -447,7 +447,7 @@ export default function AdminPage() {
     return () => document.removeEventListener("keydown", onKey);
   }, [confirmDialog]);
 
-  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", description: "", image: "" });
+  const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", image: "" });
   const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
 
@@ -611,7 +611,7 @@ export default function AdminPage() {
       setEditingProg(programme);
       setImageVersion(v => v + 1);
       const imgUrl = programme.hasImage ? imageUrlFor("programme", programme.id, imageVersion + 1, null) : programme.image || "";
-      setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, description: programme.description || "", image: imgUrl });
+      setProgForm({ title: programme.title, slug: programme.slug, code: programme.code, project: programme.project, image: imgUrl });
       // Already in an edit view, no new history push needed.
       setView("edit-prog");
     }
@@ -623,14 +623,14 @@ export default function AdminPage() {
 
   function newProg() {
     pushAdminHistory("new-prog");
-    setProgForm({ title: "", slug: "", code: "", project: "", description: "", image: "" });
+    setProgForm({ title: "", slug: "", code: "", project: "", image: "" });
     setEditingProg(null); setFormError(""); setReturnTab("programmes"); setView("new-prog");
   }
 
   function editProg(p: MicroProgramme) {
     pushAdminHistory("edit-prog");
     const imgUrl = p.hasImage ? imageUrlFor("programme", p.id, imageVersion, null) : p.image || "";
-    setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, description: p.description || "", image: imgUrl });
+    setProgForm({ title: p.title, slug: p.slug, code: p.code, project: p.project, image: imgUrl });
     setEditingProg(p); setFormError(""); setReturnTab("programmes");
     setCredPickerOpen(false); setAddCredDropOpen(false);
     setView("edit-prog");
@@ -855,7 +855,6 @@ export default function AdminPage() {
         <div><label className="bms-admin-label">Title *</label><input className="auth-input" value={progForm.title} onChange={e => setProgForm({ ...progForm, title: e.target.value })} required /></div>
         <div><label className="bms-admin-label">Code *</label><input className="auth-input" value={progForm.code} onChange={e => setProgForm({ ...progForm, code: e.target.value })} required placeholder="e.g. MP1" /></div>
         <div className="md:col-span-2"><label className="bms-admin-label">Project</label><input className="auth-input" list="project-options" value={progForm.project} onChange={e => setProgForm({ ...progForm, project: e.target.value })} placeholder="Select or type a project name" /><datalist id="project-options">{allProjects.map(p => <option key={p} value={p} />)}</datalist></div>
-        <div className="md:col-span-2"><label className="bms-admin-label">Description</label><textarea className="auth-input" rows={2} value={progForm.description} onChange={e => setProgForm({ ...progForm, description: e.target.value })} /></div>
         <div className="md:col-span-2"><label className="bms-admin-label">Image</label><ImageUploader value={progForm.image} onChange={url => setProgForm({ ...progForm, image: url })} /></div>
       </div>
     );

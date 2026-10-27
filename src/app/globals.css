@@ -6312,7 +6312,7 @@ a.bms-auth-submit {
   border-radius: 1.25rem;
   margin: 1.5rem auto 0;
   max-width: 21.9rem;
-  padding: 2rem 1.5rem;
+  padding: 2rem 1.5rem 3rem;
   text-align: center;
 }
 
@@ -6325,17 +6325,17 @@ a.bms-auth-submit {
 }
 
 .bms-prog-ring {
-  height: 250px;
+  height: 210px;
   margin: 0 auto;
   position: relative;
-  width: 250px;
+  width: 210px;
 }
 
 .bms-prog-ring span {
   align-items: center;
   color: #079845;
   display: flex;
-  font-size: 4rem;
+  font-size: 2.75rem;
   font-weight: 600;
   inset: 0;
   justify-content: center;

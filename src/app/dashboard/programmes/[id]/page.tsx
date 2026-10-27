@@ -20,7 +20,6 @@ interface MicroProgramme {
   slug: string;
   code: string;
   project: string;
-  description: string | null;
   hasImage: boolean;
   credentials: MicroCredential[];
 }
@@ -155,7 +154,6 @@ export default function ProgrammeDetailPage() {
               <div className="p-8">
                 <p className="text-sm text-brand-muted mb-2">{programme.code} | {programme.project}</p>
                 <h1 className="text-3xl font-bold mb-4" style={{ color: "var(--bms-dark)" }}>{programme.title}</h1>
-                {programme.description && <p className="text-brand-muted mb-6">{programme.description}</p>}
                 <p className="text-sm text-brand-muted mb-6">This programme includes <strong>{programme.credentials.length}</strong> micro-credentials.</p>
                 <button onClick={handleEnroll} disabled={enrolling} className="px-8 py-3 rounded-full text-white font-medium text-sm" style={{ background: "var(--bms-green)" }}>
                   {enrolling ? "Enrolling…" : "Enroll in this programme"}
@@ -198,7 +196,6 @@ export default function ProgrammeDetailPage() {
               <h1 className="mb-6 text-4xl font-bold leading-tight text-brand-dark md:text-5xl">
                 {programme.title}
               </h1>
-              {programme.description && <p className="mb-8 text-lg leading-8 text-brand-muted">{programme.description}</p>}
 
               <div className={`rounded-2xl p-6 mb-10 ${hasPassed ? "border border-brand-line bg-brand-pale" : "bg-brand-pale"}`}>
                 {hasPassed ? (

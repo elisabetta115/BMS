@@ -13,7 +13,7 @@ export default function ProgrammeCard({ programme }: { programme: Programme }) {
             <img
               src={programme.image}
               alt={programme.title}
-              className="h-full w-full object-cover transition duration-300 hover:scale-[1.03]"
+              className="h-full w-full object-cover"
               onError={(e) => {
                 (e.target as HTMLImageElement).style.display = "none";
               }}

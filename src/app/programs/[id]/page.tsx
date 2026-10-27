@@ -22,7 +22,6 @@ interface MicroProgramme {
   slug: string;
   code: string;
   project: string;
-  description: string | null;
   hasImage: boolean;
   credentials: MicroCredential[];
 }
@@ -185,7 +184,7 @@ export default function ProgrammeDetailPage() {
                 </div>
                 <div className="border-2 border-gray-200 rounded-2xl p-8 text-center">
                   <div className="h-5 w-36 bg-gray-200 rounded animate-pulse mx-auto mb-6" />
-                  <div className="w-[220px] h-[220px] rounded-full bg-gray-200 animate-pulse mx-auto" />
+                  <div className="w-[210px] h-[210px] rounded-full bg-gray-200 animate-pulse mx-auto" />
                 </div>
               </aside>
             </div>
@@ -221,9 +220,12 @@ export default function ProgrammeDetailPage() {
   const remainingCourses = programme.credentials.filter((c) => !credProgress[c.id]?.hasPassed);
   const hasPassed = enrolled && progressLoaded && totalCourses > 0 && completedCount === totalCourses;
 
-  // Segmented progress ring: one segment per course, green once that course is passed.
-  const ringRadius = 108;
-  const segment = (2 * Math.PI * ringRadius) / Math.max(totalCourses, 1);
+  // Segmented progress ring: one segment per course, starting at 9 o'clock and filling clockwise
+  // with the passed count. The dark ring underneath shows through as the ticks between segments.
+  const ringRadius = 91;
+  const ringCircumference = 2 * Math.PI * ringRadius;
+  const ringTick = 11;
+  const segment = ringCircumference / Math.max(totalCourses, 1);
 
   function courseButton(c: MicroCredential) {
     if (enrolledCredIds.has(c.id)) {
@@ -338,20 +340,23 @@ export default function ProgrammeDetailPage() {
             <div className="bms-prog-progress">
               <h2>Programme Progress</h2>
               <div className="bms-prog-ring">
-                <svg width="250" height="250" viewBox="0 0 250 250" className="-rotate-90" aria-hidden="true">
-                  {programme.credentials.map((c, i) => (
-                    <circle
-                      key={c.id}
-                      cx="125"
-                      cy="125"
-                      r={ringRadius}
-                      fill="none"
-                      stroke={credProgress[c.id]?.hasPassed ? "#079845" : "#d5e7d0"}
-                      strokeWidth="28"
-                      strokeDasharray={`${segment - 6} ${2 * Math.PI * ringRadius}`}
-                      strokeDashoffset={-(segment * i + 3)}
-                    />
-                  ))}
+                <svg width="210" height="210" viewBox="0 0 210 210" className="rotate-180" aria-hidden="true">
+                  <circle cx="105" cy="105" r={ringRadius} fill="none" stroke="#079845" strokeWidth="28" />
+                  {programme.credentials.map((c, i) =>
+                    i < completedCount ? null : (
+                      <circle
+                        key={c.id}
+                        cx="105"
+                        cy="105"
+                        r={ringRadius}
+                        fill="none"
+                        stroke="#d5e7d0"
+                        strokeWidth="28"
+                        strokeDasharray={`${segment - ringTick} ${ringCircumference}`}
+                        strokeDashoffset={-segment * i}
+                      />
+                    )
+                  )}
                 </svg>
                 <span>
                   {completedCount} / {totalCourses}

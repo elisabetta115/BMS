@@ -197,7 +197,6 @@ model MicroProgramme {
   slug        String   @unique
   code        String
   project     String
-  description String?
   image       String?
   imageData   Bytes?   @map("image_data")
   imageMime   String?  @map("image_mime")

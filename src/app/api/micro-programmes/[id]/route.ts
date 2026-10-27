@@ -72,14 +72,13 @@ export async function PATCH(
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { id } = await params;
-    const { title, slug, code, project, description, imageBase64, imageMime, removeImage } = await req.json();
+    const { title, slug, code, project, imageBase64, imageMime, removeImage } = await req.json();
 
     const data: any = {};
     if (title !== undefined) data.title = title;
     if (slug !== undefined) data.slug = slug;
     if (code !== undefined) data.code = code;
     if (project !== undefined) data.project = project;
-    if (description !== undefined) data.description = description || null;
 
     if (imageBase64 && imageMime) {
       data.imageData = Buffer.from(imageBase64, "base64");
