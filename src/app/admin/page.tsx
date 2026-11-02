@@ -979,7 +979,7 @@ export default function AdminPage() {
                                       <label className={`inline-flex items-center gap-2 px-4 py-2 rounded-lg border border-gray-300 text-sm font-medium cursor-pointer transition-colors bg-white text-brand-dark hover:border-gray-400 ${isUploading ? "opacity-60 pointer-events-none" : ""}`}>
                                         <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" /><polyline points="17 8 12 3 7 8" /><line x1="12" y1="3" x2="12" y2="15" /></svg>
                                         {isUploading ? `Uploading… ${unitUploadPct ?? 0}%` : "Upload presentation"}
-                                        <input type="file" accept=".pptx,.ppt,.pdf" className="hidden" disabled={isUploading} onChange={async e => {
+                                        <input type="file" accept=".pptx,.ppt,.pdf,.xlsx,.xls" className="hidden" disabled={isUploading} onChange={async e => {
                                           const file = e.target.files?.[0];
                                           e.target.value = "";
                                           if (!file) return;
@@ -988,7 +988,7 @@ export default function AdminPage() {
                                           setUploadingUnitKey(unitKey);
                                           setUnitUploadPct(0);
                                           try {
-                                            const mime = file.type || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
+                                            const mime = file.type || "application/octet-stream";
                                             const key = await uploadToStorage(file, "unit-file", setUnitUploadPct);
                                             updateUnit(si, ssi, ui, "fileBase64", "");
                                             updateUnit(si, ssi, ui, "fileKey", key);
@@ -1010,7 +1010,7 @@ export default function AdminPage() {
                                     </>
                                   );
                                 })()}
-                                <p className="bms-admin-help">PPTX, PPT, or PDF, max 1 GB. PDFs preview inline.</p>
+                                <p className="bms-admin-help">PPTX, PPT, PDF, XLSX or XLS, max 1 GB. PDFs preview inline.</p>
                               </div>
                             )}
                           </div>

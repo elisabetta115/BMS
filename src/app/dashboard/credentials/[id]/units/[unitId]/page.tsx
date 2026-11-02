@@ -6,7 +6,7 @@ import CourseHeader, { CourseFallback } from "@/components/course/CourseHeader";
 import { useCourse } from "@/components/course/useCourse";
 import { flatUnits, type Answer, type Question, type Unit } from "@/components/course/types";
 import Link from "next/link";
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useRef } from "react";
 import { useRouter, useParams } from "next/navigation";
 import {
   ArrowLeft,
@@ -19,6 +19,7 @@ import {
   ExternalLink,
   FileDown,
   Info,
+  Maximize,
   Save,
   SquarePen,
   Video,
@@ -252,11 +253,28 @@ function VideoPlayer({ unit, onComplete }: { unit: Unit; onComplete: () => void 
 /** File types Microsoft's Office Online viewer can show. */
 const OFFICE_EXTENSIONS = ["doc", "docx", "xls", "xlsx", "xlsm", "ppt", "pptx"];
 
+function fileExtension(unit: Unit): string {
+  return (unit.fileName || "").toLowerCase().split(".").pop() || "";
+}
+
+/** An Excel file. Its grid needs more room than a slide, so its unit page is wider and its frame taller. */
+function isSpreadsheet(unit: Unit): boolean {
+  return ["xls", "xlsx", "xlsm"].includes(fileExtension(unit)) || /ms-excel|spreadsheetml/.test(unit.fileMime || "");
+}
+
 function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () => void }) {
   // Like videos, a presentation counts as complete as soon as it is opened.
   useEffect(() => {
     onComplete();
   }, [onComplete]);
+
+  // Full screen shows the file on the whole screen (Esc leaves). iPhones can't
+  // put anything but a video in full screen, so they get no button.
+  const frameRef = useRef<HTMLDivElement>(null);
+  const [canFullscreen, setCanFullscreen] = useState(false);
+  useEffect(() => {
+    setCanFullscreen(!!document.fullscreenEnabled);
+  }, []);
 
   if (!unit.hasFile) return <p className="bms-learn-text">No presentation file uploaded for this unit.</p>;
 
@@ -265,7 +283,7 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
   // whose responses Amplify cuts off above 5.72 MB. Word, Excel and PowerPoint
   // files open in Microsoft's Office Online viewer. Imported ones are typed
   // application/octet-stream, so the file name decides.
-  const ext = (unit.fileName || "").toLowerCase().split(".").pop() || "";
+  const ext = fileExtension(unit);
   const isPdf = unit.fileMime === "application/pdf" || ext === "pdf";
   const isOffice = OFFICE_EXTENSIONS.includes(ext) || /officedocument|ms-powerpoint|ms-excel|msword/.test(unit.fileMime || "");
   const viewUrl = isPdf ? `/api/units/${unit.id}/file` : isOffice ? `/api/units/${unit.id}/office` : null;
@@ -288,12 +306,18 @@ function PresentationViewer({ unit, onComplete }: { unit: Unit; onComplete: () =
   return (
     <div>
       <div
-        className="overflow-hidden rounded-xl border border-brand-line bg-brand-wash"
-        style={{ height: "70vh", minHeight: 460 }}
+        ref={frameRef}
+        className="bms-unit-frame overflow-hidden rounded-xl border border-brand-line bg-brand-wash"
+        style={isSpreadsheet(unit) ? { height: "85vh", minHeight: 560 } : { height: "70vh", minHeight: 460 }}
       >
         <iframe src={viewUrl} className="h-full w-full border-0" title={unit.title} allowFullScreen />
       </div>
       <div className="mt-3 flex flex-wrap items-center justify-end gap-3">
+        {canFullscreen && (
+          <button type="button" className="bms-learn-nav" onClick={() => frameRef.current?.requestFullscreen()}>
+            <Maximize aria-hidden="true" size={16} /> Full screen
+          </button>
+        )}
         <a href={viewUrl} target="_blank" rel="noopener noreferrer" className="bms-learn-nav">
           <ExternalLink aria-hidden="true" size={16} /> Open in new tab
         </a>
@@ -424,7 +448,7 @@ export default function UnitViewerPage() {
           </button>
         </div>
 
-        <div className="bms-unit-body">
+        <div className={cn("bms-unit-body", unit.type === "PRESENTATION" && isSpreadsheet(unit) && "is-wide")}>
           <h1 className="bms-unit-title">{unit.title}</h1>
 
           <div className="bms-unit-content">

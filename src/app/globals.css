@@ -4861,6 +4861,17 @@ a.bms-auth-submit {
   padding: 0;
 }
 
+/* Spreadsheet units: an Excel grid needs more width than a slide. */
+.bms-unit-body.is-wide {
+  max-width: 1440px;
+}
+
+/* The frame a PDF or Office file is shown in, when put in full screen. */
+.bms-unit-frame:fullscreen {
+  border: 0;
+  border-radius: 0;
+}
+
 /* Quiz problems — matched to the live Open edX problem block */
 .bms-quiz-problem + .bms-quiz-problem {
   border-top: 1px solid #dddddd;
