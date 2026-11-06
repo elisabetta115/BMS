@@ -269,7 +269,7 @@ function ProgrammeRow({ programme: p, imageVersion, onEdit, onDelete }: { progra
   );
 }
 
-function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, onDelete }: { credential: MicroCredential; programmeCodes: string[]; imageVersion: number; onEdit: () => void; onDelete?: () => void }) {
+function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, onDelete, onExport, exporting }: { credential: MicroCredential; programmeCodes: string[]; imageVersion: number; onEdit: () => void; onDelete?: () => void; onExport?: () => void; exporting?: boolean }) {
   const sections = c.sectionsCount ?? (c.sections || []).length;
   return (
     <li className="bms-admin-item" onClick={onEdit}>
@@ -284,9 +284,29 @@ function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, on
       </div>
       <RowActions>
         <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
+        {onExport && <button type="button" onClick={onExport} disabled={exporting} className="bms-admin-link">{exporting ? "Exporting…" : "Export"}</button>}
         {onDelete && <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>}
       </RowActions>
     </li>
+  );
+}
+
+/** What an export left out, shown after the download starts. */
+function ExportNotice({ notice, onClose }: { notice: { title: string; warnings: string[] }; onClose: () => void }) {
+  return (
+    <div className="bms-admin-note" role="status">
+      <div className="flex items-start gap-3">
+        <div className="min-w-0 flex-1">
+          <p className="font-semibold">{notice.title}</p>
+          {notice.warnings.length > 0 && (
+            <ul className="mt-1 list-disc pl-5">
+              {notice.warnings.map((w, i) => <li key={i}>{w}</li>)}
+            </ul>
+          )}
+        </div>
+        <button type="button" onClick={onClose} aria-label="Close" className="shrink-0"><X aria-hidden="true" size={18} /></button>
+      </div>
+    </div>
   );
 }
 
@@ -417,6 +437,8 @@ export default function AdminPage() {
   // Set when a site admin takes away access this page was opened with (see recheckAccess).
   const [accessNotice, setAccessNotice] = useState("");
   const [accessRemoved, setAccessRemoved] = useState(false);
+  const [exportingId, setExportingId] = useState<string | null>(null);
+  const [exportNotice, setExportNotice] = useState<{ title: string; warnings: string[] } | null>(null);
   const [formLoading, setFormLoading] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
 
@@ -489,6 +511,7 @@ export default function AdminPage() {
   // Push a new history entry whenever we enter an edit view (not when leaving).
   function pushAdminHistory(nextView: View) {
     setAccessNotice("");
+    setExportNotice(null);
     if (nextView !== "list" && view === "list" && typeof window !== "undefined") {
       window.history.pushState({ adminView: nextView }, "", window.location.href);
     }
@@ -834,6 +857,56 @@ export default function AdminPage() {
     if (!(await askConfirm("Delete credential permanently from all programmes?"))) return;
     await fetch(`/api/micro-credentials/${id}`, { method: "DELETE" }); await loadData();
     if (editingProg) await refreshProg(editingProg.id); else goList();
+  }
+
+  /**
+   * Downloads the micro-credential as an Open edX course file. The server
+   * stores it in S3 and answers with a link; a hidden frame downloads it, so
+   * the page (and any unsaved changes) stays as it is even if the link fails.
+   */
+  async function exportCred(c: { id: string; title: string }) {
+    if (exportingId) return;
+    setExportingId(c.id);
+    setExportNotice(null);
+    try {
+      const r = await fetch(`/api/micro-credentials/${c.id}/export`, { method: "POST" });
+      if (!r.ok) {
+        const d = await r.json().catch(() => null);
+        setExportNotice({ title: d?.error || "Could not export this micro-credential.", warnings: [] });
+        return;
+      }
+      let fileName = "micro-credential.tar.gz";
+      let warnings: string[] = [];
+      if ((r.headers.get("content-type") || "").includes("application/json")) {
+        const d = await r.json();
+        fileName = d.fileName || fileName;
+        warnings = d.warnings || [];
+        const frame = document.createElement("iframe");
+        frame.hidden = true;
+        frame.src = d.url;
+        document.body.appendChild(frame);
+        setTimeout(() => frame.remove(), 60_000);
+      } else {
+        // Without S3 (local development) the file is the response itself.
+        fileName = r.headers.get("content-disposition")?.match(/filename="([^"]+)"/)?.[1] || fileName;
+        try { warnings = JSON.parse(decodeURIComponent(r.headers.get("x-export-warnings") || "%5B%5D")); } catch { /* none */ }
+        const a = document.createElement("a");
+        a.href = URL.createObjectURL(await r.blob());
+        a.download = fileName;
+        a.click();
+        setTimeout(() => URL.revokeObjectURL(a.href), 60_000);
+      }
+      setExportNotice({
+        title: warnings.length
+          ? `“${c.title}” is downloading as ${fileName}. Some parts won't come back when it's imported:`
+          : `“${c.title}” is downloading as ${fileName}. Import it with “Import courses”, here or on another site.`,
+        warnings,
+      });
+    } catch {
+      setExportNotice({ title: "Network error: the micro-credential wasn't exported.", warnings: [] });
+    } finally {
+      setExportingId(null);
+    }
   }
 
   function newCert() {
@@ -1231,6 +1304,7 @@ export default function AdminPage() {
               </div>
 
               {accessNotice && <div className="bms-admin-alert mb-4" role="status">{accessNotice}</div>}
+              {exportNotice && <div className="mb-4"><ExportNotice notice={exportNotice} onClose={() => setExportNotice(null)} /></div>}
 
               <label className="bms-admin-search">
                 <Search aria-hidden="true" size={20} strokeWidth={3} />
@@ -1278,7 +1352,7 @@ export default function AdminPage() {
                       <section>
                         <h2 className="bms-admin-group">Micro-credentials ({filteredCreds.length})</h2>
                         <ul className="bms-admin-list">
-                          {filteredCreds.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} />)}
+                          {filteredCreds.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} onExport={isSiteAdmin ? () => exportCred(c) : undefined} exporting={exportingId === c.id} />)}
                         </ul>
                       </section>
                     )}
@@ -1301,7 +1375,7 @@ export default function AdminPage() {
               ) : tab === "credentials" ? (
                 myCredentials.length === 0 ? <p className="bms-admin-empty">No credentials yet.</p> : (
                   <ul className="bms-admin-list">
-                    {myCredentials.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} />)}
+                    {myCredentials.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} onExport={isSiteAdmin ? () => exportCred(c) : undefined} exporting={exportingId === c.id} />)}
                   </ul>
                 )
               ) : (
@@ -1445,6 +1519,7 @@ export default function AdminPage() {
 
                 {/* Next to the buttons, where the admin is looking after clicking Update: at the top of this long form it was out of sight. */}
                 {formError && <div className="bms-admin-alert mt-6" role="alert">{formError}</div>}
+                {exportNotice && <div className="mt-6"><ExportNotice notice={exportNotice} onClose={() => setExportNotice(null)} /></div>}
 
                 <div className="mt-6 flex gap-3">
                   <button
@@ -1455,6 +1530,11 @@ export default function AdminPage() {
                     {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
                   </button>
                   <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-btn-secondary">Cancel</button>
+                  {editingCred && isSiteAdmin && (
+                    <button type="button" onClick={() => exportCred(editingCred)} disabled={!!exportingId} className="bms-admin-btn-secondary" title="Downloads the saved version: save your changes first">
+                      {exportingId === editingCred.id ? "Exporting…" : "Export"}
+                    </button>
+                  )}
                   {editingCred && isSiteAdmin && <button type="button" onClick={() => delCred(editingCred.id)} className="bms-admin-btn-danger">Delete</button>}
                 </div>
               </form>

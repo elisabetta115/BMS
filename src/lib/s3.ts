@@ -61,6 +61,14 @@ export async function uploadObject(
   return key;
 }
 
+/** Stores bytes under exactly this key, replacing any object there. Returns false if S3 isn't configured. */
+export async function putObject(key: string, body: Buffer, contentType: string): Promise<boolean> {
+  const client = getClient();
+  if (!client || !bucket) return false;
+  await client.send(new PutObjectCommand({ Bucket: bucket, Key: key, Body: body, ContentType: contentType }));
+  return true;
+}
+
 /** Fetches an object's bytes server-side — not subject to any client request size limit. */
 export async function getObjectBuffer(key: string): Promise<Buffer | null> {
   const client = getClient();
@@ -77,18 +85,19 @@ export async function getObjectBuffer(key: string): Promise<Buffer | null> {
 
 /**
  * A short-lived URL the browser can GET the file from directly (for serving unit files).
- * `disposition` ("inline" / "attachment") overrides how the browser treats it;
- * `expiresIn` is in seconds.
+ * `disposition` ("inline" / "attachment") overrides how the browser treats it,
+ * `filename` the name it saves the file under (plain ASCII); `expiresIn` is in seconds.
  */
 export async function createDownloadUrl(
   key: string,
-  { disposition, expiresIn = 300 }: { disposition?: "inline" | "attachment"; expiresIn?: number } = {}
+  { disposition, filename, expiresIn = 300 }: { disposition?: "inline" | "attachment"; filename?: string; expiresIn?: number } = {}
 ): Promise<string | null> {
   const client = getClient();
   if (!client || !bucket) return null;
+  const contentDisposition = disposition && filename ? `${disposition}; filename="${filename.replace(/["\\\r\n]/g, "")}"` : disposition;
   return getSignedUrl(
     client,
-    new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: disposition }),
+    new GetObjectCommand({ Bucket: bucket, Key: key, ResponseContentDisposition: contentDisposition }),
     { expiresIn }
   );
 }

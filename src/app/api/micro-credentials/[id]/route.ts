@@ -5,6 +5,7 @@ import { checkUnitFileKeys, requireAdmin, requireCredentialAccess } from "@/lib/
 import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 import { deleteObject } from "@/lib/s3";
 import { syncCredentialContent } from "@/lib/credential-sync";
+import { exportKey } from "@/lib/olx-export";
 import { missingAnswerError } from "@/lib/questions";
 
 function stripBinaryFromCredential(c: any, includeAnswers = true) {
@@ -184,6 +185,7 @@ export async function DELETE(
     });
     await prisma.microCredential.delete({ where: { id } });
     await Promise.all(units.filter((u) => u.fileKey).map((u) => deleteObject(u.fileKey!).catch(() => {})));
+    await deleteObject(exportKey(id)).catch(() => {}); // its latest export, if any
     return NextResponse.json({ success: true });
   } catch (err) {
     console.error("Error deleting credential:", err);

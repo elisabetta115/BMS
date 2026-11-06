@@ -14,6 +14,8 @@
 //   course/problem/<id>.xml               – multiple-choice question
 //   course/html/<id>.html                 – raw HTML (here: an <iframe> to a PDF)
 //   course/static/<file>                  – images and PDFs
+//   course/bms.json                       – only in files exported from BMS
+//                                           (src/lib/olx-export.ts): exact details
 //
 // We flatten that into the MicroCredential → Section → Subsection → Unit tree.
 
@@ -23,6 +25,7 @@ import * as tar from "tar-stream";
 import { ORGANISATIONS, organisationName } from "@/data/organisations";
 import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 import { fixAllCapsTitle } from "@/lib/utils/title-case";
+import { BMS_MANIFEST, type BmsManifest } from "@/lib/olx-export";
 
 /* ─── Output shape ─────────────────────────────────────────── */
 
@@ -180,7 +183,12 @@ export function htmlToText(html: string): string {
 function mimeForFile(name: string): string {
   const ext = name.toLowerCase().split(".").pop() || "";
   return (
-    { pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml" } as Record<string, string>
+    {
+      pdf: "application/pdf", png: "image/png", jpg: "image/jpeg", jpeg: "image/jpeg", gif: "image/gif", webp: "image/webp", svg: "image/svg+xml",
+      pptx: "application/vnd.openxmlformats-officedocument.presentationml.presentation", ppt: "application/vnd.ms-powerpoint",
+      xlsx: "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", xls: "application/vnd.ms-excel",
+      docx: "application/vnd.openxmlformats-officedocument.wordprocessingml.document", doc: "application/msword",
+    } as Record<string, string>
   )[ext] || "application/octet-stream";
 }
 
@@ -199,6 +207,8 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
   const prefix = manifestKey.slice(0, manifestKey.length - "course.xml".length); // e.g. "course/"
 
   const manifest = text(manifestKey) || "";
+  // A file exported from BMS (src/lib/olx-export.ts) also has the exact details OLX can't hold.
+  const bms = readBmsManifest(text(`${prefix}${BMS_MANIFEST}`), warnings);
   const run = attr(manifest, "url_name") || "course";
   const org = attr(manifest, "org") || "";
   const courseId = attr(manifest, "course") || "";
@@ -356,6 +366,7 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
         if (!vertXml) { warnings.push(`Missing vertical/${vertRef}.xml`); continue; }
 
         const vertTitle = displayName(vertXml) || `Unit ${subsection.units.length + 1}`;
+        const firstNewUnit = subsection.units.length;
         const children = verticalChildren(vertXml);
         if (children.length === 0) { warnings.push(`Unit "${vertTitle}" has no recognised content — skipped.`); continue; }
 
@@ -438,6 +449,15 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
           counts.presentations++;
           counts.units++;
         });
+
+        // A BMS export has one unit per vertical, with its exact weight, video link and file name.
+        const exact = bms?.units[vertRef];
+        const unit = subsection.units[firstNewUnit];
+        if (exact && unit) {
+          unit.weight = Number.isFinite(exact.weight) && exact.weight > 0 ? exact.weight : 0;
+          if (unit.type === "VIDEO" && typeof exact.videoUrl === "string" && exact.videoUrl.trim()) unit.videoUrl = exact.videoUrl.trim();
+          if (unit.file && typeof exact.fileName === "string" && exact.fileName.trim()) unit.file.name = exact.fileName.trim();
+        }
       }
 
       if (subsection.units.length) {
@@ -457,25 +477,56 @@ export function parseOlx(files: Map<string, Buffer>): ParsedCourse {
     }
   }
 
-  assignGradedWeights(subsectionFormats, gradingRaw, warnings);
+  if (bms) keepWithinFullWeight(sections, warnings);
+  else assignGradedWeights(subsectionFormats, gradingRaw, warnings);
+
+  // The exact details from a BMS export, where it has them.
+  const exact = bms?.credential as Record<string, unknown> | undefined;
+  const exactText = (key: string, parsed: string | null): string | null =>
+    exact && key in exact && (exact[key] === null || typeof exact[key] === "string") ? (exact[key] as string | null) : parsed;
+  const finalTitle = exactText("title", title)?.trim() || title;
+  const finalCode = exactText("code", code)?.trim() || code;
+  const finalProject = (exactText("project", project) ?? "").trim();
+  const exactPass = exact?.passGrade;
 
   return {
-    title,
-    code,
-    project,
-    developedBy,
-    organisation,
-    topic,
-    description,
-    overview,
-    objectives,
-    passGrade,
+    title: finalTitle,
+    code: finalCode,
+    project: finalProject,
+    developedBy: exactText("developedBy", developedBy),
+    organisation: exactText("organisation", organisation),
+    topic: exactText("topic", topic),
+    description: exactText("description", description),
+    overview: exactText("overview", overview),
+    objectives: exactText("objectives", objectives),
+    passGrade: Number.isInteger(exactPass) && (exactPass as number) >= 0 && (exactPass as number) <= 100 ? (exactPass as number) : passGrade,
     image,
     sections,
     warnings,
-    programme: { code: project || code, title: project || title, project },
+    programme: { code: finalProject || finalCode, title: finalProject || finalTitle, project: finalProject },
     counts,
   };
+}
+
+function readBmsManifest(raw: string | null, warnings: string[]): BmsManifest | null {
+  if (!raw) return null;
+  try {
+    const m = JSON.parse(raw);
+    if (m?.format === "bms-credential" && m.version === 1 && m.credential && typeof m.credential === "object") {
+      return { ...m, units: m.units && typeof m.units === "object" ? m.units : {} };
+    }
+  } catch { /* reported below */ }
+  warnings.push(`${BMS_MANIFEST} couldn't be read, so the details come from the Open edX files only.`);
+  return null;
+}
+
+/** Unit weights from a BMS export are exact; only scale them down if they add up to more than 100%. */
+function keepWithinFullWeight(sections: ParsedSection[], warnings: string[]): void {
+  const units = sections.flatMap((s) => s.subsections.flatMap((ss) => ss.units));
+  const total = units.reduce((sum, u) => sum + (u.weight || 0), 0);
+  if (!exceedsFullWeight(total)) return;
+  for (const u of units) if (u.weight) u.weight *= 100 / total;
+  warnings.push(`Imported unit weights summed to ${formatWeight(total)}% and were scaled down to fit 100%.`);
 }
 
 /* ─── Component parsers ────────────────────────────────────── */
@@ -490,7 +541,8 @@ function videoUrlFrom(xml: string): string | null {
   const sources = attr(xml, "html5_sources");
   if (sources) {
     try {
-      const arr = JSON.parse(sources.replace(/&quot;/g, '"'));
+      // Decode every code, not just &quot;: a link's "&" is written "&amp;".
+      const arr = JSON.parse(decodeEntities(sources));
       if (Array.isArray(arr) && arr[0]) return arr[0];
     } catch { /* ignore */ }
   }

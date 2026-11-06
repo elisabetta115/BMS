@@ -4319,6 +4319,16 @@ a.bms-auth-submit {
   padding: 0.85rem 1rem;
 }
 
+/* Information that isn't an error (e.g. what an export left out). */
+.bms-admin-note {
+  background: #eef6ff;
+  border: 1px solid #c7dcf5;
+  border-radius: 10px;
+  color: #1d3d5f;
+  font-size: 1rem;
+  padding: 0.85rem 1rem;
+}
+
 .bms-admin-dialog {
   background: #fff;
   border-radius: 1.5rem;
