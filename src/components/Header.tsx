@@ -12,6 +12,8 @@ interface SessionUser {
   username: string | null;
   email: string;
   role: string;
+  /** Programmes the user is a programme admin of. With ?access=1, `role` is also read fresh from the database. */
+  managedProgrammeIds?: string[];
 }
 
 /** Shown next to the logo on a course page, like the live course "about" page. */
@@ -28,13 +30,15 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
   const [userMenuOpen, setUserMenuOpen] = useState(false);
   const [mobileOpen, setMobileOpen] = useState(false);
   const [loading, setLoading] = useState(true);
+  const canOpenAdmin = !!user && (user.role === "ADMIN" || (user.managedProgrammeIds?.length ?? 0) > 0);
 
   const catalogueRef = useRef<HTMLDivElement>(null);
   const myCoursesRef = useRef<HTMLDivElement>(null);
   const userMenuRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
-    fetch("/api/auth/session")
+    // access=1: the current role and managed programmes from the database, for the Admin Panel link.
+    fetch("/api/auth/session?access=1")
       .then((r) => (r.ok ? r.json() : null))
       .then((data) => {
         if (data?.user) setUser(data.user);
@@ -188,7 +192,7 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
                   <Link href="/dashboard/profile" className={userMenuLinkClass} onClick={() => setUserMenuOpen(false)}>
                     Account
                   </Link>
-                  {user.role === "ADMIN" && (
+                  {canOpenAdmin && (
                     <Link href="/admin" className={userMenuLinkClass} onClick={() => setUserMenuOpen(false)}>
                       Admin Panel
                     </Link>
@@ -258,7 +262,7 @@ export default function Header({ course }: { course?: HeaderCourseContext } = {}
                   <Link href="/dashboard/profile" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
                     Account
                   </Link>
-                  {user.role === "ADMIN" && (
+                  {canOpenAdmin && (
                     <Link href="/admin" className="rounded-full border border-brand-green px-6 py-3 text-center font-bold text-brand-dark" onClick={() => setMobileOpen(false)}>
                       Admin Panel
                     </Link>

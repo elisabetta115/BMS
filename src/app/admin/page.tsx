@@ -1,14 +1,17 @@
 "use client";
 
 import Header from "@/components/Header";
+import Link from "next/link";
 import { useState, useEffect, useCallback, useRef, useMemo } from "react";
 import { useRouter } from "next/navigation";
 import { Award, Download, Plus, Search, X } from "lucide-react";
 import { ORGANISATIONS } from "@/data/organisations";
 import OlxImport from "@/components/admin/OlxImport";
 import CertificatePreview from "@/components/admin/CertificatePreview";
+import ProgrammeAdmins from "@/components/admin/ProgrammeAdmins";
 import { DEFAULT_CONTENT_BOX, defaultIntroText } from "@/lib/certificate-defaults";
 import { exceedsFullWeight, formatWeight, isFullWeight } from "@/lib/weights";
+import { hasValidAnswer, missingAnswerError } from "@/lib/questions";
 
 /* ─── Types ────────────────────────────────────────────── */
 
@@ -245,7 +248,8 @@ function RowThumb({ src, label }: { src: string; label: string }) {
   return <span className="bms-admin-item-thumb">{src ? <img src={src} alt="" /> : <span>{label}</span>}</span>;
 }
 
-function ProgrammeRow({ programme: p, imageVersion, onEdit, onDelete }: { programme: MicroProgramme; imageVersion: number; onEdit: () => void; onDelete: () => void }) {
+/** Without onDelete (programme admins) there's no Delete button. */
+function ProgrammeRow({ programme: p, imageVersion, onEdit, onDelete }: { programme: MicroProgramme; imageVersion: number; onEdit: () => void; onDelete?: () => void }) {
   const creds = p.credentials || [];
   return (
     <li className="bms-admin-item" onClick={onEdit}>
@@ -259,13 +263,13 @@ function ProgrammeRow({ programme: p, imageVersion, onEdit, onDelete }: { progra
       </div>
       <RowActions>
         <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
-        <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>
+        {onDelete && <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>}
       </RowActions>
     </li>
   );
 }
 
-function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, onDelete }: { credential: MicroCredential; programmeCodes: string[]; imageVersion: number; onEdit: () => void; onDelete: () => void }) {
+function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, onDelete }: { credential: MicroCredential; programmeCodes: string[]; imageVersion: number; onEdit: () => void; onDelete?: () => void }) {
   const sections = c.sectionsCount ?? (c.sections || []).length;
   return (
     <li className="bms-admin-item" onClick={onEdit}>
@@ -280,7 +284,7 @@ function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, on
       </div>
       <RowActions>
         <button type="button" onClick={onEdit} className="bms-admin-link">Edit</button>
-        <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>
+        {onDelete && <button type="button" onClick={onDelete} className="bms-admin-link is-danger">Delete</button>}
       </RowActions>
     </li>
   );
@@ -410,6 +414,9 @@ export default function AdminPage() {
   const [credentials, setCredentials] = useState<MicroCredential[]>([]);
   const [loading, setLoading] = useState(true);
   const [formError, setFormError] = useState("");
+  // Set when a site admin takes away access this page was opened with (see recheckAccess).
+  const [accessNotice, setAccessNotice] = useState("");
+  const [accessRemoved, setAccessRemoved] = useState(false);
   const [formLoading, setFormLoading] = useState(false);
   const [adminSearch, setAdminSearch] = useState("");
 
@@ -431,11 +438,11 @@ export default function AdminPage() {
   const [unitUploadPct, setUnitUploadPct] = useState<number | null>(null);
   const [unitUploadError, setUnitUploadError] = useState("");
 
-  const [confirmDialog, setConfirmDialog] = useState<{ message: string; resolve: (ok: boolean) => void } | null>(null);
+  const [confirmDialog, setConfirmDialog] = useState<{ message: string; confirmLabel: string; resolve: (ok: boolean) => void } | null>(null);
 
   /** Site-styled replacement for window.confirm(). Resolves true/false. */
-  function askConfirm(message: string): Promise<boolean> {
-    return new Promise((resolve) => setConfirmDialog({ message, resolve }));
+  function askConfirm(message: string, confirmLabel = "Delete"): Promise<boolean> {
+    return new Promise((resolve) => setConfirmDialog({ message, confirmLabel, resolve }));
   }
 
   useEffect(() => {
@@ -481,6 +488,7 @@ export default function AdminPage() {
 
   // Push a new history entry whenever we enter an edit view (not when leaving).
   function pushAdminHistory(nextView: View) {
+    setAccessNotice("");
     if (nextView !== "list" && view === "list" && typeof window !== "undefined") {
       window.history.pushState({ adminView: nextView }, "", window.location.href);
     }
@@ -498,8 +506,9 @@ export default function AdminPage() {
   /* ─── Auth & data loading ────────────────────────────── */
 
   useEffect(() => {
-    fetch("/api/auth/session").then(r => r.json())
-      .then(d => { if (d?.user) { if (d.user.role !== "ADMIN") { router.push("/"); return; } setUser(d.user); } else { router.push("/"); } })
+    // Site admins, and programme admins (learners in charge of some programmes, who see only those).
+    fetch("/api/auth/session?access=1").then(r => r.json())
+      .then(d => { if (d?.user && (d.user.role === "ADMIN" || d.user.managedProgrammeIds?.length > 0)) setUser(d.user); else router.push("/"); })
       .catch(() => router.push("/"));
   }, [router]);
 
@@ -518,27 +527,91 @@ export default function AdminPage() {
 
   useEffect(() => { if (user) loadData(); }, [user, loadData]);
 
+  // A site admin can take away a programme admin's access while this page is
+  // open. The server refuses their saves from then on; check again when they
+  // come back to the tab and whenever a save is refused, so the page stops
+  // offering what they can no longer do.
+  const userRef = useRef<any>(null);
+  useEffect(() => { userRef.current = user; }, [user]);
+  const recheckAccess = useCallback(async () => {
+    const prev = userRef.current;
+    if (!prev) return;
+    try {
+      const d = await fetch("/api/auth/session?access=1").then(r => r.json());
+      const u = d?.user;
+      if (!u) { router.push("/"); return; }
+      // Signed in as someone else in another tab: start again as that account.
+      if (u.userId !== prev.userId) { window.location.reload(); return; }
+      if (u.role !== "ADMIN" && !(u.managedProgrammeIds?.length > 0)) { setAccessRemoved(true); return; }
+      const ids = (x: any) => JSON.stringify([...(x.managedProgrammeIds || [])].sort());
+      if (u.role !== prev.role || ids(u) !== ids(prev)) setUser(u);
+    } catch { /* offline: checked again next time */ }
+  }, [router]);
+
+  useEffect(() => {
+    if (!user) return;
+    const onVisible = () => { if (document.visibilityState === "visible") recheckAccess(); };
+    window.addEventListener("focus", recheckAccess);
+    document.addEventListener("visibilitychange", onVisible);
+    return () => {
+      window.removeEventListener("focus", recheckAccess);
+      document.removeEventListener("visibilitychange", onVisible);
+    };
+  }, [user, recheckAccess]);
+
   const allProjects = Array.from(new Set([...programmes.map(p => p.project), ...credentials.map(c => c.project)].filter(Boolean))).sort();
   const allOrganisations = Array.from(new Set([...Object.values(ORGANISATIONS), ...credentials.map(c => c.organisation)].filter((v): v is string => Boolean(v)))).sort();
   const allTopics = Array.from(new Set(credentials.map(c => c.topic).filter((v): v is string => Boolean(v)))).sort();
 
+  // A programme admin sees only their programmes and the micro-credentials in
+  // them. `programmes` and `credentials` keep everything, so a micro-credential
+  // shared with another programme still shows as Shared.
+  const isSiteAdmin = user?.role === "ADMIN";
+  const myProgrammes = useMemo(() => {
+    if (isSiteAdmin) return programmes;
+    const managed = new Set<string>(user?.managedProgrammeIds || []);
+    return programmes.filter(p => managed.has(p.id));
+  }, [programmes, isSiteAdmin, user]);
+  const myCredentials = useMemo(() => {
+    if (isSiteAdmin) return credentials;
+    const inMine = new Set(myProgrammes.flatMap(p => (p.credentials || []).map(c => c.id)));
+    return credentials.filter(c => inMine.has(c.id));
+  }, [credentials, myProgrammes, isSiteAdmin]);
+
   const filteredProgs = useMemo(() => {
-    if (!adminSearch.trim()) return programmes;
+    if (!adminSearch.trim()) return myProgrammes;
     const q = adminSearch.toLowerCase();
-    return programmes.filter(p => p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.project.toLowerCase().includes(q));
-  }, [programmes, adminSearch]);
+    return myProgrammes.filter(p => p.title.toLowerCase().includes(q) || p.code.toLowerCase().includes(q) || p.project.toLowerCase().includes(q));
+  }, [myProgrammes, adminSearch]);
 
   const filteredCreds = useMemo(() => {
-    if (!adminSearch.trim()) return credentials;
+    if (!adminSearch.trim()) return myCredentials;
     const q = adminSearch.toLowerCase();
-    return credentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.organisation || "").toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
-  }, [credentials, adminSearch]);
+    return myCredentials.filter(c => c.title.toLowerCase().includes(q) || c.code.toLowerCase().includes(q) || c.project.toLowerCase().includes(q) || (c.organisation || "").toLowerCase().includes(q) || (c.developedBy || "").toLowerCase().includes(q));
+  }, [myCredentials, adminSearch]);
 
   const filteredCerts = useMemo(() => {
+    if (!isSiteAdmin) return [];
     if (!adminSearch.trim()) return certificates;
     const q = adminSearch.toLowerCase();
     return certificates.filter(c => c.project.toLowerCase().includes(q) || c.pdfName.toLowerCase().includes(q));
-  }, [certificates, adminSearch]);
+  }, [certificates, adminSearch, isSiteAdmin]);
+
+  // When a programme admin loses a programme, close it if it's open here.
+  useEffect(() => {
+    if (!user || isSiteAdmin || view === "list") return;
+    const managed = new Set<string>(user.managedProgrammeIds || []);
+    const lost =
+      (editingProg && !managed.has(editingProg.id)) ||
+      (parentProgId && !managed.has(parentProgId)) ||
+      (editingCred && !parentProgId && !myCredentials.some(c => c.id === editingCred.id));
+    if (lost) {
+      goList();
+      setAccessNotice("A site admin removed you as admin of this programme, so it was closed. Your unsaved changes were not saved.");
+    }
+    // Only when the access changes, not on every edit.
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [user]);
 
   const totalWeight = useMemo(() => {
     let total = 0;
@@ -655,7 +728,7 @@ export default function AdminPage() {
       }
       const url = editingProg ? `/api/micro-programmes/${editingProg.id}` : "/api/micro-programmes";
       const r = await fetch(url, { method: editingProg ? "PATCH" : "POST", headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
+      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); if (r.status === 403) recheckAccess(); return; }
       if (!editingProg) { await refreshProg(d.programme.id); } else { await refreshProg(editingProg.id); }
     } catch { setFormError("Network error."); }
     setFormLoading(false);
@@ -663,19 +736,30 @@ export default function AdminPage() {
 
   async function delProg(id: string) { if (!(await askConfirm("Delete this programme?"))) return; await fetch(`/api/micro-programmes/${id}`, { method: "DELETE" }); await loadData(); goList(); }
 
+  /** Saves the programme's list of credentials; on failure the server keeps the old list and the error is shown. */
+  async function putProgCreds(progId: string, credentialIds: string[]) {
+    setFormError("");
+    try {
+      const r = await fetch(`/api/micro-programmes/${progId}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds }) });
+      if (!r.ok) {
+        setFormError((await r.json().catch(() => null))?.error || "Could not update the programme's credentials.");
+        if (r.status === 403) recheckAccess();
+      }
+    } catch { setFormError("Network error."); }
+    await refreshProg(progId);
+  }
+
   async function addCredToProg(credId: string) {
     if (!editingProg) return;
     const ids = (editingProg.credentials || []).map(c => c.id);
     if (ids.includes(credId)) return;
-    await fetch(`/api/micro-programmes/${editingProg.id}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: [...ids, credId] }) });
-    await refreshProg(editingProg.id);
+    await putProgCreds(editingProg.id, [...ids, credId]);
   }
 
   async function removeCredFromProg(credId: string) {
     if (!editingProg || !(await askConfirm("Remove credential from programme?"))) return;
     const ids = (editingProg.credentials || []).filter(c => c.id !== credId).map(c => c.id);
-    await fetch(`/api/micro-programmes/${editingProg.id}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: ids }) });
-    await refreshProg(editingProg.id);
+    await putProgCreds(editingProg.id, ids);
   }
 
   function newCred(progId?: string) {
@@ -717,11 +801,15 @@ export default function AdminPage() {
     e.preventDefault(); setFormError("");
     if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return; }
     if (exceedsFullWeight(totalWeight)) { setFormError(`Total unit weight is ${formatWeight(totalWeight)}%. It must not exceed 100%.`); return; }
+    const answerErr = missingAnswerError(sections);
+    if (answerErr) { setFormError(answerErr); return; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
       const method = editingCred ? "PATCH" : "POST";
       const payload: any = { ...credForm, slug: credForm.slug || toSlug(credForm.title), passGrade: parseInt(credForm.passGrade) || 50, sections };
+      // A new credential made from a programme is put in it by the same request (programme admins may only create it that way).
+      if (!editingCred && parentProgId) payload.programmeId = parentProgId;
       if (credForm.image && credForm.image.startsWith("data:")) {
         const [header, data] = credForm.image.split(",");
         payload.imageBase64 = data;
@@ -734,14 +822,9 @@ export default function AdminPage() {
         delete payload.image;
       }
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); return; }
+      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); if (r.status === 403) recheckAccess(); return; }
       setImageVersion(v => v + 1);
-      if (!editingCred && parentProgId) {
-        const prog = programmes.find(p => p.id === parentProgId);
-        const ids = (prog?.credentials || []).map(c => c.id);
-        await fetch(`/api/micro-programmes/${parentProgId}/credentials`, { method: "PUT", headers: { "Content-Type": "application/json" }, body: JSON.stringify({ credentialIds: [...ids, d.credential.id] }) });
-        await refreshProg(parentProgId);
-      } else if (parentProgId) { await refreshProg(parentProgId); }
+      if (parentProgId) { await refreshProg(parentProgId); }
       else { await loadData(); goList(); }
     } catch { setFormError("Network error."); }
     setFormLoading(false);
@@ -802,14 +885,32 @@ export default function AdminPage() {
   }
 
   function addSection() { setSections([...sections, { title: "", order: sections.length, subsections: [] }]); }
-  function removeSection(i: number) { setSections(sections.filter((_, x) => x !== i)); }
+  /*
+   * Removing a part that was saved before deletes, on the next save, the
+   * learners' completions and answers for it (src/lib/credential-sync.ts), so
+   * ask first. Parts added since the course was opened have no learner data.
+   * The updates are functional (the dialog is awaited) and immutable (React
+   * may run an updater twice).
+   */
+  const savedUnitCount = (units: CredentialUnit[]) => units.filter(u => u.id).length;
+  const unitsLabel = (n: number) => `${n} saved unit${n === 1 ? "" : "s"}`;
+
+  async function removeSection(i: number) {
+    const sec = sections[i];
+    const n = savedUnitCount(sec.subsections.flatMap(ss => ss.units));
+    if (n > 0 && !(await askConfirm(`Remove the section “${sec.title || "Untitled"}” and its ${unitsLabel(n)}? When you save, learners’ progress on them will be deleted.`, "Remove"))) return;
+    setSections(prev => prev.filter((_, x) => x !== i));
+  }
   function updateSection(i: number, title: string) { const s = [...sections]; s[i] = { ...s[i], title }; setSections(s); }
 
   function addSubsection(si: number) {
     const s = [...sections]; s[si] = { ...s[si], subsections: [...s[si].subsections, { title: "", order: s[si].subsections.length, units: [] }] }; setSections(s);
   }
-  function removeSubsection(si: number, ssi: number) {
-    const s = [...sections]; s[si] = { ...s[si], subsections: s[si].subsections.filter((_, x) => x !== ssi) }; setSections(s);
+  async function removeSubsection(si: number, ssi: number) {
+    const sub = sections[si].subsections[ssi];
+    const n = savedUnitCount(sub.units);
+    if (n > 0 && !(await askConfirm(`Remove the subsection “${sub.title || "Untitled"}” and its ${unitsLabel(n)}? When you save, learners’ progress on them will be deleted.`, "Remove"))) return;
+    setSections(prev => prev.map((sec, x) => x !== si ? sec : { ...sec, subsections: sec.subsections.filter((_, y) => y !== ssi) }));
   }
   function updateSubsection(si: number, ssi: number, title: string) {
     const s = [...sections]; s[si].subsections[ssi] = { ...s[si].subsections[ssi], title }; setSections(s);
@@ -819,8 +920,14 @@ export default function AdminPage() {
     const s = [...sections]; const units = s[si].subsections[ssi].units;
     s[si].subsections[ssi] = { ...s[si].subsections[ssi], units: [...units, { title: "", type, order: units.length, weight: 0, videoUrl: "", fileBase64: "", fileMime: "", fileName: "", questions: [] }] }; setSections(s);
   }
-  function removeUnit(si: number, ssi: number, ui: number) {
-    const s = [...sections]; s[si].subsections[ssi].units = s[si].subsections[ssi].units.filter((_, x) => x !== ui); setSections(s);
+  async function removeUnit(si: number, ssi: number, ui: number) {
+    const unit = sections[si].subsections[ssi].units[ui];
+    const what = unit.type === "QUIZ" ? "completions and answers" : "completions";
+    if (unit.id && !(await askConfirm(`Remove the unit “${unit.title || "Untitled"}”? When you save, learners’ ${what} for it will be deleted.`, "Remove"))) return;
+    setSections(prev => prev.map((sec, x) => x !== si ? sec : {
+      ...sec,
+      subsections: sec.subsections.map((sub, y) => y !== ssi ? sub : { ...sub, units: sub.units.filter((_, z) => z !== ui) }),
+    }));
   }
   function updateUnit(si: number, ssi: number, ui: number, field: string, value: any) {
     const s = [...sections]; (s[si].subsections[ssi].units[ui] as any)[field] = value; setSections(s);
@@ -830,8 +937,16 @@ export default function AdminPage() {
     const s = [...sections]; const qs = s[si].subsections[ssi].units[ui].questions || [];
     s[si].subsections[ssi].units[ui].questions = [...qs, { question: "", options: ["", ""], correctIndex: 0 }]; setSections(s);
   }
-  function removeUnitQ(si: number, ssi: number, ui: number, qi: number) {
-    const s = [...sections]; s[si].subsections[ssi].units[ui].questions = (s[si].subsections[ssi].units[ui].questions || []).filter((_, x) => x !== qi); setSections(s);
+  async function removeUnitQ(si: number, ssi: number, ui: number, qi: number) {
+    const question = (sections[si].subsections[ssi].units[ui].questions || [])[qi];
+    if (question?.id && !(await askConfirm(`Remove question ${qi + 1}? When you save, learners’ answers to it will be deleted.`, "Remove"))) return;
+    setSections(prev => prev.map((sec, x) => x !== si ? sec : {
+      ...sec,
+      subsections: sec.subsections.map((sub, y) => y !== ssi ? sub : {
+        ...sub,
+        units: sub.units.map((u, z) => z !== ui ? u : { ...u, questions: (u.questions || []).filter((_, w) => w !== qi) }),
+      }),
+    }));
   }
   function updateUnitQ(si: number, ssi: number, ui: number, qi: number, field: string, value: any) {
     const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; (qs[qi] as any)[field] = value; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
@@ -840,10 +955,24 @@ export default function AdminPage() {
     const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; qs[qi].options = [...qs[qi].options, ""]; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
   }
   function removeUnitQOpt(si: number, ssi: number, ui: number, qi: number, oi: number) {
-    const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])];
-    qs[qi].options = qs[qi].options.filter((_, x) => x !== oi);
-    if (qs[qi].correctIndex >= qs[qi].options.length) qs[qi].correctIndex = 0;
-    s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
+    // The right answer stays on the same option: the options after the removed
+    // one move up a place, so it does too. If the right answer itself is
+    // removed, none is chosen (-1): the question asks for one and the course
+    // can't be saved until the admin picks it.
+    setSections(prev => prev.map((sec, x) => x !== si ? sec : {
+      ...sec,
+      subsections: sec.subsections.map((sub, y) => y !== ssi ? sub : {
+        ...sub,
+        units: sub.units.map((u, z) => z !== ui ? u : {
+          ...u,
+          questions: (u.questions || []).map((q, w) => {
+            if (w !== qi) return q;
+            const correctIndex = q.correctIndex > oi ? q.correctIndex - 1 : q.correctIndex === oi ? -1 : q.correctIndex;
+            return { ...q, options: q.options.filter((_, v) => v !== oi), correctIndex };
+          }),
+        }),
+      }),
+    }));
   }
   function updateUnitQOpt(si: number, ssi: number, ui: number, qi: number, oi: number, val: string) {
     const s = [...sections]; const qs = [...(s[si].subsections[ssi].units[ui].questions || [])]; qs[qi].options[oi] = val; s[si].subsections[ssi].units[ui].questions = qs; setSections(s);
@@ -1043,6 +1172,7 @@ export default function AdminPage() {
                                     {q.options.length > 2 && <button type="button" onClick={() => removeUnitQOpt(si, ssi, ui, qi, oi)} className="text-red-400 text-xs">✕</button>}
                                   </div>
                                 ))}
+                                {!hasValidAnswer(q) && <p className="text-xs font-medium text-red-600 mb-1">Choose the correct answer: tick the circle next to it.</p>}
                                 {q.options.length < 6 && <button type="button" onClick={() => addUnitQOpt(si, ssi, ui, qi)} className="text-xs text-brand-green hover:underline">+ Option</button>}
                               </div>
                             ))}
@@ -1066,6 +1196,20 @@ export default function AdminPage() {
 
   if (!user) return null;
 
+  if (accessRemoved) return (
+    <>
+      {/* A new key re-mounts the header, so it re-reads the access and drops its Admin Panel link. */}
+      <Header key="access-removed" />
+      <main id="main">
+        <div className="bms-admin">
+          <h1 className="bms-admin-title">Admin Panel</h1>
+          <div className="bms-admin-alert mb-4" role="status">A site admin removed you as admin of your micro-programmes, so you can no longer use the Admin Panel. Your unsaved changes were not saved.</div>
+          <Link href="/dashboard" className="bms-admin-btn">Go to my dashboard</Link>
+        </div>
+      </main>
+    </>
+  );
+
   return (
     <>
       <Header />
@@ -1076,20 +1220,24 @@ export default function AdminPage() {
             <>
               <div className="bms-admin-head">
                 <h1 className="bms-admin-title">Admin Panel</h1>
-                <div className="bms-admin-head-actions">
-                  <button type="button" onClick={openImport} className="bms-admin-btn-secondary">
-                    <Download aria-hidden="true" size={18} /> Import courses
-                  </button>
-                  <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
-                </div>
+                {isSiteAdmin && (
+                  <div className="bms-admin-head-actions">
+                    <button type="button" onClick={openImport} className="bms-admin-btn-secondary">
+                      <Download aria-hidden="true" size={18} /> Import courses
+                    </button>
+                    <AddPicker onProg={newProg} onCred={() => newCred()} onCert={newCert} />
+                  </div>
+                )}
               </div>
+
+              {accessNotice && <div className="bms-admin-alert mb-4" role="status">{accessNotice}</div>}
 
               <label className="bms-admin-search">
                 <Search aria-hidden="true" size={20} strokeWidth={3} />
                 <input
                   type="text"
-                  aria-label="Search programmes, credentials and certificates"
-                  placeholder="Search programmes, credentials and certificates"
+                  aria-label={isSiteAdmin ? "Search programmes, credentials and certificates" : "Search programmes and credentials"}
+                  placeholder={isSiteAdmin ? "Search programmes, credentials and certificates" : "Search programmes and credentials"}
                   value={adminSearch}
                   onChange={e => setAdminSearch(e.target.value)}
                 />
@@ -1102,7 +1250,7 @@ export default function AdminPage() {
 
               {!adminSearch.trim() && (
                 <div className="bms-admin-tabs">
-                  {([["programmes", "Micro-programmes", programmes.length], ["credentials", "Micro-credentials", credentials.length], ["certificates", "Certificates", certificates.length]] as const).map(([key, label, count]) => (
+                  {([["programmes", "Micro-programmes", myProgrammes.length], ["credentials", "Micro-credentials", myCredentials.length], ["certificates", "Certificates", certificates.length]] as const).filter(([key]) => isSiteAdmin || key !== "certificates").map(([key, label, count]) => (
                     <button key={key} type="button" aria-pressed={tab === key} onClick={() => setTab(key)} className={tab === key ? "is-active" : undefined}>
                       {label} <span className="bms-admin-tab-count">{count}</span>
                     </button>
@@ -1122,7 +1270,7 @@ export default function AdminPage() {
                       <section>
                         <h2 className="bms-admin-group">Micro-programmes ({filteredProgs.length})</h2>
                         <ul className="bms-admin-list">
-                          {filteredProgs.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={() => delProg(p.id)} />)}
+                          {filteredProgs.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={isSiteAdmin ? () => delProg(p.id) : undefined} />)}
                         </ul>
                       </section>
                     )}
@@ -1130,7 +1278,7 @@ export default function AdminPage() {
                       <section>
                         <h2 className="bms-admin-group">Micro-credentials ({filteredCreds.length})</h2>
                         <ul className="bms-admin-list">
-                          {filteredCreds.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={() => delCred(c.id)} />)}
+                          {filteredCreds.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} />)}
                         </ul>
                       </section>
                     )}
@@ -1145,15 +1293,15 @@ export default function AdminPage() {
                   </div>
                 )
               ) : tab === "programmes" ? (
-                programmes.length === 0 ? <p className="bms-admin-empty">No programmes yet.</p> : (
+                myProgrammes.length === 0 ? <p className="bms-admin-empty">No programmes yet.</p> : (
                   <ul className="bms-admin-list">
-                    {programmes.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={() => delProg(p.id)} />)}
+                    {myProgrammes.map(p => <ProgrammeRow key={p.id} programme={p} imageVersion={imageVersion} onEdit={() => editProg(p)} onDelete={isSiteAdmin ? () => delProg(p.id) : undefined} />)}
                   </ul>
                 )
               ) : tab === "credentials" ? (
-                credentials.length === 0 ? <p className="bms-admin-empty">No credentials yet.</p> : (
+                myCredentials.length === 0 ? <p className="bms-admin-empty">No credentials yet.</p> : (
                   <ul className="bms-admin-list">
-                    {credentials.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={() => delCred(c.id)} />)}
+                    {myCredentials.map(c => <CredentialRow key={c.id} credential={c} programmeCodes={progsUsingCred(c.id)} imageVersion={imageVersion} onEdit={() => editCred(c)} onDelete={isSiteAdmin ? () => delCred(c.id) : undefined} />)}
                   </ul>
                 )
               ) : (
@@ -1269,6 +1417,8 @@ export default function AdminPage() {
                   )}
                 </div>
               )}
+
+              {editingProg && isSiteAdmin && <ProgrammeAdmins programmeId={editingProg.id} />}
             </>
           )}
 
@@ -1276,7 +1426,6 @@ export default function AdminPage() {
             <>
               <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-back">← Back</button>
               <h1 className="bms-admin-title is-sub">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
-              {formError && <div className="bms-admin-alert mb-4">{formError}</div>}
               <form onSubmit={saveCred} autoComplete="off" className="bms-admin-panel">
                 <div className="grid md:grid-cols-2 gap-4">
                   <div><label className="bms-admin-label">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
@@ -1294,6 +1443,9 @@ export default function AdminPage() {
 
                 {renderSectionEditor()}
 
+                {/* Next to the buttons, where the admin is looking after clicking Update: at the top of this long form it was out of sight. */}
+                {formError && <div className="bms-admin-alert mt-6" role="alert">{formError}</div>}
+
                 <div className="mt-6 flex gap-3">
                   <button
                     type="submit"
@@ -1303,7 +1455,7 @@ export default function AdminPage() {
                     {formLoading ? "Saving…" : editingCred ? "Update" : "Create"}
                   </button>
                   <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-btn-secondary">Cancel</button>
-                  {editingCred && <button type="button" onClick={() => delCred(editingCred.id)} className="bms-admin-btn-danger">Delete</button>}
+                  {editingCred && isSiteAdmin && <button type="button" onClick={() => delCred(editingCred.id)} className="bms-admin-btn-danger">Delete</button>}
                 </div>
               </form>
             </>
@@ -1435,7 +1587,7 @@ export default function AdminPage() {
                 onClick={() => { confirmDialog.resolve(true); setConfirmDialog(null); }}
                 className="bms-admin-btn is-danger"
               >
-                Delete
+                {confirmDialog.confirmLabel}
               </button>
             </div>
           </div>

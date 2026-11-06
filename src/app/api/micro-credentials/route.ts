@@ -1,8 +1,9 @@
 // app/api/micro-credentials/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin";
+import { checkUnitFileKeys, requireAdmin, requireProgrammeAccess } from "@/lib/admin";
 import { exceedsFullWeight, formatWeight } from "@/lib/weights";
+import { missingAnswerError } from "@/lib/questions";
 
 function stripBinaryFromCredential(c: any) {
   return {
@@ -65,15 +66,27 @@ export async function GET() {
 }
 
 export async function POST(req: NextRequest) {
-  const auth = await requireAdmin();
+  let body: any;
+  try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid request." }, { status: 400 }); }
+  const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime, programmeId } = body;
+
+  // With programmeId the new micro-credential goes straight into that
+  // programme, which its programme admins may do; otherwise site admins only.
+  const auth = programmeId ? await requireProgrammeAccess(String(programmeId)) : await requireAdmin();
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime } = await req.json();
     if (!title || !code) return NextResponse.json({ error: "Title and code required." }, { status: 400 });
 
     const weightErr = validateWeights(sections || []);
     if (weightErr) return NextResponse.json({ error: weightErr }, { status: 400 });
+    const answerErr = missingAnswerError(sections);
+    if (answerErr) return NextResponse.json({ error: answerErr }, { status: 400 });
+
+    if ("isAdmin" in auth && !auth.isAdmin) {
+      const fileErr = await checkUnitFileKeys(sections || [], null);
+      if (fileErr) return NextResponse.json({ error: fileErr }, { status: 400 });
+    }
 
     const baseSlug = slug || title.toLowerCase().replace(/[^a-z0-9]+/g, "-").replace(/^-|-$/g, "");
 
@@ -99,6 +112,13 @@ export async function POST(req: NextRequest) {
     if (imageBase64 && imageMime) {
       data.imageData = Buffer.from(imageBase64, "base64");
       data.imageMime = imageMime;
+    }
+
+    if (programmeId) {
+      const programme = await prisma.microProgramme.findUnique({ where: { id: String(programmeId) }, select: { id: true } });
+      if (!programme) return NextResponse.json({ error: "Programme not found." }, { status: 404 });
+      const last = await prisma.programmeCredential.aggregate({ where: { programmeId: programme.id }, _max: { order: true } });
+      data.programmes = { create: { programme: { connect: { id: programme.id } }, order: (last._max.order ?? -1) + 1 } };
     }
 
     if (sections && sections.length > 0) {

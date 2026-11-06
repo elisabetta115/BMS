@@ -23,7 +23,10 @@
 //   body "project"               – "check" only: the archive's project
 //   body "programmeId"           – optional: link the credential into this
 //                                  existing micro-programme
-//   body "onExistingCredential"  – "replace" | "skip"
+//   body "onExistingCredential"  – "replace" | "skip". "replace" updates the
+//                                  existing credential in place (src/lib/olx-reimport.ts):
+//                                  enrolments, programme links and learners'
+//                                  progress on units still in the archive stay.
 //
 // "preview" parses the archive and reports what would be created plus any
 // conflicts. "check" re-runs only the conflict check for an edited name /
@@ -41,6 +44,8 @@ import { prisma } from "@/lib/prisma";
 import { requireAdmin } from "@/lib/admin";
 import { getObjectBuffer, deleteObject, uploadObject } from "@/lib/s3";
 import { extractTarGz, parseOlx, type ParsedCourse, type ParsedUnit } from "@/lib/olx-import";
+import { loadExistingContent, matchReimport, type ReimportReport } from "@/lib/olx-reimport";
+import { syncCredentialContent } from "@/lib/credential-sync";
 
 export const runtime = "nodejs";
 export const maxDuration = 60;
@@ -220,13 +225,15 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // The writes are done as individual calls rather than one interactive
-  // $transaction: the deployed DATABASE_URL points at Supabase's transaction
-  // pooler, over which interactive transactions are unreliable. Each nested
-  // `create` is still atomic on its own; we clean up by hand if a later step
-  // fails so a half-finished import doesn't linger.
+  // A new credential is one nested `create` (atomic on its own), undone by
+  // hand if a later step fails. A re-import over an existing one runs in one
+  // transaction, which the database (RDS, connected directly) supports; once
+  // it has committed it can't be undone, so a later failure leaves it as is.
   let credentialId = "";
   let credentialAction: "created" | "replaced" | "skipped" = "created";
+  let createdNew = false;
+  let replacedInPlace = false;
+  let reimport: ReimportReport | null = null;
   const uploadedKeys: string[] = [];
 
   try {
@@ -248,57 +255,13 @@ export async function POST(req: NextRequest) {
         }
       }
 
-      const sectionsCreate = course.sections.map((s, si) => ({
-        title: s.title,
-        order: si,
-        subsections: {
-          create: s.subsections.map((ss, ssi) => ({
-            title: ss.title,
-            order: ssi,
-            units: {
-              create: ss.units.map((u, ui) => {
-                const unit: any = { title: u.title, type: u.type, order: ui, weight: Number(u.weight) || 0 };
-                if (u.type === "VIDEO") unit.videoUrl = u.videoUrl || null;
-                if (u.type === "PRESENTATION" && u.file) {
-                  const fileKey = fileKeys.get(u);
-                  if (fileKey) unit.fileKey = fileKey;
-                  else unit.fileData = Buffer.from(u.file.base64, "base64");
-                  unit.fileMime = u.file.mime;
-                  unit.fileName = u.file.name;
-                }
-                if (u.type === "QUIZ" && u.questions?.length) {
-                  unit.questions = {
-                    create: u.questions.map((q, qi) => ({
-                      question: q.question,
-                      options: q.options,
-                      correctIndex: q.correctIndex,
-                      order: qi,
-                      title: q.title ?? null,
-                      maxAttempts: q.maxAttempts ?? null,
-                    })),
-                  };
-                }
-                return unit;
-              }),
-            },
-          })),
-        },
-      }));
-
-      let staleKeys: string[] = [];
       if (existingCredential && onExistingCredential === "replace") {
-        const oldUnits = await prisma.credentialUnit.findMany({
-          where: { subsection: { section: { credentialId: existingCredential.id } }, fileKey: { not: null } },
-          select: { fileKey: true },
-        });
-        staleKeys = oldUnits.map((u) => u.fileKey!);
-        await prisma.microCredential.delete({ where: { id: existingCredential.id } });
-      }
-
-      const cred = await prisma.microCredential.create({
-        data: {
+        const id = existingCredential.id;
+        const unitsWithFiles = { subsection: { section: { credentialId: id } }, fileKey: { not: null } };
+        const oldKeys = (await prisma.credentialUnit.findMany({ where: unitsWithFiles, select: { fileKey: true } })).map((u) => u.fileKey!);
+        const details = {
           title: course.title,
-          slug: await uniqueSlug("microCredential", slugify(course.title)),
+          slug: await uniqueSlug("microCredential", slugify(course.title), id),
           code: course.code,
           project: course.project,
           description: course.description,
@@ -308,15 +271,86 @@ export async function POST(req: NextRequest) {
           organisation: course.organisation,
           topic: course.topic,
           passGrade: course.passGrade,
-          ...(course.image
-            ? { imageData: Buffer.from(course.image.base64, "base64"), imageMime: course.image.mime }
-            : {}),
-          sections: { create: sectionsCreate },
-        },
-      });
-      credentialId = cred.id;
-      credentialAction = existingCredential ? "replaced" : "created";
-      await Promise.all(staleKeys.map((k) => deleteObject(k).catch(() => {})));
+          // An archive without a course image keeps the image the credential has.
+          ...(course.image ? { imageData: Buffer.from(course.image.base64, "base64"), imageMime: course.image.mime } : {}),
+        };
+        // Only `tx` inside: the pool has a single connection (src/lib/prisma.ts), which `tx` holds.
+        const saved = await prisma.$transaction(
+          async (tx) => {
+            await tx.microCredential.update({ where: { id }, data: details, select: { id: true } });
+            const { sections, report } = matchReimport(course.sections, await loadExistingContent(tx, id), fileKeys);
+            await syncCredentialContent(tx, id, sections);
+            const keys = await tx.credentialUnit.findMany({ where: unitsWithFiles, select: { fileKey: true } });
+            return { report, keys: new Set(keys.map((u) => u.fileKey)) };
+          },
+          { maxWait: 15_000, timeout: 50_000 },
+        );
+        replacedInPlace = true;
+        credentialId = id;
+        credentialAction = "replaced";
+        reimport = saved.report;
+        // The previous files of units that were removed or got a new file.
+        await Promise.all(oldKeys.filter((k) => !saved.keys.has(k)).map((k) => deleteObject(k).catch(() => {})));
+      } else {
+        const sectionsCreate = course.sections.map((s, si) => ({
+          title: s.title,
+          order: si,
+          subsections: {
+            create: s.subsections.map((ss, ssi) => ({
+              title: ss.title,
+              order: ssi,
+              units: {
+                create: ss.units.map((u, ui) => {
+                  const unit: any = { title: u.title, type: u.type, order: ui, weight: Number(u.weight) || 0 };
+                  if (u.type === "VIDEO") unit.videoUrl = u.videoUrl || null;
+                  if (u.type === "PRESENTATION" && u.file) {
+                    const fileKey = fileKeys.get(u);
+                    if (fileKey) unit.fileKey = fileKey;
+                    else unit.fileData = Buffer.from(u.file.base64, "base64");
+                    unit.fileMime = u.file.mime;
+                    unit.fileName = u.file.name;
+                  }
+                  if (u.type === "QUIZ" && u.questions?.length) {
+                    unit.questions = {
+                      create: u.questions.map((q, qi) => ({
+                        question: q.question,
+                        options: q.options,
+                        correctIndex: q.correctIndex,
+                        order: qi,
+                        title: q.title ?? null,
+                        maxAttempts: q.maxAttempts ?? null,
+                      })),
+                    };
+                  }
+                  return unit;
+                }),
+              },
+            })),
+          },
+        }));
+
+        const cred = await prisma.microCredential.create({
+          data: {
+            title: course.title,
+            slug: await uniqueSlug("microCredential", slugify(course.title)),
+            code: course.code,
+            project: course.project,
+            description: course.description,
+            overview: course.overview,
+            objectives: course.objectives,
+            developedBy: course.developedBy,
+            organisation: course.organisation,
+            topic: course.topic,
+            passGrade: course.passGrade,
+            ...(course.image
+              ? { imageData: Buffer.from(course.image.base64, "base64"), imageMime: course.image.mime }
+              : {}),
+            sections: { create: sectionsCreate },
+          },
+        });
+        credentialId = cred.id;
+        createdNew = true;
+      }
     }
 
     // 2. Link credential ↔ programme — only if the admin explicitly picked one.
@@ -333,14 +367,16 @@ export async function POST(req: NextRequest) {
     }
 
     await deleteObject(key).catch(() => {});
-    return NextResponse.json({ mode: "commit", programmeId: linkedProgrammeId, credentialId, credentialAction, summary });
+    return NextResponse.json({ mode: "commit", programmeId: linkedProgrammeId, credentialId, credentialAction, reimport, summary });
   } catch (err: any) {
     console.error("OLX import error:", err);
-    // Best-effort rollback of anything this request created.
-    if (credentialId && credentialAction !== "skipped") {
+    // Best-effort rollback of anything this request created. Never delete a
+    // credential that was updated in place: it was there before, with its learners.
+    if (createdNew) {
       await prisma.microCredential.delete({ where: { id: credentialId } }).catch(() => {});
     }
-    await Promise.all(uploadedKeys.map((k) => deleteObject(k).catch(() => {})));
+    // A committed re-import uses the uploaded files, so they stay.
+    if (!replacedInPlace) await Promise.all(uploadedKeys.map((k) => deleteObject(k).catch(() => {})));
     return NextResponse.json({ error: err?.message || "Import failed." }, { status: 500 });
   }
 }

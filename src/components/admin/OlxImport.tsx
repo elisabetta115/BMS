@@ -34,6 +34,16 @@ interface Item {
 
 const ARCHIVE_RE = /\.(tar\.gz|tgz|tar|gz)$/i;
 
+/** ": 40 units kept learners’ progress, 2 new, 1 removed" for a re-import's result. */
+function reimportSummary(r: { unitsKept: number; unitsAdded: number; unitsRemoved: number } | null | undefined): string {
+  if (!r) return "";
+  const units = (n: number) => `${n} unit${n === 1 ? "" : "s"}`;
+  const parts = [`${units(r.unitsKept)} kept learners’ progress`];
+  if (r.unitsAdded) parts.push(`${r.unitsAdded} new`);
+  if (r.unitsRemoved) parts.push(`${r.unitsRemoved} removed`);
+  return `: ${parts.join(", ")}`;
+}
+
 const checkKey = (title: string, code: string) => `${title.trim()}\n${code.trim().toUpperCase()}`;
 const hasClash = (it: Item) => !!(it.existing?.nameClash || it.existing?.codeClash);
 const canImport = (it: Item) => it.status === "ready" && !it.checking && !!it.title.trim() && !!it.code.trim() && !hasClash(it);
@@ -501,7 +511,7 @@ function ImportCard({
               ) : (
                 <>
                   <strong>{it.result.summary?.code} · {it.result.summary?.title}</strong>{" "}
-                  {it.result.credentialAction === "replaced" ? "re-imported (the previous version was deleted)" : "created"}.
+                  {it.result.credentialAction === "replaced" ? <>re-imported{reimportSummary(it.result.reimport)}</> : "created"}.
                 </>
               )}
               {it.result.programmeId && <> Added to <strong>{programmes.find((x) => x.id === it.result.programmeId)?.title || "—"}</strong>.</>}
@@ -646,8 +656,8 @@ function ImportCard({
                   <label className="flex items-start gap-2 text-sm text-amber-900">
                     <input type="radio" name={name} checked={it.conflictChoice === "replace"} disabled={locked} onChange={() => onChange({ conflictChoice: "replace" })} className="mt-0.5" />
                     <span>
-                      <strong>Re-import</strong> and replace the existing one with this file. This permanently deletes the current micro-credential, its units and every learner’s enrolment and progress for it
-                      {inProgs.length > 0 ? `, and removes it from ${inProgs.join(", ")}.` : "."}
+                      <strong>Re-import</strong> and update the existing one from this file. Learners keep their enrolment, and their progress on every unit and question still in the file
+                      {inProgs.length > 0 ? `; it stays in ${inProgs.join(", ")}` : ""}. Units and questions no longer in the file are removed, with learners’ progress on them.
                     </span>
                   </label>
                 </div>

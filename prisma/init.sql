@@ -88,6 +88,7 @@ CREATE TABLE "credential_units" (
     "weight" DOUBLE PRECISION NOT NULL DEFAULT 0,
     "video_url" TEXT,
     "file_data" BYTEA,
+    "file_key" TEXT,
     "file_mime" TEXT,
     "file_name" TEXT,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
@@ -211,6 +212,15 @@ CREATE TABLE "email_tokens" (
     CONSTRAINT "email_tokens_pkey" PRIMARY KEY ("id")
 );
 
+-- CreateTable
+CREATE TABLE "programme_admins" (
+    "user_id" TEXT NOT NULL,
+    "programme_id" TEXT NOT NULL,
+    "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
+
+    CONSTRAINT "programme_admins_pkey" PRIMARY KEY ("user_id","programme_id")
+);
+
 -- CreateIndex
 CREATE UNIQUE INDEX "users_email_key" ON "users"("email");
 
@@ -243,6 +253,9 @@ CREATE UNIQUE INDEX "email_tokens_token_hash_key" ON "email_tokens"("token_hash"
 
 -- CreateIndex
 CREATE INDEX "email_tokens_user_id_idx" ON "email_tokens"("user_id");
+
+-- CreateIndex
+CREATE INDEX "programme_admins_programme_id_idx" ON "programme_admins"("programme_id");
 
 -- AddForeignKey
 ALTER TABLE "credential_sections" ADD CONSTRAINT "credential_sections_credential_id_fkey" FOREIGN KEY ("credential_id") REFERENCES "micro_credentials"("id") ON DELETE CASCADE ON UPDATE CASCADE;
@@ -288,3 +301,9 @@ ALTER TABLE "question_answers" ADD CONSTRAINT "question_answers_question_id_fkey
 
 -- AddForeignKey
 ALTER TABLE "email_tokens" ADD CONSTRAINT "email_tokens_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "programme_admins" ADD CONSTRAINT "programme_admins_user_id_fkey" FOREIGN KEY ("user_id") REFERENCES "users"("id") ON DELETE CASCADE ON UPDATE CASCADE;
+
+-- AddForeignKey
+ALTER TABLE "programme_admins" ADD CONSTRAINT "programme_admins_programme_id_fkey" FOREIGN KEY ("programme_id") REFERENCES "micro_programmes"("id") ON DELETE CASCADE ON UPDATE CASCADE;

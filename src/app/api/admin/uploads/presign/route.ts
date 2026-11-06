@@ -1,10 +1,11 @@
 import { NextRequest, NextResponse } from "next/server";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, requireAnyAdminAccess } from "@/lib/admin";
 import { createUploadUrl, isS3Configured } from "@/lib/s3";
 
 const PURPOSES = {
   "olx-import": { prefix: "olx-imports", check: requireAdmin },
-  "unit-file": { prefix: "unit-files", check: requireAdmin },
+  // Lesson files: programme admins upload them too.
+  "unit-file": { prefix: "unit-files", check: requireAnyAdminAccess },
 } as const;
 
 export async function POST(req: NextRequest) {

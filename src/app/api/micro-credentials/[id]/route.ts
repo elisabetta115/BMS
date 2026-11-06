@@ -1,9 +1,11 @@
 // app/api/micro-credentials/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin";
+import { checkUnitFileKeys, requireAdmin, requireCredentialAccess } from "@/lib/admin";
 import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 import { deleteObject } from "@/lib/s3";
+import { syncCredentialContent } from "@/lib/credential-sync";
+import { missingAnswerError } from "@/lib/questions";
 
 function stripBinaryFromCredential(c: any, includeAnswers = true) {
   return {
@@ -43,60 +45,6 @@ function validateWeights(sections: any[]): string | null {
   return null;
 }
 
-interface ExistingUnitFile {
-  fileData: Uint8Array | null;
-  fileKey: string | null;
-  fileMime: string | null;
-  fileName: string | null;
-}
-
-function buildUnitCreate(u: any, ui: number, existingFile?: ExistingUnitFile) {
-  const unitData: any = {
-    title: u.title,
-    type: u.type,
-    order: ui,
-    weight: Number(u.weight) || 0,
-    videoUrl: u.videoUrl || null,
-  };
-  if (u.type === "PRESENTATION") {
-    const b64 = u.fileBase64 || u.pptxBase64;
-    const mime = u.fileMime || u.pptxMime;
-    const name = u.fileName || u.pptxName;
-    if (u.fileKey) {
-      unitData.fileKey = u.fileKey;
-      unitData.fileMime = mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-      unitData.fileName = name || "file";
-    } else if (b64) {
-      unitData.fileData = Buffer.from(b64, "base64");
-      unitData.fileMime =
-        mime || "application/vnd.openxmlformats-officedocument.presentationml.presentation";
-      unitData.fileName = name || "file";
-    } else if (!u.removeFile && existingFile) {
-      // The client never round-trips the actual file bytes/key back to us on
-      // every save (only a "hasFile" flag) — if the unit wasn't touched and
-      // wasn't explicitly removed, carry its existing file forward instead
-      // of silently dropping it when the section tree is recreated below.
-      unitData.fileData = existingFile.fileData ? Buffer.from(existingFile.fileData) : null;
-      unitData.fileKey = existingFile.fileKey;
-      unitData.fileMime = existingFile.fileMime;
-      unitData.fileName = existingFile.fileName;
-    }
-  }
-  if (u.type === "QUIZ" && u.questions?.length) {
-    unitData.questions = {
-      create: u.questions.map((q: any, qi: number) => ({
-        question: q.question,
-        options: q.options,
-        correctIndex: q.correctIndex,
-        order: qi,
-        title: q.title || null,
-        maxAttempts: Number.isInteger(q.maxAttempts) && q.maxAttempts > 0 ? q.maxAttempts : null,
-      })),
-    };
-  }
-  return unitData;
-}
-
 const INCLUDE_FULL = {
   sections: {
     orderBy: { order: "asc" as const },
@@ -128,8 +76,9 @@ export async function GET(
       include: INCLUDE_FULL,
     });
     if (!credential) return NextResponse.json({ error: "Not found." }, { status: 404 });
-    const isAdmin = !((await requireAdmin()) instanceof NextResponse);
-    return NextResponse.json({ credential: stripBinaryFromCredential(credential, isAdmin) });
+    // Whoever may edit the course sees the right answers; learners don't.
+    const canEdit = !((await requireCredentialAccess(id)) instanceof NextResponse);
+    return NextResponse.json({ credential: stripBinaryFromCredential(credential, canEdit) });
   } catch (err) {
     console.error("Error fetching credential:", err);
     return NextResponse.json({ error: "Failed." }, { status: 500 });
@@ -140,29 +89,35 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const { id } = await params;
+  const auth = await requireCredentialAccess(id);
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { id } = await params;
     const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime, removeImage } = await req.json();
 
+    // Content is only touched when the request has it: a save of just the
+    // details must not empty the course.
+    if (sections !== undefined && !Array.isArray(sections)) {
+      return NextResponse.json({ error: "sections must be an array." }, { status: 400 });
+    }
     if (sections) {
       const weightErr = validateWeights(sections);
       if (weightErr) return NextResponse.json({ error: weightErr }, { status: 400 });
+      const answerErr = missingAnswerError(sections);
+      if (answerErr) return NextResponse.json({ error: answerErr }, { status: 400 });
+      if (!auth.isAdmin) {
+        const fileErr = await checkUnitFileKeys(sections, id);
+        if (fileErr) return NextResponse.json({ error: fileErr }, { status: 400 });
+      }
     }
 
-    // The whole section tree is recreated below, so grab each existing
-    // unit's file (by id) first — otherwise a save that doesn't touch a
-    // presentation unit would silently lose its attached file.
+    // The S3 files the units point at now, to delete the ones the save drops.
     const existingUnits = await prisma.credentialUnit.findMany({
       where: { subsection: { section: { credentialId: id } } },
-      select: { id: true, fileData: true, fileKey: true, fileMime: true, fileName: true },
+      select: { fileKey: true },
     });
-    const existingFilesById = new Map(existingUnits.map((u) => [u.id, u]));
     const staleKeys = existingUnits.map((u) => u.fileKey).filter((k): k is string => !!k);
-
-    await prisma.credentialSection.deleteMany({ where: { credentialId: id } });
 
     const data: any = {};
     if (title !== undefined) data.title = title;
@@ -185,32 +140,18 @@ export async function PATCH(
       data.imageMime = null;
     }
 
-    if (sections && sections.length > 0) {
-      data.sections = {
-        create: sections.map((s: any, si: number) => ({
-          title: s.title,
-          order: si,
-          subsections: {
-            create: (s.subsections || []).map((ss: any, ssi: number) => ({
-              title: ss.title,
-              order: ssi,
-              units: {
-                create: (ss.units || []).map((u: any, ui: number) =>
-                  buildUnitCreate(u, ui, u.id ? existingFilesById.get(u.id) : undefined)
-                ),
-              },
-            })),
-          },
-        })),
-      };
-    }
-
-    const credential = await prisma.microCredential.update({
-      where: { id },
-      data,
-      omit: { imageData: true },
-      include: INCLUDE_FULL,
-    });
+    // Sections, units and questions are updated in place (src/lib/credential-sync.ts),
+    // so learners keep their completions and answers. One transaction: a save
+    // that fails part-way changes nothing. Only `tx` may be used inside: the
+    // pool has a single connection (src/lib/prisma.ts), which `tx` holds.
+    const credential = await prisma.$transaction(
+      async (tx) => {
+        await tx.microCredential.update({ where: { id }, data, select: { id: true } });
+        if (sections) await syncCredentialContent(tx, id, sections);
+        return tx.microCredential.findUniqueOrThrow({ where: { id }, omit: { imageData: true }, include: INCLUDE_FULL });
+      },
+      { maxWait: 15_000, timeout: 60_000 }
+    );
 
     // Clean up any S3 files that were replaced or explicitly removed —
     // anything still referenced by the freshly-saved credential stays.
@@ -223,6 +164,7 @@ export async function PATCH(
   } catch (err: any) {
     console.error("Error updating credential:", err);
     if (err?.code === "P2002") return NextResponse.json({ error: "Slug already exists." }, { status: 409 });
+    if (err?.code === "P2025") return NextResponse.json({ error: "Not found." }, { status: 404 });
     return NextResponse.json({ error: "Failed." }, { status: 500 });
   }
 }

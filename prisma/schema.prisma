@@ -43,6 +43,7 @@ model User {
   unitCompletions     UnitCompletion[]
   questionAnswers     QuestionAnswer[]
   emailTokens         EmailToken[]
+  managedProgrammes   ProgrammeAdmin[]
 
   @@map("users")
 }
@@ -205,8 +206,24 @@ model MicroProgramme {
 
   credentials ProgrammeCredential[]
   enrollments ProgrammeEnrollment[]
+  admins      ProgrammeAdmin[]
 
   @@map("micro_programmes")
+}
+
+/// A learner a site admin has put in charge of one micro-programme. In the Admin
+/// Panel they can edit that programme and its micro-credentials, and nothing else.
+model ProgrammeAdmin {
+  userId      String   @map("user_id")
+  programmeId String   @map("programme_id")
+  createdAt   DateTime @default(now()) @map("created_at")
+
+  user      User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  programme MicroProgramme @relation(fields: [programmeId], references: [id], onDelete: Cascade)
+
+  @@id([userId, programmeId])
+  @@index([programmeId])
+  @@map("programme_admins")
 }
 
 model ProgrammeCredential {

@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin";
+import { requireAdmin, requireProgrammeAccess } from "@/lib/admin";
 
 export async function GET(
   req: NextRequest,
@@ -9,6 +9,10 @@ export async function GET(
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
     const { id } = await params;
+    // Public: the programme pages and the admin only need each micro-credential's
+    // details and section count. Course content stays out, above all the quiz
+    // questions with their right answers (those come, without the answers,
+    // from /api/micro-credentials/[id]).
     const programme = await prisma.microProgramme.findUnique({
       where: { id },
       omit: { imageData: true },
@@ -18,23 +22,7 @@ export async function GET(
           include: {
             credential: {
               omit: { imageData: true },
-              include: {
-                sections: {
-                  orderBy: { order: "asc" },
-                  include: {
-                    subsections: {
-                      orderBy: { order: "asc" },
-                      include: {
-                        units: {
-                          orderBy: { order: "asc" },
-                          omit: { fileData: true },
-                          include: { questions: { orderBy: { order: "asc" } } },
-                        },
-                      },
-                    },
-                  },
-                },
-              },
+              include: { _count: { select: { sections: true } } },
             },
           },
         },
@@ -44,16 +32,10 @@ export async function GET(
     const result = {
       ...programme,
       hasImage: !!programme.imageMime,
-      credentials: programme.credentials.map((pc: any) => ({
-        ...pc.credential,
-        hasImage: !!pc.credential.imageMime,
-        sections: pc.credential.sections.map((s: any) => ({
-          ...s,
-          subsections: s.subsections.map((ss: any) => ({
-            ...ss,
-            units: ss.units.map((u: any) => ({ ...u, hasFile: !!(u.fileKey || u.fileMime) })),
-          })),
-        })),
+      credentials: programme.credentials.map(({ credential: { _count, ...credential } }) => ({
+        ...credential,
+        hasImage: !!credential.imageMime,
+        sectionsCount: _count.sections,
       })),
     };
     return NextResponse.json({ programme: result });
@@ -67,11 +49,11 @@ export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> }
 ) {
-  const auth = await requireAdmin();
+  const { id } = await params;
+  const auth = await requireProgrammeAccess(id);
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { id } = await params;
     const { title, slug, code, project, imageBase64, imageMime, removeImage } = await req.json();
 
     const data: any = {};
