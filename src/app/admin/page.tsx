@@ -479,6 +479,10 @@ export default function AdminPage() {
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", image: "" });
   const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
   const [sections, setSections] = useState<CredentialSection[]>([]);
+  // The micro-credential as the editor last loaded or saved it, to tell whether it has unsaved changes.
+  const [savedCredSnapshot, setSavedCredSnapshot] = useState("");
+  const credSnapshot = useMemo(() => JSON.stringify({ credForm, sections }), [credForm, sections]);
+  const credDirty = view === "edit-cred" && credSnapshot !== savedCredSnapshot;
 
   /* ─── Browser back-button → return to list view ──────────
      We push a history entry when entering an edit view, then listen
@@ -809,23 +813,39 @@ export default function AdminPage() {
     }
   }
 
+  /** Puts a micro-credential, as the server has it, into the editor. */
+  function loadCredIntoEditor(full: MicroCredential, version: number) {
+    const imgUrl = full.hasImage ? imageUrlFor("credential", full.id, version, null) : full.image || "";
+    const form = { title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", organisation: full.organisation || "", topic: full.topic || "", passGrade: String(full.passGrade) };
+    const secs = full.sections || [];
+    setCredForm(form); setSections(secs); setEditingCred(full);
+    setSavedCredSnapshot(JSON.stringify({ credForm: form, sections: secs }));
+  }
+
   async function editCred(c: MicroCredential, progId?: string) {
     const full = await fetchFullCredential(c.id);
     if (!full) { alert("Could not load this credential. Please try again."); return; }
     pushAdminHistory("edit-cred");
-    const imgUrl = full.hasImage ? imageUrlFor("credential", full.id, imageVersion, null) : full.image || "";
-    setCredForm({ title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", organisation: full.organisation || "", topic: full.topic || "", passGrade: String(full.passGrade) });
-    setSections(full.sections || []); setEditingCred(full); setParentProgId(progId || null); setFormError("");
+    loadCredIntoEditor(full, imageVersion);
+    setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("edit-cred");
   }
 
   async function saveCred(e: React.FormEvent) {
-    e.preventDefault(); setFormError("");
-    if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return; }
-    if (exceedsFullWeight(totalWeight)) { setFormError(`Total unit weight is ${formatWeight(totalWeight)}%. It must not exceed 100%.`); return; }
+    e.preventDefault();
+    if (!(await persistCred())) return;
+    if (parentProgId) { await refreshProg(parentProgId); }
+    else { await loadData(); goList(); }
+  }
+
+  /** Saves the micro-credential in the editor. Returns its id, or null with the error shown next to the buttons. */
+  async function persistCred(): Promise<string | null> {
+    setFormError("");
+    if (!credForm.title || !credForm.code) { setFormError("Title and code required."); return null; }
+    if (exceedsFullWeight(totalWeight)) { setFormError(`Total unit weight is ${formatWeight(totalWeight)}%. It must not exceed 100%.`); return null; }
     const answerErr = missingAnswerError(sections);
-    if (answerErr) { setFormError(answerErr); return; }
+    if (answerErr) { setFormError(answerErr); return null; }
     setFormLoading(true);
     try {
       const url = editingCred ? `/api/micro-credentials/${editingCred.id}` : "/api/micro-credentials";
@@ -845,12 +865,28 @@ export default function AdminPage() {
         delete payload.image;
       }
       const r = await fetch(url, { method, headers: { "Content-Type": "application/json" }, body: JSON.stringify(payload) });
-      const d = await r.json(); if (!r.ok) { setFormError(d.error || "Failed."); setFormLoading(false); if (r.status === 403) recheckAccess(); return; }
+      const d = await r.json();
+      if (!r.ok) { setFormError(d.error || "Failed."); if (r.status === 403) recheckAccess(); return null; }
       setImageVersion(v => v + 1);
-      if (parentProgId) { await refreshProg(parentProgId); }
+      return d.credential?.id ?? editingCred?.id ?? null;
+    } catch { setFormError("Network error."); return null; }
+    finally { setFormLoading(false); }
+  }
+
+  /** The editor's Export: unsaved changes are saved first, so the file has them. */
+  async function saveAndExport() {
+    if (!editingCred) return;
+    const cred = { id: editingCred.id, title: credForm.title || editingCred.title };
+    if (credDirty) {
+      if (!(await persistCred())) return;
+      // Reload what was saved: new sections, units and questions have ids now,
+      // which a later Update needs so it doesn't add them a second time.
+      const full = await fetchFullCredential(cred.id);
+      if (full) { loadCredIntoEditor(full, imageVersion + 1); loadData(); }
+      else if (parentProgId) await refreshProg(parentProgId);
       else { await loadData(); goList(); }
-    } catch { setFormError("Network error."); }
-    setFormLoading(false);
+    }
+    await exportCred(cred);
   }
 
   async function delCred(id: string) {
@@ -1531,8 +1567,8 @@ export default function AdminPage() {
                   </button>
                   <button type="button" onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-btn-secondary">Cancel</button>
                   {editingCred && isSiteAdmin && (
-                    <button type="button" onClick={() => exportCred(editingCred)} disabled={!!exportingId} className="bms-admin-btn-secondary" title="Downloads the saved version: save your changes first">
-                      {exportingId === editingCred.id ? "Exporting…" : "Export"}
+                    <button type="button" onClick={saveAndExport} disabled={!!exportingId || formLoading} className="bms-admin-btn-secondary" title={credDirty ? "Saves your changes, then downloads the course file" : "Downloads the course file"}>
+                      {exportingId === editingCred.id ? "Exporting…" : credDirty ? "Save & export" : "Export"}
                     </button>
                   )}
                   {editingCred && isSiteAdmin && <button type="button" onClick={() => delCred(editingCred.id)} className="bms-admin-btn-danger">Delete</button>}

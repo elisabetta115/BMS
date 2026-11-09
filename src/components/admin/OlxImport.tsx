@@ -621,7 +621,7 @@ function ImportCard({
                 <div className="grid grid-cols-1 sm:grid-cols-[10rem_1fr] gap-3">
                   <div>
                     <label className="bms-admin-label">Number</label>
-                    <input className="auth-input" value={it.code} disabled={locked} onChange={(e) => onEditNameNumber({ code: e.target.value.toUpperCase() })} />
+                    <input className="auth-input" value={it.code} disabled={locked} onChange={(e) => onEditNameNumber({ code: e.target.value })} />
                   </div>
                   <div>
                     <label className="bms-admin-label">Name</label>

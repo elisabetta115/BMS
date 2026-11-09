@@ -149,7 +149,7 @@ export async function POST(req: NextRequest) {
   const programmeId = rawProgrammeId ? String(rawProgrammeId) : null;
   const onExistingCredential = String(rawOnExisting || "");
   const titleOverride = rawTitle != null ? String(rawTitle).trim() : null;
-  const codeOverride = rawCode != null ? String(rawCode).trim().toUpperCase() : null;
+  const codeOverride = rawCode != null ? String(rawCode).trim() : null;
   if (titleOverride === "" || codeOverride === "") {
     return NextResponse.json({ error: "The micro-credential name and number can't be empty." }, { status: 400 });
   }
