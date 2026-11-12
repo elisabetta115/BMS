@@ -84,6 +84,9 @@ model MicroCredential {
   organisation String?
   topic       String?
   passGrade   Int      @default(50) @map("pass_grade")
+  /// False for a draft: only people who can edit it see it (in the Admin Panel)
+  /// until an admin publishes it. The content API (/api/content) creates drafts.
+  published   Boolean  @default(true)
   createdAt   DateTime @default(now()) @map("created_at")
   updatedAt   DateTime @updatedAt @map("updated_at")
 

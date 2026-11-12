@@ -1,5 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
+import { prisma } from "@/lib/prisma";
+import { requireCredentialAccess } from "@/lib/admin";
 import {
   getUserEnrolledProgrammes,
   getUserEnrolledCredentials,
@@ -45,6 +47,11 @@ export async function POST(req: NextRequest) {
       // learners enrol in each one with "Enroll Now" on the programme page.
       await enrollUserInProgramme(session.userId, id);
     } else if (type === "credential") {
+      // A draft can't be enrolled in, except by the people who can edit it (to try it out).
+      const credential = await prisma.microCredential.findUnique({ where: { id: String(id) }, select: { published: true } });
+      if (!credential || (!credential.published && (await requireCredentialAccess(String(id))) instanceof NextResponse)) {
+        return NextResponse.json({ error: "Micro-credential not found." }, { status: 404 });
+      }
       await enrollUserInCredential(session.userId, id);
     } else {
       return NextResponse.json({ error: "Invalid type. Must be 'programme' or 'credential'." }, { status: 400 });

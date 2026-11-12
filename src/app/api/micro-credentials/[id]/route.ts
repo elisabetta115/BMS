@@ -6,6 +6,7 @@ import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 import { deleteObject } from "@/lib/s3";
 import { syncCredentialContent } from "@/lib/credential-sync";
 import { exportKey } from "@/lib/olx-export";
+import { getSession } from "@/lib/auth";
 import { missingAnswerError } from "@/lib/questions";
 
 function stripBinaryFromCredential(c: any, includeAnswers = true) {
@@ -79,6 +80,15 @@ export async function GET(
     if (!credential) return NextResponse.json({ error: "Not found." }, { status: 404 });
     // Whoever may edit the course sees the right answers; learners don't.
     const canEdit = !((await requireCredentialAccess(id)) instanceof NextResponse);
+    // A draft is hidden from everyone but its editors, and learners already
+    // enrolled (when a published course is turned back into a draft).
+    if (!credential.published && !canEdit) {
+      const session = await getSession();
+      const enrolled = session
+        ? await prisma.credentialEnrollment.findUnique({ where: { userId_credentialId: { userId: session.userId, credentialId: id } }, select: { id: true } })
+        : null;
+      if (!enrolled) return NextResponse.json({ error: "Not found." }, { status: 404 });
+    }
     return NextResponse.json({ credential: stripBinaryFromCredential(credential, canEdit) });
   } catch (err) {
     console.error("Error fetching credential:", err);
@@ -95,7 +105,7 @@ export async function PATCH(
   if (auth instanceof NextResponse) return auth;
   try {
     if (!prisma) return NextResponse.json({ error: "Database not configured." }, { status: 500 });
-    const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime, removeImage } = await req.json();
+    const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, published, sections, imageBase64, imageMime, removeImage } = await req.json();
 
     // Content is only touched when the request has it: a save of just the
     // details must not empty the course.
@@ -132,6 +142,7 @@ export async function PATCH(
     if (organisation !== undefined) data.organisation = organisation || null;
     if (topic !== undefined) data.topic = topic || null;
     if (passGrade !== undefined) data.passGrade = passGrade;
+    if (typeof published === "boolean") data.published = published;
 
     if (imageBase64 && imageMime) {
       data.imageData = Buffer.from(imageBase64, "base64");

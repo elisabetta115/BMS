@@ -41,6 +41,8 @@ interface MicroCredential {
   image: string | null; hasImage: boolean; developedBy: string | null;
   organisation: string | null; topic: string | null;
   passGrade: number; sections?: CredentialSection[]; sectionsCount?: number;
+  /** False for a draft, which only admins see (see visibleCredentialsWhere in src/lib/admin.ts). */
+  published?: boolean;
 }
 
 interface MicroProgramme {
@@ -279,6 +281,7 @@ function CredentialRow({ credential: c, programmeCodes, imageVersion, onEdit, on
         <p className="bms-admin-item-meta">{c.code} | {c.project} · {sections} section{sections === 1 ? "" : "s"}{c.topic ? ` · ${c.topic}` : ""}</p>
         <h3 className="bms-admin-item-title">{c.title}</h3>
         <div className="bms-admin-chips">
+          {c.published === false && <span className="bms-admin-chip is-draft" title="Only admins see it until it's published">Draft</span>}
           {programmeCodes.length > 0 ? programmeCodes.map(code => <span key={code} className="bms-admin-chip">{code}</span>) : <span className="bms-admin-chip is-empty">Not in any programme</span>}
         </div>
       </div>
@@ -477,7 +480,7 @@ export default function AdminPage() {
   }, [confirmDialog]);
 
   const [progForm, setProgForm] = useState({ title: "", slug: "", code: "", project: "", image: "" });
-  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
+  const [credForm, setCredForm] = useState({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50", published: true });
   const [sections, setSections] = useState<CredentialSection[]>([]);
   // The micro-credential as the editor last loaded or saved it, to tell whether it has unsaved changes.
   const [savedCredSnapshot, setSavedCredSnapshot] = useState("");
@@ -791,7 +794,7 @@ export default function AdminPage() {
 
   function newCred(progId?: string) {
     pushAdminHistory("new-cred");
-    setCredForm({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50" });
+    setCredForm({ title: "", slug: "", code: "", project: "", description: "", overview: "", objectives: "", image: "", developedBy: "", organisation: "", topic: "", passGrade: "50", published: true });
     setSections([]); setEditingCred(null); setParentProgId(progId || null); setFormError("");
     if (!progId) setReturnTab("credentials");
     setView("new-cred");
@@ -816,7 +819,7 @@ export default function AdminPage() {
   /** Puts a micro-credential, as the server has it, into the editor. */
   function loadCredIntoEditor(full: MicroCredential, version: number) {
     const imgUrl = full.hasImage ? imageUrlFor("credential", full.id, version, null) : full.image || "";
-    const form = { title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", organisation: full.organisation || "", topic: full.topic || "", passGrade: String(full.passGrade) };
+    const form = { title: full.title, slug: full.slug, code: full.code, project: full.project, description: full.description || "", overview: full.overview || "", objectives: full.objectives || "", image: imgUrl, developedBy: full.developedBy || "", organisation: full.organisation || "", topic: full.topic || "", passGrade: String(full.passGrade), published: full.published !== false };
     const secs = full.sections || [];
     setCredForm(form); setSections(secs); setEditingCred(full);
     setSavedCredSnapshot(JSON.stringify({ credForm: form, sections: secs }));
@@ -1515,7 +1518,7 @@ export default function AdminPage() {
                     <div className="space-y-3">{(editingProg.credentials || []).map(c => (
                       <div key={c.id} className="bms-admin-subitem">
                         <div className="flex-1 cursor-pointer" onClick={() => editCred(c, editingProg.id)}>
-                          <p className="bms-admin-item-meta">{c.code} · {c.sectionsCount ?? (c.sections || []).length} sections{progsUsingCred(c.id).length > 1 && <span className="bms-admin-chip ml-2">Shared</span>}</p>
+                          <p className="bms-admin-item-meta">{c.code} · {c.sectionsCount ?? (c.sections || []).length} sections{c.published === false && <span className="bms-admin-chip is-draft ml-2">Draft</span>}{progsUsingCred(c.id).length > 1 && <span className="bms-admin-chip ml-2">Shared</span>}</p>
                           <p className="bms-admin-subitem-title">{c.title}</p>
                         </div>
                         <div className="flex gap-2">
@@ -1535,9 +1538,18 @@ export default function AdminPage() {
           {(view === "new-cred" || view === "edit-cred") && (
             <>
               <button onClick={() => { if (parentProgId) { const p = programmes.find(x => x.id === parentProgId); if (p) { editProg(p); return; } } goList(); }} className="bms-admin-back">← Back</button>
-              <h1 className="bms-admin-title is-sub">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}</h1>
+              <h1 className="bms-admin-title is-sub">{editingCred ? `Edit: ${editingCred.title}` : "New Micro-credential"}{editingCred?.published === false && <span className="bms-admin-chip is-draft ml-3 align-middle">Draft</span>}</h1>
               <form onSubmit={saveCred} autoComplete="off" className="bms-admin-panel">
                 <div className="grid md:grid-cols-2 gap-4">
+                  <div className="md:col-span-2">
+                    <label className="bms-admin-publish">
+                      <input type="checkbox" checked={credForm.published} onChange={e => setCredForm({ ...credForm, published: e.target.checked })} />
+                      <span>
+                        <span className="bms-admin-label">Published</span>
+                        <span className="bms-admin-help">{credForm.published ? "Learners can find it in the catalogue and enrol. Untick to make it a draft again." : "Draft: only admins see it. Tick and save to put it on the site."}</span>
+                      </span>
+                    </label>
+                  </div>
                   <div><label className="bms-admin-label">Micro Credential Name *</label><input className="auth-input" value={credForm.title} onChange={e => setCredForm({ ...credForm, title: e.target.value })} required /></div>
                   <div><label className="bms-admin-label">Micro Credential Number *</label><input className="auth-input" value={credForm.code} onChange={e => setCredForm({ ...credForm, code: e.target.value })} required placeholder="e.g. MC1.1" /></div>
                   <div><label className="bms-admin-label">University / organisation</label><input className="auth-input" list="organisation-options-cred" value={credForm.organisation} onChange={e => setCredForm({ ...credForm, organisation: e.target.value })} placeholder="e.g. Universitat Politècnica de València" /><datalist id="organisation-options-cred">{allOrganisations.map(o => <option key={o} value={o} />)}</datalist><p className="bms-admin-help">Shown at the top of the catalogue card and course page.</p></div>

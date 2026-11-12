@@ -50,6 +50,7 @@ CREATE TABLE "micro_credentials" (
     "organisation" TEXT,
     "topic" TEXT,
     "pass_grade" INTEGER NOT NULL DEFAULT 50,
+    "published" BOOLEAN NOT NULL DEFAULT true,
     "created_at" TIMESTAMP(3) NOT NULL DEFAULT CURRENT_TIMESTAMP,
     "updated_at" TIMESTAMP(3) NOT NULL,
 

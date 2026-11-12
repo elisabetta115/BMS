@@ -1,7 +1,7 @@
 // app/api/micro-credentials/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { checkUnitFileKeys, requireAdmin, requireProgrammeAccess } from "@/lib/admin";
+import { checkUnitFileKeys, getAdminAccess, requireAdmin, requireProgrammeAccess, visibleCredentialsWhere } from "@/lib/admin";
 import { exceedsFullWeight, formatWeight } from "@/lib/weights";
 import { missingAnswerError } from "@/lib/questions";
 
@@ -47,7 +47,10 @@ export async function GET() {
     // full content, and never the raw image bytes (served separately via
     // /api/images/[type]/[id]) — fetching those for every row here was the
     // difference between a very slow, huge response and a near-instant one.
+    // Drafts only for the people who can edit them (the Admin Panel uses this list too).
+    const access = await getAdminAccess();
     const credentials = await prisma.microCredential.findMany({
+      where: visibleCredentialsWhere(access),
       orderBy: { code: "asc" },
       omit: { imageData: true },
       include: { _count: { select: { sections: true } } },
@@ -68,7 +71,7 @@ export async function GET() {
 export async function POST(req: NextRequest) {
   let body: any;
   try { body = await req.json(); } catch { return NextResponse.json({ error: "Invalid request." }, { status: 400 }); }
-  const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, sections, imageBase64, imageMime, programmeId } = body;
+  const { title, slug, code, project, description, overview, objectives, developedBy, organisation, topic, passGrade, published, sections, imageBase64, imageMime, programmeId } = body;
 
   // With programmeId the new micro-credential goes straight into that
   // programme, which its programme admins may do; otherwise site admins only.
@@ -107,6 +110,7 @@ export async function POST(req: NextRequest) {
       organisation: organisation || null,
       topic: topic || null,
       passGrade: passGrade || 50,
+      published: published !== false, // the Admin Panel can save a new one as a draft
     };
 
     if (imageBase64 && imageMime) {

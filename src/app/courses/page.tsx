@@ -19,6 +19,8 @@ interface MicroCredential {
   organisation: string | null;
   topic: string | null;
   passGrade: number;
+  /** False for a draft, which only admins are shown. */
+  published?: boolean;
 }
 
 // Mirrors the live facet dropdown: the list opens in-flow under the button, and once a value
@@ -206,6 +208,11 @@ export default function CoursesPage() {
                         )}
                       </Link>
                       <div className="bms-course-body">
+                        {c.published === false && (
+                          <span className="bms-draft-tag is-card" title="Only admins can see it until it is published">
+                            Draft · only admins see this
+                          </span>
+                        )}
                         {c.organisation && <span className="bms-course-org">{c.organisation}</span>}
                         <span className="bms-course-code">
                           {c.code} | {c.project}

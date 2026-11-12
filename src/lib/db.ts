@@ -549,6 +549,7 @@ export async function getUserEnrolledProgrammes(userId: string): Promise<DBMicro
         programme: {
           include: {
             credentials: {
+              where: { credential: { published: true } }, // not drafts
               orderBy: { order: "asc" },
               include: { credential: true },
             },

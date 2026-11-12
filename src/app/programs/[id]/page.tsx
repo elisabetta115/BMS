@@ -14,6 +14,8 @@ interface MicroCredential {
   project: string;
   passGrade: number;
   hasImage?: boolean;
+  /** False for a draft, which only admins are shown. */
+  published?: boolean;
 }
 
 interface MicroProgramme {
@@ -283,6 +285,7 @@ export default function ProgrammeDetailPage() {
               <ul className="bms-prog-courses">
                 {remainingCourses.map((c) => (
                   <li key={c.id}>
+                    {c.published === false && <span className="bms-draft-tag is-card">Draft · only admins see this</span>}
                     <h3>{c.title}</h3>
                     <p>
                       {c.code} | {c.project}

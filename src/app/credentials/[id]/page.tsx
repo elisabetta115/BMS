@@ -203,6 +203,15 @@ export default function CredentialDetailPage() {
         }}
       />
       <main id="main" className="bms-cd">
+        {/* Only admins get a draft from the API, so only they see this. */}
+        {credential.published === false && (
+          <p className="bms-draft-banner" role="status">
+            <span className="bms-draft-tag">Draft</span>
+            <span>
+              Only admins can see this micro-credential. Learners will see it once it is published in the admin panel.
+            </span>
+          </p>
+        )}
         <section className="bms-cd-hero">
           <div className="bms-cd-hero-image">
             {credential.hasImage ? (

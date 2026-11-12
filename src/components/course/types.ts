@@ -62,6 +62,8 @@ export interface CourseCredential {
   topic: string | null;
   passGrade: number;
   hasImage: boolean;
+  /** False for a draft, which only admins are shown (see visibleCredentialsWhere in src/lib/admin.ts). */
+  published?: boolean;
   sections: Section[];
 }
 

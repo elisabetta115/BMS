@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin, requireProgrammeAccess } from "@/lib/admin";
+import { getAdminAccess, requireAdmin, requireProgrammeAccess, seesProgrammeDrafts } from "@/lib/admin";
 
 export async function GET(
   req: NextRequest,
@@ -29,10 +29,13 @@ export async function GET(
       },
     });
     if (!programme) return NextResponse.json({ error: "Not found." }, { status: 404 });
+    // Drafts only for the people who can edit them; for learners the programme
+    // is just its published micro-credentials (its progress and certificate too).
+    const showDrafts = seesProgrammeDrafts(await getAdminAccess(), id);
     const result = {
       ...programme,
       hasImage: !!programme.imageMime,
-      credentials: programme.credentials.map(({ credential: { _count, ...credential } }) => ({
+      credentials: programme.credentials.filter((pc) => pc.credential.published || showDrafts).map(({ credential: { _count, ...credential } }) => ({
         ...credential,
         hasImage: !!credential.imageMime,
         sectionsCount: _count.sections,

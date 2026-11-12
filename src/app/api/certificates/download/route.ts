@@ -38,7 +38,9 @@ export async function GET(req: NextRequest) {
         select: {
           title: true,
           project: true,
+          // As on the programme page: a draft micro-credential isn't part of it yet.
           credentials: {
+            where: { credential: { published: true } },
             select: {
               credential: { select: { id: true } },
             },

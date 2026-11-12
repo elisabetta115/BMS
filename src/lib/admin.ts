@@ -1,6 +1,7 @@
 import { getSession } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { NextResponse } from "next/server";
+import type { Prisma } from "@prisma/client";
 
 // Two kinds of people use the Admin Panel:
 //  - site admins (users.role = ADMIN), who can do everything;
@@ -57,6 +58,23 @@ export async function getAdminAccess(): Promise<AdminAccess | null> {
     isAdmin: user.role === "ADMIN",
     programmeIds: user.managedProgrammes.map((m) => m.programmeId),
   };
+}
+
+// Draft micro-credentials (published = false) are seen only by the people who
+// can edit them: site admins, and programme admins of a programme they're in.
+// Everyone else gets them as if they didn't exist.
+
+/** The micro-credentials this person may see, drafts included where they can edit them (a Prisma `where`). */
+export function visibleCredentialsWhere(access: AdminAccess | null): Prisma.MicroCredentialWhereInput {
+  if (access?.isAdmin) return {};
+  const visible: Prisma.MicroCredentialWhereInput[] = [{ published: true }];
+  if (access?.programmeIds.length) visible.push({ programmes: { some: { programmeId: { in: access.programmeIds } } } });
+  return { OR: visible };
+}
+
+/** Whether this person sees the drafts in this programme. */
+export function seesProgrammeDrafts(access: AdminAccess | null, programmeId: string): boolean {
+  return !!access && (access.isAdmin || access.programmeIds.includes(programmeId));
 }
 
 /** A site admin, or a programme admin of any programme. */

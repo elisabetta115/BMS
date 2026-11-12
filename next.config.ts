@@ -15,6 +15,10 @@ const nextConfig: NextConfig = {
     SMTP_PASSWORD: process.env.SMTP_PASSWORD,
     SMTP_FROM: process.env.SMTP_FROM,
     APP_URL: process.env.APP_URL,
+    // Lets an agent or a script call /api/analytics/* (src/lib/analytics.ts).
+    ANALYTICS_API_KEY: process.env.ANALYTICS_API_KEY,
+    // Lets an agent or a script enter micro-credentials via /api/content/* (src/lib/content-api.ts).
+    CONTENT_API_KEY: process.env.CONTENT_API_KEY,
   },
   // Fonts and logo read from public/ when stamping certificates (src/lib/certificate-assets.ts).
   outputFileTracingIncludes: {

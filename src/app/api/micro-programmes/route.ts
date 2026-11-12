@@ -1,6 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/prisma";
-import { requireAdmin } from "@/lib/admin";
+import { getAdminAccess, requireAdmin, seesProgrammeDrafts } from "@/lib/admin";
 
 export async function GET() {
   try {
@@ -10,6 +10,7 @@ export async function GET() {
     // bytes (images are served separately via /api/images/[type]/[id]).
     // Fetching those for every row here was the difference between a ~30s,
     // 40MB response and a near-instant one.
+    const access = await getAdminAccess();
     const programmes = await prisma.microProgramme.findMany({
       orderBy: { code: "asc" },
       omit: { imageData: true },
@@ -28,7 +29,8 @@ export async function GET() {
     const result = programmes.map((p: any) => ({
       ...p,
       hasImage: !!p.imageMime,
-      credentials: p.credentials.map((pc: any) => ({
+      // Drafts only for the people who can edit them.
+      credentials: p.credentials.filter((pc: any) => pc.credential.published || seesProgrammeDrafts(access, p.id)).map((pc: any) => ({
         ...pc.credential,
         hasImage: !!pc.credential.imageMime,
         sectionsCount: pc.credential._count.sections,

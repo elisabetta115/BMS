@@ -13,6 +13,9 @@ export interface CredentialProgress {
  * presentations earn their weight once completed; a quiz earns its weight in
  * proportion to the questions answered correctly. Quizzes completed before
  * answers were recorded (old "all answers right" rule) keep their full weight.
+ *
+ * gradesCte in analytics.ts does the same sum in SQL for every learner at
+ * once: change both together.
  */
 export async function getCredentialProgress(userId: string, credentialId: string): Promise<CredentialProgress> {
   if (!prisma) throw new Error("Database not configured.");
